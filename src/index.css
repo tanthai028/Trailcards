@@ -1,22 +1,24 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  /* Rounded display face to match the clay figurines; Nunito for reading. */
+  --font-display: 'Fredoka', ui-rounded, system-ui, sans-serif;
   --font-sans: 'Nunito', ui-rounded, system-ui, sans-serif;
 
-  --color-ink: #1b1f3b;
-  --color-ink-2: #262a52;
-  --color-ink-3: #343a6b;
-  --color-cream: #fff8ef;
-  --color-paper: #fdf3e7;
-  --color-peach: #ffb38a;
-  --color-coral: #ff7f8a;
-  --color-lav: #9d8cff;
-  --color-lav-soft: #d9d0ff;
-  --color-sage: #8fc9a3;
-  --color-sky: #8ec5ff;
-  --color-gold: #ffd27a;
-  --color-muted: #6b6788;
+  /* Plum dusk: the van at night. Token names kept so components didn't churn. */
+  --color-ink: #221a33;
+  --color-ink-2: #30264a;
+  --color-ink-3: #3c3159;
+  --color-cream: #fbf3e6;
+  --color-paper: #fbf3e6;
+  --color-peach: #f7b48f;
+  --color-coral: #f08a80;
+  --color-lav: #b9a7f2;
+  --color-lav-soft: #ddd3fb;
+  --color-sage: #8dcfa1;
+  --color-sky: #9cc8f2;
+  --color-gold: #f5cd6a;
+  --color-muted: #6e6488;
 }
 
 html,
@@ -27,7 +29,7 @@ body,
 
 body {
   margin: 0;
-  background: radial-gradient(1200px 700px at 50% -10%, #3a3478 0%, #1b1f3b 55%, #141733 100%) fixed;
+  background: radial-gradient(1100px 640px at 50% -12%, #463764 0%, #221a33 58%, #1a1428 100%) fixed;
   color: var(--color-cream);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -38,6 +40,60 @@ body {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;
   border-radius: 12px;
+}
+
+/* ── Clay: the one material every UI surface is made of ───────────
+   Lit from the top-left like the renders: a soft highlight on the top
+   edge, a darker lip underneath, and a short contact shadow. */
+.clay {
+  background: #30264a;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.18),
+    0 6px 14px -8px rgba(10, 4, 24, 0.7);
+}
+.clay-hi {
+  background: #3c3159;
+}
+
+/* Pressable clay button: sits on a 4px lip and presses down into it. */
+.clay-btn {
+  border-radius: 18px;
+  font-weight: 800;
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 150ms ease;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 4px 0 var(--lip, rgba(0, 0, 0, 0.3)),
+    0 8px 14px -6px rgba(10, 4, 24, 0.55);
+}
+.clay-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.clay-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    0 1px 0 var(--lip, rgba(0, 0, 0, 0.3)),
+    0 3px 6px -4px rgba(10, 4, 24, 0.5);
+}
+.clay-btn:disabled {
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.clay-butter { background: var(--color-gold); color: #3a2a12; --lip: #c99a34; }
+.clay-lav { background: var(--color-lav); color: #22183a; --lip: #8a76cc; }
+.clay-cream { background: var(--color-cream); color: #2a2140; --lip: #d6c6ad; }
+.clay-plum { background: #3c3159; color: var(--color-cream); --lip: #1c1530; }
+.clay-ink { background: #2a2140; color: var(--color-cream); --lip: #120c1e; }
+
+/* Sliding nav highlight: clay look without .clay-btn's transform transition,
+   which would fight Framer's layout animation and make the pill jolt. */
+.clay-pill {
+  background: var(--color-gold);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -3px 0 rgba(160, 110, 30, 0.35),
+    0 6px 12px -6px rgba(10, 4, 24, 0.6);
 }
 
 .no-scrollbar {
@@ -114,6 +170,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cq-idle, .cq-blink, .cq-tail, .cq-sway, .cq-twinkle, .cq-flicker {
     animation: none !important;
+  }
+  .clay-btn {
+    transition: none;
   }
   .snap-y {
     scroll-behavior: auto !important;
