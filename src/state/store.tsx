@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as G from './game'
 import { localSave } from './storage'
-import type { HairColorId } from '../data/items'
+import { ITEM_BY_ID, type Body, type HairColorId } from '../data/items'
 
 export type GameEvent =
   | { id: number; kind: 'achievement'; achId: string }
@@ -20,11 +20,11 @@ interface Store {
   buy: (itemId: string) => boolean
   equip: (itemId: string) => void
   setHairColor: (c: HairColorId) => void
+  setBody: (b: Body) => void
   setName: (name: string) => void
   setTitle: (title: string | null) => void
   setDestination: (id: string) => void
-  toggleDecor: (id: string) => void
-  finishOnboarding: (name: string) => void
+  finishOnboarding: (name: string, body: Body) => void
   reset: () => void
 }
 
@@ -62,6 +62,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const evs: NewEvent[] = result.achievements.map((achId) => ({ kind: 'achievement' as const, achId }))
         if (result.plantUp != null) evs.push({ kind: 'plant', stage: result.plantUp })
         if (result.levelUp != null) evs.push({ kind: 'levelUp', level: result.levelUp })
+        // First coins ever: point at where they're spent, once.
+        if (result.coins > 0 && !s.tips.includes('first-coins')) {
+          commit({ ...s, tips: [...s.tips, 'first-coins'] })
+          evs.push({ kind: 'toast', text: 'You earned coins! Spend them on outfits in the Closet or upgrades in the Van.' })
+        }
         push(evs)
         return result
       },
@@ -75,6 +80,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const r = G.buyItem(stateRef.current, itemId)
         if (r.ok) {
           commit(r.state)
+          if (ITEM_BY_ID[itemId]?.slot === 'van') push([{ kind: 'toast', text: `Your van is now: ${ITEM_BY_ID[itemId].name}` }])
           pushAch(r.achievements)
         }
         return r.ok
@@ -84,17 +90,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         commit(r.state)
         pushAch(r.achievements)
       },
+      setBody: (b) => commit(G.setBody(stateRef.current, b)),
       setHairColor: (c) => commit({ ...stateRef.current, look: { ...stateRef.current.look, hairColor: c } }),
       setName: (name) => commit({ ...stateRef.current, name: name.trim().slice(0, 20) || 'Wanderer' }),
       setTitle: (title) => commit({ ...stateRef.current, title }),
       setDestination: (id) => commit({ ...stateRef.current, destination: id }),
-      toggleDecor: (id) => {
-        const s = stateRef.current
-        const hidden = s.hiddenDecor.includes(id)
-        commit({ ...s, hiddenDecor: hidden ? s.hiddenDecor.filter((d) => d !== id) : [...s.hiddenDecor, id] })
-      },
-      finishOnboarding: (name) =>
-        commit({ ...stateRef.current, onboarded: true, name: name.trim().slice(0, 20) || 'Wanderer' }),
+      finishOnboarding: (name, body) =>
+        commit({ ...G.setBody(stateRef.current, body), onboarded: true, name: name.trim().slice(0, 20) || 'Wanderer' }),
       reset: () => {
         localSave.clear()
         commit(G.initialState())

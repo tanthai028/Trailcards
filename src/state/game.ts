@@ -1,6 +1,6 @@
 // Pure game rules. No React, no storage — easy to test and to move server-side later.
 import { CARDS, CARD_BY_ID, TOPIC_ORDER, type TopicId } from '../data/cards'
-import { ITEMS, ITEM_BY_ID, DEFAULT_LOOK, DESTINATIONS, type Look, type Slot } from '../data/items'
+import { ITEMS, ITEM_BY_ID, DEFAULT_LOOK, DEFAULT_HAIR, DESTINATIONS, VAN_TIERS, hairFits, type Body, type Look, type Slot } from '../data/items'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
 
 export type Mastery = 'new' | 'learning' | 'familiar' | 'mastered'
@@ -18,6 +18,8 @@ export interface GameState {
   name: string
   title: string | null
   onboarded: boolean
+  /** One-time hints already shown. */
+  tips: string[]
   xp: number
   coins: number
   cards: Record<string, CardProgress>
@@ -25,7 +27,6 @@ export interface GameState {
   owned: string[]
   look: Look
   destination: string
-  hiddenDecor: string[]
   achievements: Record<string, number>
   createdAt: number
 }
@@ -35,6 +36,7 @@ export const initialState = (): GameState => ({
   name: 'Wanderer',
   title: null,
   onboarded: false,
+  tips: [],
   xp: 0,
   coins: 40,
   cards: {},
@@ -42,7 +44,6 @@ export const initialState = (): GameState => ({
   owned: ITEMS.filter((i) => i.starter).map((i) => i.id),
   look: { ...DEFAULT_LOOK },
   destination: 'lake',
-  hiddenDecor: [],
   achievements: {},
   createdAt: Date.now(),
 })
@@ -168,6 +169,8 @@ export function plantInfo(s: GameState) {
 export function buyItem(s: GameState, itemId: string): { state: GameState; ok: boolean; achievements: string[] } {
   const item = ITEM_BY_ID[itemId]
   if (!item || s.owned.includes(itemId) || s.coins < item.cost) return { state: s, ok: false, achievements: [] }
+  // van upgrades unlock strictly in order
+  if (item.slot === 'van' && VAN_TIERS.indexOf(itemId as (typeof VAN_TIERS)[number]) !== vanTier(s)) return { state: s, ok: false, achievements: [] }
   const bought = { ...s, coins: s.coins - item.cost, owned: [...s.owned, itemId] }
   const ach = checkAchievements(bought)
   return { state: ach.state, ok: true, achievements: ach.unlocked }
@@ -179,8 +182,32 @@ export function equipItem(s: GameState, itemId: string) {
   const item = ITEM_BY_ID[itemId]
   const key = item && SLOT_KEY[item.slot]
   if (!key || !s.owned.includes(itemId)) return { state: s, achievements: [] as string[] }
+  if (item.slot === 'hair' && !hairFits(itemId, s.look.body)) return { state: s, achievements: [] as string[] }
   const ach = checkAchievements({ ...s, look: { ...s.look, [key]: itemId } })
   return { state: ach.state, achievements: ach.unlocked }
+}
+
+/** Switch body type. Outfits and extras carry over; hair falls back to that body's free style. */
+export function setBody(s: GameState, body: Body): GameState {
+  if (s.look.body === body) return s
+  return { ...s, look: { ...s.look, body, hair: DEFAULT_HAIR[body] } }
+}
+
+/** 0 = bare van; 1–3 = upgrades owned in sequence. */
+export const vanTier = (s: GameState) => {
+  let t = 0
+  while (t < VAN_TIERS.length && s.owned.includes(VAN_TIERS[t])) t++
+  return t
+}
+
+/** Tabs that hold something the player can buy right now (for nav dots). */
+export function affordable(s: GameState) {
+  const closet = ITEMS.some(
+    (i) => i.slot !== 'van' && !s.owned.includes(i.id) && (!i.body || i.body === s.look.body) && i.cost <= s.coins,
+  )
+  const nextVan = VAN_TIERS[vanTier(s)]
+  const van = !!nextVan && ITEM_BY_ID[nextVan].cost <= s.coins
+  return { closet, van }
 }
 
 export const unlockedDestinations = (s: GameState) =>
@@ -192,7 +219,7 @@ const RULES_ACH: Record<string, (s: GameState) => boolean> = {
   'ten-cards': (s) => Object.keys(s.cards).length >= 10,
   'mastery-10': (s) => masteryCounts(s).mastered >= 10,
   stylist: (s) => s.look.outfit !== 'outfit-trailhead',
-  homemaker: (s) => s.owned.filter((id) => ITEM_BY_ID[id]?.slot === 'decor').length >= 3,
+  homemaker: (s) => vanTier(s) >= 2,
   ...Object.fromEntries(
     TOPIC_ORDER.map((t) => [
       `topic-${t}`,

@@ -22,7 +22,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'topic-forest', name: 'Grove Friend', title: 'Grove Friend', desc: 'Get every Forest & Plants card right.', coins: 30, icon: 'leaf', topic: 'forest' },
   { id: 'topic-animals', name: 'Cat Whisperer', title: 'Cat Whisperer', desc: 'Get every Animal Minds card right.', coins: 30, icon: 'paw', topic: 'animals' },
   { id: 'stylist', name: 'New Look', title: 'Trendsetter', desc: 'Unlock and wear a new outfit.', coins: 15, icon: 'shirt' },
-  { id: 'homemaker', name: 'Home on Wheels', title: 'Van Dweller', desc: 'Own 3 decorations.', coins: 20, icon: 'home' },
+  { id: 'homemaker', name: 'Home on Wheels', title: 'Van Dweller', desc: 'Upgrade your van to Lived-in.', coins: 20, icon: 'home' },
 ]
 
 export const ACH_BY_ID: Record<string, Achievement> = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]))

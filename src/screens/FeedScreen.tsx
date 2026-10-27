@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { CARDS, CARD_BY_ID, TOPICS, type Card } from '../data/cards'
@@ -76,7 +76,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
               role="tab"
               aria-selected={mode === m}
               onClick={() => (mode === m ? (setIds(idsFor(state, m)), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
-              className={`rounded-full px-3 py-1.5 text-xs font-extrabold capitalize transition ${mode === m ? 'bg-cream text-ink' : 'bg-white/8 text-cream/70 hover:bg-white/12'}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-extrabold capitalize transition ${mode === m ? 'bg-cream text-ink' : 'clay text-cream/70 hover:brightness-110'}`}
             >
               {m} <span className={mode === m ? 'text-ink/50' : 'text-cream/40'}>{counts[m]}</span>
             </button>
@@ -129,7 +129,6 @@ function FeedCard({
   const topic = TOPICS[card.topic]
   const [choice, setChoice] = useState<number | null>(null)
   const [result, setResult] = useState<AnswerResult | null>(null)
-  const feedback = useRef<HTMLDivElement>(null)
   const status = statusOf(state, card.id)
   const saved = state.bookmarks.includes(card.id)
   const isReview = mode !== 'discover' && (result?.from ?? status) !== 'new'
@@ -141,11 +140,35 @@ function FeedCard({
   }
   registerAnswer(pick)
 
+  // One scroll = one card: the card never scrolls inside. If its content is taller
+  // than the screen allows, text scales down a little (to a floor) instead.
+  const fitRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = fitRef.current
+    if (!el) return
+    const fit = () => {
+      let scale = 1
+      el.style.fontSize = '16px'
+      while (el.scrollHeight > el.clientHeight + 1 && scale > 0.74) {
+        scale -= 0.03
+        el.style.fontSize = `${16 * scale}px`
+      }
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [result])
+
+  const visibleChoices = card.choices
+    .map((c, i) => ({ c, i }))
+    .filter(({ i }) => !result || i === card.answerIndex || i === choice)
+
   return (
     <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-paper text-ink shadow-[0_20px_50px_-20px_rgba(0,0,0,.6)]">
-      <div className="grain relative h-[27%] min-h-[128px] shrink-0 overflow-hidden">
+      <div className="grain relative h-[15%] min-h-[54px] shrink-0 overflow-hidden">
         <SceneSvg scene={topic.scene} className="absolute inset-0 h-full w-full" />
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-paper to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
         <div className="absolute inset-x-3 top-3 flex items-start gap-2">
           <span className="flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-ink backdrop-blur">
             <span className="size-2 rounded-full" style={{ background: topic.accent }} />
@@ -165,93 +188,113 @@ function FeedCard({
             <Icon name="bookmark" size={17} filled={saved} />
           </button>
         </div>
-        <span className="absolute bottom-6 right-4 text-[11px] font-bold text-ink/45 tabular-nums">{index + 1} / {total}</span>
       </div>
 
-      <div className="no-scrollbar relative -mt-4 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-4">
-        <p className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: shade(topic.accent) }}>{card.hook}</p>
-        <h2 className="mt-1 font-display text-[26px] font-bold leading-[1.1] text-ink">{card.title}</h2>
-        <p className="mt-2 text-[15px] leading-relaxed text-ink/75">{card.body}</p>
-
-        <div className="mt-4 rounded-3xl bg-white/70 p-3 ring-1 ring-ink/5">
-          <p className="px-1 pb-2.5 text-[15px] font-extrabold leading-snug">{card.prompt}</p>
-          <div className={`grid gap-2 ${card.choices.length === 2 ? 'grid-cols-2' : ''}`}>
-            {card.choices.map((c, i) => {
-              const isAnswer = i === card.answerIndex
-              const st = !result ? 'idle' : isAnswer ? 'right' : i === choice ? 'wrong' : 'dim'
-              return (
-                <motion.button
-                  key={i}
-                  onClick={() => pick(i)}
-                  disabled={!!result}
-                  whileTap={result ? undefined : { scale: 0.97 }}
-                  animate={st === 'wrong' ? { x: [0, -6, 6, -4, 4, 0] } : st === 'right' && i === choice ? { scale: [1, 1.04, 1] } : {}}
-                  transition={{ duration: 0.35 }}
-                  className={`relative flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-[14px] font-bold leading-snug transition ${
-                    st === 'idle' ? 'bg-paper ring-1 ring-ink/10 hover:bg-white hover:ring-ink/20'
-                    : st === 'right' ? 'bg-sage/35 ring-2 ring-[#4f9a6a]'
-                    : st === 'wrong' ? 'bg-coral/20 ring-2 ring-coral'
-                    : 'bg-paper/60 text-ink/40 ring-1 ring-ink/5'
-                  }`}
-                >
-                  <span className={`grid size-6 shrink-0 place-items-center rounded-lg text-[11px] font-black ${st === 'right' ? 'bg-[#4f9a6a] text-white' : st === 'wrong' ? 'bg-coral text-white' : 'bg-ink/8 text-ink/60'}`}>
-                    {st === 'right' ? <Icon name="check" size={14} strokeWidth={3} /> : st === 'wrong' ? <Icon name="x" size={13} strokeWidth={3} /> : i + 1}
-                  </span>
-                  <span>{c}</span>
-                  {st === 'right' && i === choice && <RewardBurst xp={result!.xp} coins={result!.coins} />}
-                </motion.button>
-              )
-            })}
-          </div>
+      <div ref={fitRef} className="relative -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-3" style={{ fontSize: 16 }}>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="line-clamp-2 text-[0.68em] font-black" style={{ color: shade(topic.accent) }}>{card.hook}</p>
+          <span className="shrink-0 text-[0.68em] font-bold tabular-nums text-ink/40">{index + 1} / {total}</span>
         </div>
+        <h2 className="mt-0.5 font-display text-[1.55em] font-bold leading-[1.1] text-ink">{card.title}</h2>
 
-        <AnimatePresence>
-          {result && (
-            <motion.div ref={feedback} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onAnimationStart={() => setTimeout(() => feedback.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60)} className="mt-3 scroll-mb-4" role="status">
-              <div className={`flex gap-3 rounded-3xl p-3.5 ${result.correct ? 'bg-sage/20' : 'bg-peach/20'}`}>
-                <Cat sleeping={!result.correct} className="h-12 w-14 shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-extrabold">{result.correct ? pickLine(card.id, RIGHT) : 'Not quite — here’s the idea'}</p>
-                  <p className="mt-1 text-[14px] leading-relaxed text-ink/75">{card.explain}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] font-extrabold">
-                    <span className="rounded-full bg-white/80 px-2 py-0.5 text-lav">+{result.xp} XP</span>
-                    {result.coins > 0 && <span className="flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[#c48a1a]"><Coin size={13} />+{result.coins}</span>}
-                    {result.from !== result.to && (
-                      <span className="rounded-full bg-ink px-2 py-0.5 text-cream">{MASTERY_LABEL[result.from]} → {MASTERY_LABEL[result.to]}</span>
-                    )}
-                    {!result.correct && <span className="text-ink/55">It'll come back in Review.</span>}
-                  </div>
-                </div>
+        {/* Reading text before answering; the explanation takes its place after. */}
+        <AnimatePresence mode="wait" initial={false}>
+          {!result ? (
+            <motion.p key="body" exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="mt-[0.5em] text-[0.92em] leading-[1.5] text-ink/75">
+              {card.body}
+            </motion.p>
+          ) : (
+            <motion.div
+              key="explain"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className={`mt-[0.6em] flex gap-3 rounded-3xl p-[0.8em] ${result.correct ? 'bg-sage/20' : 'bg-peach/25'}`}
+              role="status"
+            >
+              <Cat sleeping={!result.correct} className="h-[2.8em] w-[3.2em] shrink-0" />
+              <div className="min-w-0">
+                {/* keep a reminder of what the card said, so the explanation has context */}
+                <p className="mb-[0.35em] line-clamp-2 text-[0.8em] italic leading-snug text-ink/50">{firstSentence(card.body)}</p>
+                <p className="text-[0.95em] font-extrabold">{result.correct ? pickLine(card.id, RIGHT) : 'Not quite — here’s the idea'}</p>
+                <p className="mt-[0.25em] text-[0.88em] leading-[1.45] text-ink/75">{card.explain}</p>
               </div>
-              <button onClick={onNext} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3 font-extrabold text-cream transition active:scale-[.98]">
-                Next card <Icon name="down" size={18} />
-              </button>
             </motion.div>
           )}
         </AnimatePresence>
-        {!result && <p className="mt-auto pt-3 text-center text-[11px] font-semibold text-ink/35">Tap an answer · keys 1–{card.choices.length} · scroll for the next card</p>}
+
+        <div className="mt-auto pt-[0.75em]">
+          <div className="rounded-3xl bg-white/70 p-[0.6em] ring-1 ring-ink/5">
+            <p className="px-1 pb-[0.5em] text-[0.92em] font-extrabold leading-snug">{card.prompt}</p>
+            <div className={`grid gap-[0.45em] ${card.choices.length === 2 && !result ? 'grid-cols-2' : ''}`}>
+              <AnimatePresence initial={false}>
+                {visibleChoices.map(({ c, i }) => {
+                  const isAnswer = i === card.answerIndex
+                  const st = !result ? 'idle' : isAnswer ? 'right' : 'wrong'
+                  return (
+                    <motion.button
+                      key={i}
+                      layout
+                      onClick={() => pick(i)}
+                      disabled={!!result}
+                      whileTap={result ? undefined : { scale: 0.97 }}
+                      initial={false}
+                      animate={st === 'wrong' ? { x: [0, -6, 6, -4, 4, 0], opacity: 1 } : st === 'right' && i === choice ? { scale: [1, 1.04, 1], opacity: 1 } : { opacity: 1 }}
+                      exit={{ opacity: 0, height: 0, transition: { duration: 0.18 } }}
+                      transition={{ duration: 0.3 }}
+                      className={`relative flex min-h-11 items-center gap-2.5 rounded-2xl px-3 py-[0.5em] text-left text-[0.86em] font-bold leading-snug transition-colors ${
+                        st === 'idle' ? 'bg-paper ring-1 ring-ink/10 hover:bg-white hover:ring-ink/20'
+                        : st === 'right' ? 'bg-sage/35 ring-2 ring-[#4f9a6a]'
+                        : 'bg-coral/20 ring-2 ring-coral'
+                      }`}
+                    >
+                      <span className={`grid size-6 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${st === 'right' ? 'bg-[#4f9a6a] text-white' : st === 'wrong' ? 'bg-coral text-white' : 'bg-ink/8 text-ink/60'}`}>
+                        {st === 'right' ? <Icon name="check" size={14} strokeWidth={3} /> : st === 'wrong' ? <Icon name="x" size={13} strokeWidth={3} /> : i + 1}
+                      </span>
+                      <span>{c}</span>
+                    </motion.button>
+                  )
+                })}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className="mt-[0.55em] flex min-h-6 flex-wrap items-center justify-center gap-1.5 text-[11px] font-extrabold">
+            {result ? (
+              <>
+                {/* the one place rewards show: pops in once, never over the question */}
+                <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 18 }} className="flex items-center gap-1.5">
+                  <span className="rounded-full bg-lav/20 px-2 py-0.5 text-[#6a55c2]">+{result.xp} XP</span>
+                  {result.coins > 0 && <span className="flex items-center gap-1 rounded-full bg-gold/30 px-2 py-0.5 text-[#8a5e0c]"><Coin size={12} />+{result.coins}</span>}
+                </motion.span>
+                {progressNote(result) && <span className="font-bold text-ink/55">{progressNote(result)}</span>}
+                <button onClick={onNext} className="flex items-center gap-1 px-1.5 py-0.5 text-ink/45 hover:text-ink/70" aria-label="Next card">
+                  Scroll for next <Icon name="down" size={12} strokeWidth={3} />
+                </button>
+              </>
+            ) : (
+              <span className="font-semibold text-ink/35">Tap an answer · scroll to skip</span>
+            )}
+          </div>
+        </div>
       </div>
     </article>
   )
 }
 
+const firstSentence = (text: string) => (text.match(/^.*?[.!?](\s|$)/)?.[0] ?? text).trim()
+
+/** Mastery change in plain words for a newcomer. */
+function progressNote(r: AnswerResult) {
+  if (r.from === r.to) return r.to === 'mastered' ? 'Still mastered' : null
+  if (r.to === 'mastered') return 'Mastered!'
+  if (r.to === 'learning') return 'It’ll come back in Review'
+  if (r.from === 'new') return 'Review it later to master it'
+  return r.from === 'learning' ? 'Getting there' : 'Needs a refresh'
+}
+
 const RIGHT = ['Nailed it!', 'Exactly right!', 'Sharp eyes!', 'You got it!', 'Mochi is impressed!']
 const pickLine = (id: string, lines: string[]) => lines[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % lines.length]
-
-function RewardBurst({ xp, coins }: { xp: number; coins: number }) {
-  return (
-    <motion.span
-      className="pointer-events-none absolute -top-2 right-3 flex gap-1 text-sm font-black"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: [0, 1, 1, 0], y: -34 }}
-      transition={{ duration: 1.3, ease: 'easeOut' }}
-      aria-hidden="true"
-    >
-      <span className="rounded-full bg-lav px-2 py-0.5 text-white shadow">+{xp} XP</span>
-      {coins > 0 && <span className="flex items-center gap-0.5 rounded-full bg-gold px-2 py-0.5 text-ink shadow"><Coin size={13} />+{coins}</span>}
-    </motion.span>
-  )
-}
 
 /** Darken a pastel accent so it reads as text on paper. */
 function shade(hex: string) {
@@ -273,22 +316,22 @@ function EndCard({ mode, empty, counts, setMode, go }: { mode: FeedMode; empty: 
       : ['End of your saved cards', 'Saved cards stay here until you unsave them.'],
   }[mode]
   return (
-    <div className="relative flex h-full flex-col items-center justify-center overflow-hidden rounded-[28px] bg-gradient-to-b from-ink-3 to-ink-2 p-8 text-center ring-1 ring-white/10">
+    <div className="relative flex h-full flex-col items-center justify-center overflow-hidden rounded-[28px] bg-gradient-to-b from-ink-3 to-ink-2 p-8 text-center">
       <Cat sleeping={mode !== 'review'} className="h-24 w-28" />
       <h2 className="mt-3 font-display text-3xl font-bold">{copy[0]}</h2>
       <p className="mt-2 max-w-xs text-[15px] leading-relaxed text-cream/70">{copy[1]}</p>
       <div className="mt-6 flex w-full max-w-xs flex-col gap-2">
         {mode !== 'review' && counts.review > 0 && (
-          <button onClick={() => setMode('review')} className="rounded-2xl bg-gradient-to-r from-gold to-peach py-3 font-extrabold text-ink">
+          <button onClick={() => setMode('review')} className="rounded-2xl clay-btn clay-butter py-3 font-extrabold text-ink">
             Review {counts.review} concept{counts.review === 1 ? '' : 's'}
           </button>
         )}
         {mode !== 'discover' && counts.discover > 0 && (
-          <button onClick={() => setMode('discover')} className="rounded-2xl bg-cream py-3 font-extrabold text-ink">
+          <button onClick={() => setMode('discover')} className="clay-btn clay-cream py-3">
             Discover {counts.discover} new card{counts.discover === 1 ? '' : 's'}
           </button>
         )}
-        <button onClick={() => go('van')} className="rounded-2xl bg-white/10 py-3 font-extrabold">Visit your van</button>
+        <button onClick={() => go('van')} className="clay-btn clay-plum py-3">Visit your van</button>
       </div>
     </div>
   )

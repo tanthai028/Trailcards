@@ -2,8 +2,9 @@
 // is already mix-and-match: outfit + hair + hair color + accessory.
 // Adding a new slot (shoes, held item…) = add a Slot, items, and a render layer.
 
-export type Slot = 'outfit' | 'hair' | 'accessory' | 'decor'
+export type Slot = 'outfit' | 'hair' | 'accessory' | 'van'
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
+export type Body = 'girl' | 'guy'
 
 export interface Item {
   id: string
@@ -14,6 +15,8 @@ export interface Item {
   rarity: Rarity
   /** Owned from the start. */
   starter?: boolean
+  /** Hairstyles belong to one body type; everything else fits both. */
+  body?: Body
 }
 
 export const ITEMS: Item[] = [
@@ -26,10 +29,10 @@ export const ITEMS: Item[] = [
   { id: 'outfit-nocturne', slot: 'outfit', name: 'Velvet Nocturne', blurb: 'Plum tailcoat, cream cravat, gold buttons. For very formal stargazing.', cost: 320, rarity: 'legendary' },
 
   // Hair
-  { id: 'hair-bob', slot: 'hair', name: 'Soft Bob', blurb: 'Rounded, easy, a little windswept.', cost: 0, rarity: 'common', starter: true },
-  { id: 'hair-wolf', slot: 'hair', name: 'Wolf Cut', blurb: 'Choppy layers with attitude.', cost: 60, rarity: 'rare' },
-  { id: 'hair-ponytail', slot: 'hair', name: 'High Ponytail', blurb: 'Swishes when you get an answer right.', cost: 70, rarity: 'rare' },
-  { id: 'hair-buns', slot: 'hair', name: 'Twin Buns', blurb: 'Two buns, zero compromises.', cost: 80, rarity: 'epic' },
+  { id: 'hair-bob', slot: 'hair', body: 'girl', name: 'Soft Bob', blurb: 'Rounded, easy, a little windswept.', cost: 0, rarity: 'common', starter: true },
+  { id: 'hair-ponytail', slot: 'hair', body: 'girl', name: 'High Ponytail', blurb: 'Swishes when you get an answer right.', cost: 70, rarity: 'rare' },
+  { id: 'hair-crop', slot: 'hair', body: 'guy', name: 'Messy Crop', blurb: 'Short, soft fringe, effortless.', cost: 0, rarity: 'common', starter: true },
+  { id: 'hair-wolf', slot: 'hair', body: 'guy', name: 'Wolf Cut', blurb: 'Choppy layers with attitude.', cost: 60, rarity: 'rare' },
 
   // Accessories
   { id: 'acc-none', slot: 'accessory', name: 'Bare', blurb: 'Nothing extra.', cost: 0, rarity: 'common', starter: true },
@@ -38,14 +41,20 @@ export const ITEMS: Item[] = [
   { id: 'acc-headphones', slot: 'accessory', name: 'Cat-Ear Phones', blurb: 'Lo-fi road trip playlist included.', cost: 90, rarity: 'rare' },
   { id: 'acc-hat', slot: 'accessory', name: 'Ranger Hat', blurb: 'Wide brim for sunny trails.', cost: 80, rarity: 'rare' },
 
-  // Van decorations
-  { id: 'decor-bunting', slot: 'decor', name: 'Flag Bunting', blurb: 'Faded triangle flags from every stop.', cost: 30, rarity: 'common' },
-  { id: 'decor-lights', slot: 'decor', name: 'Fairy Lights', blurb: 'Warm string lights for the awning.', cost: 50, rarity: 'common' },
-  { id: 'decor-chair', slot: 'decor', name: 'Camp Chair', blurb: 'Striped canvas. Perfect sunset seat.', cost: 60, rarity: 'common' },
-  { id: 'decor-fire', slot: 'decor', name: 'Campfire', blurb: 'Crackles softly. Mochi approves.', cost: 80, rarity: 'rare' },
-  { id: 'decor-surfboard', slot: 'decor', name: 'Roof Surfboard', blurb: 'Strapped to the rack, waiting for swell.', cost: 100, rarity: 'rare' },
-  { id: 'decor-telescope', slot: 'decor', name: 'Telescope', blurb: 'For the North Star and beyond.', cost: 140, rarity: 'epic' },
+  // Van upgrades — each is a whole new room render, unlocked in order
+  { id: 'van-cozy', slot: 'van', name: 'Cozy Nest', blurb: 'String lights, a woven rug, pastel pillows and bunting.', cost: 40, rarity: 'common' },
+  { id: 'van-livedin', slot: 'van', name: 'Lived-in', blurb: 'Books, a reading chair, paper lanterns and a telescope by the window.', cost: 180, rarity: 'rare' },
+  { id: 'van-dream', slot: 'van', name: 'Dream Van', blurb: 'A tiny wood stove, surfboards, maps on the walls and plants everywhere.', cost: 320, rarity: 'epic' },
 ]
+
+/** Van upgrades in order; the room render shown is the number owned in sequence. */
+export const VAN_TIERS = ['van-cozy', 'van-livedin', 'van-dream'] as const
+export const VAN_TIER_NAMES = ['Bare Van', 'Cozy Nest', 'Lived-in', 'Dream Van']
+
+/** Retired decor (before rooms became whole renders) and what it cost, for refunds. */
+export const RETIRED_DECOR: Record<string, number> = {
+  'decor-bunting': 30, 'decor-lights': 50, 'decor-chair': 60, 'decor-fire': 80, 'decor-surfboard': 100, 'decor-telescope': 140,
+}
 
 export const ITEM_BY_ID: Record<string, Item> = Object.fromEntries(ITEMS.map((i) => [i.id, i]))
 
@@ -61,13 +70,19 @@ export const HAIR_COLORS = [
 export type HairColorId = (typeof HAIR_COLORS)[number]['id']
 
 export interface Look {
+  body: Body
   outfit: string
   hair: string
   hairColor: HairColorId
   accessory: string
 }
 
-export const DEFAULT_LOOK: Look = { outfit: 'outfit-trailhead', hair: 'hair-bob', hairColor: 'ink', accessory: 'acc-none' }
+export const DEFAULT_LOOK: Look = { body: 'girl', outfit: 'outfit-trailhead', hair: 'hair-bob', hairColor: 'ink', accessory: 'acc-none' }
+
+/** The free hairstyle each body type starts with. */
+export const DEFAULT_HAIR: Record<Body, string> = { girl: 'hair-bob', guy: 'hair-crop' }
+
+export const hairFits = (hairId: string, body: Body) => ITEM_BY_ID[hairId]?.body === body
 
 export const RARITY_STYLE: Record<Rarity, { label: string; color: string; glow: string }> = {
   common: { label: 'Common', color: '#8fc9a3', glow: 'rgba(143,201,163,.35)' },

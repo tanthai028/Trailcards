@@ -4,7 +4,7 @@ import { useGame, type GameEvent } from '../state/store'
 import { ACH_BY_ID } from '../data/achievements'
 import { DESTINATIONS } from '../data/items'
 import { PLANT_STAGES } from '../state/game'
-import { Character } from '../art/Character'
+import { Figurine } from '../scene/Figurine'
 import { Plant } from '../art/Companions'
 import { Coin, Icon } from './Icon'
 import type { Tab } from './NavBar'
@@ -43,8 +43,8 @@ export function EventLayer({ go }: { go: (t: Tab) => void }) {
               transition={{ type: 'spring', stiffness: 260, damping: 20 }}
             >
               <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_50%_70%,rgba(255,210,122,.8),transparent_65%)]" />
-              <Character look={state.look} expression="happy" className="relative mx-auto -mb-2 h-44" />
-              <p className="relative text-xs font-black uppercase tracking-[0.2em] text-coral">Level up</p>
+              <Figurine look={state.look} className="relative mx-auto -mb-1 h-48 drop-shadow-[0_10px_14px_rgba(0,0,0,.25)]" />
+              <p className="relative text-xs font-black text-coral">Level up</p>
               <h2 className="relative font-display text-5xl font-bold">Level {levelUp.level}</h2>
               {DESTINATIONS.filter((d) => d.level === levelUp.level).map((d) => (
                 <p key={d.id} className="relative mt-3 rounded-2xl bg-white/70 px-4 py-2 text-sm font-bold">
@@ -54,9 +54,9 @@ export function EventLayer({ go }: { go: (t: Tab) => void }) {
               <p className="relative mt-3 text-sm text-ink/70">Your curiosity is taking you places.</p>
               <div className="relative mt-5 flex gap-2">
                 {DESTINATIONS.some((d) => d.level === levelUp.level) && (
-                  <button onClick={() => { dismiss(levelUp.id); go('van') }} className="flex-1 rounded-2xl bg-ink/10 py-3 font-extrabold">Visit van</button>
+                  <button onClick={() => { dismiss(levelUp.id); go('van') }} className="clay-btn clay-cream flex-1 py-3">Visit van</button>
                 )}
-                <button autoFocus onClick={() => dismiss(levelUp.id)} className="flex-1 rounded-2xl bg-ink py-3 font-extrabold text-cream">Keep exploring</button>
+                <button autoFocus onClick={() => dismiss(levelUp.id)} className="clay-btn clay-ink flex-1 py-3">Keep exploring</button>
               </div>
             </motion.div>
           </motion.div>
@@ -68,7 +68,8 @@ export function EventLayer({ go }: { go: (t: Tab) => void }) {
 
 function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onDone, e.kind === 'toast' ? 1600 : 3600)
+    // short confirmations vanish fast; longer hints stay long enough to read
+    const t = setTimeout(onDone, e.kind === 'toast' ? (e.text.length > 40 ? 4200 : 1600) : 3600)
     return () => clearTimeout(t)
     // onDone only removes this event by id, so the first closure is fine
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,7 +84,7 @@ function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
           <Icon name={a.icon} size={20} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-black uppercase tracking-widest text-gold">Achievement</span>
+          <span className="block text-xs font-extrabold text-gold">Achievement</span>
           <span className="block truncate font-extrabold">{a.name}</span>
           <span className="block truncate text-xs text-cream/70">Title unlocked: “{a.title}”</span>
         </span>
@@ -95,7 +96,7 @@ function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
       <>
         <Plant stage={e.stage} className="h-11 w-9 shrink-0" />
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-black uppercase tracking-widest text-sage">Your plant grew</span>
+          <span className="block text-xs font-extrabold text-sage">Your plant grew</span>
           <span className="block font-extrabold">It's now a {PLANT_STAGES[e.stage].name}!</span>
         </span>
       </>

@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from './state/store'
 import { Hud } from './components/Hud'
 import { NavBar, type Tab } from './components/NavBar'
+import { affordable } from './state/game'
 import { EventLayer } from './components/EventLayer'
 import { Onboarding } from './components/Onboarding'
 import { FeedScreen, type FeedMode } from './screens/FeedScreen'
@@ -38,13 +39,12 @@ export default function App() {
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-ink/40 sm:rounded-[34px] sm:shadow-[0_30px_80px_-20px_rgba(0,0,0,.6)] sm:ring-1 sm:ring-white/10">
         <Hud onProfile={() => go('profile')} />
         <main className="relative min-h-0 flex-1">
-          <AnimatePresence mode="wait" initial={false}>
+          {/* Enter-only transition: an exit + mode="wait" could stall and leave the tab blank. */}
             <motion.div
               key={tab}
               className="absolute inset-0"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.18 }}
             >
               {tab === 'feed' && <FeedScreen mode={feedMode} setMode={setFeedMode} go={go} />}
@@ -52,9 +52,8 @@ export default function App() {
               {tab === 'van' && <HomeScreen go={go} />}
               {tab === 'profile' && <ProfileScreen go={go} />}
             </motion.div>
-          </AnimatePresence>
         </main>
-        <NavBar tab={tab} onTab={(t) => go(t)} />
+        <NavBar tab={tab} onTab={(t) => go(t)} dots={affordable(state)} />
         <EventLayer go={go} />
         <AnimatePresence>{!state.onboarded && <Onboarding />}</AnimatePresence>
       </div>

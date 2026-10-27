@@ -10,7 +10,7 @@ const ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profile', icon: 'profile' },
 ]
 
-export function NavBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+export function NavBar({ tab, onTab, dots = {} }: { tab: Tab; onTab: (t: Tab) => void; dots?: Partial<Record<Tab, boolean>> }) {
   return (
     <nav className="relative z-20 border-t border-white/8 bg-ink/80 px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl" aria-label="Main">
       <ul className="grid grid-cols-4 gap-1">
@@ -21,13 +21,19 @@ export function NavBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
               <button
                 onClick={() => onTab(it.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`relative flex w-full flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-bold transition ${active ? 'text-ink' : 'text-cream/60 hover:text-cream'}`}
+                className={`relative flex w-full flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-bold transition-colors duration-200 ${active ? 'text-ink' : 'text-cream/60 hover:text-cream'}`}
               >
                 {active && (
-                  <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-2xl bg-gradient-to-b from-gold to-peach" transition={{ type: 'spring', stiffness: 400, damping: 32 }} />
+                  <motion.span layoutId="nav-pill" className="clay-pill absolute inset-0 rounded-2xl" transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.8 }} />
                 )}
-                <Icon name={it.icon} size={21} className="relative" />
+                <span className="relative">
+                  <Icon name={it.icon} size={21} />
+                  {dots[it.id] && !active && (
+                    <span className="absolute -right-1.5 -top-1 size-2.5 rounded-full bg-gold ring-2 ring-ink" aria-hidden="true" />
+                  )}
+                </span>
                 <span className="relative">{it.label}</span>
+                {dots[it.id] && !active && <span className="sr-only">, something you can buy</span>}
               </button>
             </li>
           )

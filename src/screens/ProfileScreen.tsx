@@ -5,10 +5,11 @@ import { TOPICS, TOPIC_ORDER, CARDS } from '../data/cards'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
 import { ITEMS, RARITY_STYLE, type Slot } from '../data/items'
 import { levelInfo, masteryCounts, stats, type Mastery } from '../state/game'
-import { Character } from '../art/Character'
+import { Figurine } from '../scene/Figurine'
 import { SceneSvg, DESTINATION_SCENE } from '../art/Landscape'
 import { Icon } from '../components/Icon'
 import { Trophy } from '../components/Trophy'
+import { TitlePicker } from '../components/TitleSheet'
 import type { Tab } from '../components/NavBar'
 import type { FeedMode } from './FeedScreen'
 
@@ -26,11 +27,11 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
   return (
     <div className="no-scrollbar h-full overflow-y-auto px-4 pb-8">
       {/* Showcase banner */}
-      <div className="grain relative overflow-hidden rounded-[30px] ring-1 ring-white/10">
+      <div className="grain relative overflow-hidden rounded-[30px]">
         <SceneSvg scene={DESTINATION_SCENE[state.destination] ?? 'meadow'} className="absolute inset-0 h-full w-full" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
         <div className="relative flex items-end gap-3 px-4 pb-4 pt-24">
-          <Character look={state.look} idle className="-mb-2 h-40 shrink-0 drop-shadow-xl" />
+          <Figurine look={state.look} className="-mb-1 h-44 shrink-0 drop-shadow-[0_10px_14px_rgba(0,0,0,.45)]" />
           <div className="min-w-0 flex-1 pb-2">
             {editing ? (
               <form
@@ -50,18 +51,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
                 <Icon name="edit" size={15} className="shrink-0 opacity-50 group-hover:opacity-100" />
               </button>
             )}
-            <label className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/12 px-2.5 py-1 text-xs font-extrabold text-gold backdrop-blur">
-              <Icon name="crown" size={12} />
-              <select
-                value={state.title ?? ''}
-                onChange={(e) => setTitle(e.target.value || null)}
-                className="cursor-pointer bg-transparent outline-none [&>option]:text-ink"
-                aria-label="Displayed title"
-              >
-                <option value="">Wanderer</option>
-                {titles.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </label>
+            <TitlePicker value={state.title} titles={titles} onChange={setTitle} />
             <div className="mt-3">
               <div className="flex items-baseline justify-between text-xs font-bold">
                 <span className="text-cream">Level {lv.level}</span>
@@ -84,16 +74,16 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
           ['Mastered', s.mastered],
           ['Answers', s.attempts],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-2xl bg-white/6 px-2 py-3 text-center ring-1 ring-white/8">
+          <div key={k} className="rounded-2xl clay px-2 py-3 text-center">
             <p className="font-display text-xl font-bold tabular-nums">{v}</p>
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50">{k}</p>
+            <p className="text-[10px] font-extrabold text-cream/50">{k}</p>
           </div>
         ))}
       </div>
 
       {/* Mastery tracker */}
       <Section title="Mastery" action={s.learning + s.familiar > 0 ? { label: `Review ${s.learning + s.familiar}`, onClick: () => go('feed', 'review') } : undefined}>
-        <div className="space-y-2.5 rounded-3xl bg-white/6 p-4 ring-1 ring-white/8">
+        <div className="space-y-2.5 rounded-3xl clay p-4">
           {TOPIC_ORDER.map((t) => {
             const m = masteryCounts(state, t)
             const total = m.new + m.learning + m.familiar + m.mastered
@@ -123,11 +113,11 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       {/* Collection */}
       <Section title="Collection" action={{ label: 'Open closet', onClick: () => go('closet') }}>
         <div className="grid grid-cols-2 gap-2">
-          {([['outfit', 'Outfits'], ['hair', 'Hairstyles'], ['accessory', 'Extras'], ['decor', 'Van decor']] as [Slot, string][]).map(([slot, label]) => {
+          {([['outfit', 'Outfits'], ['hair', 'Hairstyles'], ['accessory', 'Extras'], ['van', 'Van upgrades']] as [Slot, string][]).map(([slot, label]) => {
             const all = ITEMS.filter((i) => i.slot === slot && i.id !== 'acc-none')
             const own = all.filter((i) => state.owned.includes(i.id))
             return (
-              <div key={slot} className="rounded-2xl bg-white/6 p-3 ring-1 ring-white/8">
+              <div key={slot} className="rounded-2xl clay p-3">
                 <div className="flex items-baseline justify-between">
                   <p className="text-sm font-extrabold">{label}</p>
                   <p className="text-xs font-bold tabular-nums text-cream/50">{own.length}/{all.length}</p>
@@ -154,7 +144,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
           {ACHIEVEMENTS.map((a) => {
             const at = state.achievements[a.id]
             return (
-              <li key={a.id} className={`flex items-center gap-3 rounded-2xl p-2.5 pr-3 ring-1 ${at ? 'bg-gold/10 ring-gold/30' : 'bg-white/4 ring-white/8'}`}>
+              <li key={a.id} className={`flex items-center gap-3 rounded-2xl p-2.5 pr-3 ring-1 ${at ? 'bg-gold/10 ring-gold/30' : 'clay ring-white/8'}`}>
                 <Trophy a={ACH_BY_ID[a.id]} earned={!!at} size={36} />
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm font-extrabold ${at ? '' : 'text-cream/60'}`}>{a.name}</p>
@@ -194,7 +184,7 @@ function Section({ title, action, children }: { title: string; action?: { label:
       <div className="mb-2 flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">{title}</h2>
         {action && (
-          <button onClick={action.onClick} className="rounded-full bg-white/8 px-3 py-1 text-xs font-extrabold hover:bg-white/14">{action.label}</button>
+          <button onClick={action.onClick} className="rounded-full clay px-3 py-1 text-xs font-extrabold hover:brightness-110">{action.label}</button>
         )}
       </div>
       {children}
