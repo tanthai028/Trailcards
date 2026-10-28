@@ -404,7 +404,7 @@ function FeedCard({
         </div>
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
         {/* keeps the deck name and your picture readable on light skies */}
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ink/55 via-ink/20 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-ink/65 via-ink/25 to-transparent" />
       </div>
 
       {/* bottom-right, clear of the answers: the text area below keeps room for it */}
@@ -603,7 +603,7 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
   if (mode === 'saved') {
     return (
       <div className="mt-1 flex">
-        <button onClick={() => setMode('discover')} className={`${chip} bg-white/10 text-cream/85`} aria-label="Leave saved cards">
+        <button onClick={() => setMode('discover')} className={`${chip} bg-ink/60 text-cream backdrop-blur-sm`} aria-label="Leave saved cards">
           Saved cards <span className="tabular-nums text-cream/50">{counts.saved}</span><Icon name="x" size={11} strokeWidth={3} className="opacity-60" />
         </button>
       </div>
@@ -625,12 +625,13 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
     </button>
   )
   return (
-    <div className="relative mt-1 flex min-w-0 items-center gap-2" onPointerDown={(e) => e.stopPropagation()}>
-      <button onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} className={`${chip} bg-white/10 text-cream/85`}>
+    // a dark frosted pill, so the line reads on any card scene
+    <div className="relative mt-1.5 flex w-fit min-w-0 max-w-full items-center gap-2 rounded-full bg-ink/60 py-0.5 pl-0.5 pr-3 backdrop-blur-sm" onPointerDown={(e) => e.stopPropagation()}>
+      <button onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} className={`${chip} bg-white/15 text-cream`}>
         {mixed && p.kind !== 'all' ? KIND_LABEL[p.kind] : 'Cards'}{p.order === 'shuffle' && <Icon name="refresh" size={11} strokeWidth={3} className="opacity-70" />}
         <Icon name="chevron" size={11} strokeWidth={3} className={`opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      <span className="truncate text-xs font-bold text-cream/70 [text-shadow:0_1px_2px_rgba(0,0,0,.35)]">{progress}</span>
+      <span className="truncate text-xs font-bold text-cream/90">{progress}</span>
       <AnimatePresence>
         {open && (
           <motion.div

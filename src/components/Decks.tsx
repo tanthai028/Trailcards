@@ -76,8 +76,8 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
         aria-label={`Studying ${active?.name ?? 'Field notes'}. Change deck`}
         className="group flex max-w-full items-start gap-1.5 text-left"
       >
-        <span className={`line-clamp-3 font-display font-bold leading-[1.15] text-cream [overflow-wrap:anywhere] ${titleSize(active?.name ?? '')}`}>{active?.name ?? 'Field notes'}</span>
-        <Icon name="chevron" size={16} strokeWidth={3} className="mt-1.5 shrink-0 text-cream/45 transition-colors group-hover:text-cream" />
+        <span className={`line-clamp-3 font-display font-bold leading-[1.15] text-cream [overflow-wrap:anywhere] [text-shadow:0_1px_3px_rgba(20,12,40,.55)] ${titleSize(active?.name ?? '')}`}>{active?.name ?? 'Field notes'}</span>
+        <Icon name="chevron" size={16} strokeWidth={3} className="mt-1.5 shrink-0 text-cream/70 drop-shadow transition-colors group-hover:text-cream" />
       </button>
 
       {/* portal: inside the Learn header the nav bar would paint over the sheet */}
