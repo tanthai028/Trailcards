@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
-import { DAILY_GOAL, currentStreak, levelInfo, todayCount } from '../state/game'
+import { levelInfo } from '../state/game'
 import { ProfilePic } from './ProfilePic'
-import { Icon } from './Icon'
 
 /** Each increase of `value` since mount, kept for a moment so it can float up next to the counter. */
 function useGains(value: number) {
@@ -42,13 +41,10 @@ function GainFloats({ gains, className, children }: { gains: { id: number; amoun
   )
 }
 
-/** Avatar wrapped in a level-progress ring, with the level number as a badge. */
+/** Your picture with a level badge whose ring fills with XP toward the next level. */
 export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?: number }) {
   const { state } = useGame()
   const lv = levelInfo(state.xp)
-  const today = todayCount(state)
-  const goal = Math.min(1, today / DAILY_GOAL)
-  const streak = currentStreak(state)
   const gains = useGains(state.xp)
   // remember the level we last showed, so only a real level-up pulses (not the first render)
   const shown = useRef(lv.level)
@@ -57,25 +53,19 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
     if (lv.level > shown.current) setPulse((p) => p + 1)
     shown.current = lv.level
   }, [lv.level])
-  const r = size / 2 + 2.5
-  const c = 2 * Math.PI * r
+  const c = 2 * Math.PI * 10
   return (
-    <button onClick={onClick} className="relative shrink-0 rounded-full" style={{ width: size + 8, height: size + 8 }} aria-label={`Profile: ${state.name}, level ${lv.level}. Today ${Math.min(today, DAILY_GOAL)} of ${DAILY_GOAL} answers${streak ? `, ${streak}-day streak` : ''}`}>
-      <svg className="absolute inset-0 -rotate-90" viewBox={`0 0 ${size + 8} ${size + 8}`} aria-hidden="true">
-        <circle cx={size / 2 + 4} cy={size / 2 + 4} r={r} fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="3" />
-        <motion.circle
-          cx={size / 2 + 4} cy={size / 2 + 4} r={r} fill="none" stroke="var(--color-gold)" strokeWidth="3" strokeLinecap="round"
-          strokeDasharray={c} initial={false} animate={{ strokeDashoffset: c * (1 - goal) }} transition={{ type: 'spring', stiffness: 120, damping: 20 }}
-        />
-      </svg>
+    <button onClick={onClick} className="relative shrink-0 rounded-full" style={{ width: size + 8, height: size + 8 }} aria-label={`Profile: ${state.name}, level ${lv.level}, ${lv.span - lv.into} XP to level ${lv.level + 1}`}>
       <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="absolute inset-1" />
-      <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-ink ring-2 ring-ink">{lv.level}</span>
-      {/* the ring is today's goal; a flame marks a live streak */}
-      {streak > 0 && (
-        <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center gap-px rounded-full bg-gradient-to-r from-peach to-gold px-1 text-[9px] font-extrabold text-[#5a3208] ring-2 ring-ink">
-          <Icon name="flame" size={9} filled />{streak}
-        </span>
-      )}
+      {/* the level badge: its ring fills with XP toward the next level */}
+      <span className="absolute -bottom-1.5 -right-1.5 grid size-7 place-items-center rounded-full bg-ink">
+        <svg viewBox="0 0 24 24" className="absolute inset-0 -rotate-90" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="2.6" />
+          <motion.circle cx="12" cy="12" r="10" fill="none" stroke="var(--color-gold)" strokeWidth="2.6" strokeLinecap="round"
+            strokeDasharray={c} initial={false} animate={{ strokeDashoffset: c * (1 - lv.pct) }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} />
+        </svg>
+        <span className="relative text-[10px] font-extrabold tabular-nums text-gold">{lv.level}</span>
+      </span>
       <GainFloats gains={gains} className="[&>span]:bg-lav [&>span]:text-[#22183a]">{(n) => `+${n} XP`}</GainFloats>
       <AnimatePresence>
         {pulse > 0 && (

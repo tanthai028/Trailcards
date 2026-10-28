@@ -98,7 +98,7 @@ export function FrameRing({ frame }: { frame: Frame }) {
         <circle cx="50" cy="50" r="47" fill="none" stroke="#fff3c4" strokeWidth="2.5" opacity=".9" />
         <circle cx="50" cy="50" r="47" fill="none" stroke="#f5cd6a" strokeWidth="6" opacity=".35" className="fx-glow-pulse" />
         <g className="fx-orbit" style={{ transformBox: 'view-box', transformOrigin: '50% 50%' }}>
-          {around(4, 47, (x, y, _d, i) => <path key={i} d={star} fill="#fffbe6" transform={`translate(${x} ${y}) scale(${i % 2 ? 0.7 : 1})`} style={{ filter: 'drop-shadow(0 0 2px #ffd27a)' }} />)}
+          {around(6, 47, (x, y, _d, i) => <path key={i} d={star} fill="#fff6c9" stroke="#f5b942" strokeWidth=".8" transform={`translate(${x} ${y}) scale(${i % 2 ? 1.1 : 1.7})`} style={{ filter: 'drop-shadow(0 0 3px #ffd27a)' }} />)}
         </g>
       </>
     )

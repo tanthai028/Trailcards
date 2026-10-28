@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom'
 import { AvatarLevel } from '../components/Hud'
 import { MochiPeek } from '../components/MochiPeek'
 import { CardFx } from '../components/CardFx'
-import { DAILY_GOAL, feedCards, findCard, isDue, isRecall, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyPrefs, studyQueue, todayCount, type AnswerResult, type GameState, type KindFilter, type Mastery, type StudyPrefs } from '../state/game'
+import { DAILY_GOAL, currentStreak, feedCards, findCard, isDue, isRecall, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyPrefs, studyQueue, todayCount, type AnswerResult, type GameState, type KindFilter, type Mastery, type StudyPrefs } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
@@ -619,9 +619,10 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
   // the type filter only means something when the deck has both kinds
   const mixed = all.some(isRecall) && all.some((c) => !isRecall(c))
   const fresh = feedCards(state).filter((c) => statusOf(state, c.id) === 'new').length
+  const streak = currentStreak(state)
   const progress = mode === 'review'
     ? (counts.review ? `${counts.review} due` : 'All caught up')
-    : `${Math.min(todayCount(state), DAILY_GOAL)}/${DAILY_GOAL} today · ${fresh} new · ${counts.review} due`
+    : [`${Math.min(todayCount(state), DAILY_GOAL)}/${DAILY_GOAL} today`, `${fresh} new`, counts.review ? `${counts.review} due` : ''].filter(Boolean).join(' · ')
   const set = (patch: Partial<StudyPrefs>) => { setStudyPrefs(patch); setOpen(false) }
   const option = (on: boolean, label: string, onClick: () => void) => (
     <button role="menuitemradio" aria-checked={on} onClick={onClick}
@@ -636,6 +637,11 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
         {mixed && p.kind !== 'all' ? KIND_LABEL[p.kind] : 'Cards'}{p.order === 'shuffle' && <Icon name="refresh" size={11} strokeWidth={3} className="opacity-70" />}
         <Icon name="chevron" size={11} strokeWidth={3} className={`opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
+      {streak > 0 && (
+        <span className="flex shrink-0 items-center gap-0.5 text-xs font-extrabold text-gold" aria-label={`${streak}-day streak`}>
+          <Icon name="flame" size={12} filled />{streak}
+        </span>
+      )}
       <span className="truncate text-xs font-bold text-cream/90">{progress}</span>
       <AnimatePresence>
         {open && (
@@ -678,7 +684,7 @@ const TOUR: { target: string; title: string; text: string; swipe?: boolean }[] =
   { target: 'card', title: 'Swipe for the next card', text: 'Swipe up to move on, down to go back.', swipe: true },
   { target: 'deck', title: 'What you study', text: 'Tap the deck name to switch decks, or make a new one with AI or your flashcards.' },
   { target: 'review', title: 'Review tab', text: 'Cards you learned come back here on a schedule. The number shows how many are due.' },
-  { target: 'goal', title: 'Daily goal', text: 'The ring fills as you answer: 10 a day builds a streak.' },
+  { target: 'goal', title: 'Your level', text: 'The ring on your level badge fills with XP. 10 answers a day builds your streak.' },
 ]
 
 /**
