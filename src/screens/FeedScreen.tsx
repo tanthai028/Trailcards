@@ -25,7 +25,7 @@ const idsFor = (s: GameState, mode: FeedMode) =>
 export const MASTERY_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Familiar', mastered: 'Mastered' }
 
 export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m: FeedMode) => void; go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, answer } = useGame()
+  const { state, answer, dismissTip } = useGame()
   // Snapshot the list when the mode opens, so answering a card doesn't yank it out from under you.
   const [ids, setIds] = useState(() => idsFor(state, mode))
   const [active, setActive] = useState(0)
@@ -211,6 +211,16 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
             </header>
       </div>
 
+      <Coach
+        tips={state.tips}
+        answered={Object.keys(state.cards).length}
+        answeredHere={!!(ids[active] && answers[ids[active]])}
+        active={active}
+        reviewDue={counts.review}
+        mode={mode}
+        dismiss={dismissTip}
+        onReview={() => setMode('review')}
+      />
       <div ref={scroller} className="no-scrollbar h-full touch-none overflow-hidden overscroll-contain [overflow-anchor:none]">
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
@@ -424,9 +434,12 @@ function ModeMenu({ mode, counts, open, setOpen, onPick }: {
         onClick={() => setOpen(!open)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex h-9 items-center gap-1.5 rounded-full bg-cream pl-3 pr-2 text-xs font-extrabold text-ink"
+        className="relative flex h-9 items-center gap-1.5 rounded-full bg-cream pl-3 pr-2 text-xs font-extrabold text-ink"
       >
         {MODE_LABEL[mode]} <span className="tabular-nums text-ink/50">{counts[mode]}</span>
+        {mode !== 'review' && counts.review > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-coral ring-2 ring-ink" aria-label={`${counts.review} due for review`} />
+        )}
         <Icon name="chevron" size={12} strokeWidth={3} className={`opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
@@ -465,6 +478,53 @@ function shade(hex: string) {
   const n = parseInt(hex.slice(1), 16)
   const f = (v: number) => Math.round(v * 0.55)
   return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`
+}
+
+/**
+ * First-run coaching, one bubble at a time: how to answer, how to move on, what the header
+ * controls do, and what Review is the first time something is due. Each is shown once.
+ */
+function Coach({ tips, answered, answeredHere, active, reviewDue, mode, dismiss, onReview }: {
+  tips: string[]; answered: number; answeredHere: boolean; active: number; reviewDue: number; mode: FeedMode
+  dismiss: (id: string) => void; onReview: () => void
+}) {
+  const seen = (id: string) => tips.includes(id)
+  // answering and swiping teach themselves: the tip goes away once you've done it
+  useEffect(() => {
+    if (answered > 0 && !seen('coach-answer')) dismiss('coach-answer')
+    if (active > 0 && !seen('coach-swipe')) dismiss('coach-swipe')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answered, active])
+
+  let tip: { id: string; text: string; action?: { label: string; run: () => void } } | null = null
+  if (mode === 'discover' && answered === 0 && !seen('coach-answer')) tip = { id: 'coach-answer', text: 'Read the card, then tap the answer you think is right. Right answers earn coins.' }
+  else if (answeredHere && active === 0 && !seen('coach-swipe')) tip = { id: 'coach-swipe', text: 'Swipe up for the next card.' }
+  else if (answered >= 3 && !seen('coach-header')) tip = { id: 'coach-header', text: 'Up top: Discover shows new cards (tap it for Review or Saved), and Field notes is your deck. Change it or import your own.' }
+  else if (reviewDue > 0 && mode !== 'review' && !seen('coach-review')) tip = { id: 'coach-review', text: `${reviewDue} card${reviewDue === 1 ? ' is' : 's are'} due for review. Cards come back after a day, then 3 days, a week and longer, so they stick.`, action: { label: 'Review now', run: onReview } }
+
+  return (
+    <AnimatePresence>
+      {tip && (
+        <motion.div
+          key={tip.id}
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.15 } }}
+          className="pointer-events-auto absolute inset-x-6 bottom-5 z-30 flex items-center gap-3 rounded-3xl bg-ink-2 p-3 pl-4 text-cream shadow-[0_12px_30px_-8px_rgba(0,0,0,.6)] ring-1 ring-white/10"
+          role="status"
+        >
+          {tip.id === 'coach-swipe' && (
+            <motion.span animate={{ y: [3, -3, 3] }} transition={{ repeat: Infinity, duration: 1.2 }} className="shrink-0 text-gold" aria-hidden="true">
+              <Icon name="down" size={18} strokeWidth={3} className="rotate-180" />
+            </motion.span>
+          )}
+          <p className="min-w-0 flex-1 text-[13px] leading-snug">{tip.text}</p>
+          {tip.action ? (
+            <button onClick={() => { dismiss(tip!.id); tip!.action!.run() }} className="clay-btn clay-butter min-h-10 shrink-0 px-3 text-xs">{tip.action.label}</button>
+          ) : null}
+          <button onClick={() => dismiss(tip!.id)} className="min-h-10 shrink-0 rounded-xl px-2 text-xs font-extrabold text-cream/60 hover:text-cream">Got it</button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 }
 
 function NextReview() {

@@ -18,11 +18,15 @@ const TABS: { id: ClosetTab; label: string }[] = [
   { id: 'card', label: 'Cards' },
 ]
 
+/** The Closet reopens on the tab you last used (for this visit to the app). */
+let lastTab: ClosetTab = 'outfit'
+
 const withItem = (look: Look, item: Item): Look => ({ ...look, [item.slot]: item.id })
 
 export function ClosetScreen() {
   const { state, buy, equip, setHairColor, setBody, setCardShuffle } = useGame()
-  const [tab, setTab] = useState<ClosetTab>('outfit')
+  const [tab, setTabState] = useState<ClosetTab>(lastTab)
+  const setTab = (t: ClosetTab) => { lastTab = t; setTabState(t) }
   const [previewId, setPreviewId] = useState<string | null>(null)
   const preview = previewId ? ITEM_BY_ID[previewId] : null
   const look = preview ? withItem(state.look, preview) : state.look
