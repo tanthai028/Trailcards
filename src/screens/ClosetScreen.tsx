@@ -56,10 +56,11 @@ export function ClosetScreen() {
       {/* Stage */}
       <div
         ref={stage}
-        className="relative h-[330px] overflow-hidden rounded-[30px]"
-        style={{ background: 'radial-gradient(90% 70% at 50% 35%, #fff3e2 0%, #e9d9cf 45%, #b9a8bf 100%)' }}
+        className="relative h-[330px] overflow-hidden rounded-[30px] bg-[#e9d9cf]"
       >
-        {tab === 'card' && <SceneSvg scene={ITEM_BY_ID[look.card]?.scene ?? 'meadow'} className="absolute inset-0 h-full w-full" />}
+        {/* your card background (or the one you're trying) as the backdrop, with a soft floor glow */}
+        <SceneSvg scene={ITEM_BY_ID[look.card]?.scene ?? 'meadow'} className="absolute inset-0 h-full w-full" />
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent" />
         <div className="absolute bottom-[26px] left-1/2 h-9 w-48 -translate-x-1/2 rounded-[50%] bg-[#6b4f6e]/30 blur-md" />
         <div className="absolute left-4 top-4 z-10"><CoinsPill /></div>
         <AnimatePresence mode="popLayout">
@@ -77,33 +78,6 @@ export function ClosetScreen() {
         <div className="absolute right-4 top-4">
           <BodySwitch body={state.look.body} onChange={(b) => { setPreviewId(null); setBody(b) }} />
         </div>
-      </div>
-
-      {/* Unlock bar. Its slot is always reserved, so showing it never shifts the page. */}
-      <div className="relative z-10 mx-3 -mt-7 h-[60px]">
-        <AnimatePresence initial={false}>
-          {preview && (
-            <motion.div
-              key={preview.id}
-              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.12 } }}
-              transition={{ duration: 0.18 }}
-              className="absolute inset-0 flex items-center gap-3 rounded-3xl bg-paper p-2 pl-4 text-ink shadow-xl"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-extrabold leading-tight">{preview.name}</p>
-                <p className="truncate text-[12px] leading-snug text-ink/60">{preview.blurb}</p>
-              </div>
-              <button
-                onClick={() => unlock(preview)}
-                disabled={short > 0}
-                className="flex min-h-11 w-[128px] shrink-0 items-center justify-center gap-1.5 clay-btn clay-ink text-sm tabular-nums disabled:bg-ink/15 disabled:text-ink/50"
-              >
-                <Coin size={16} />
-                {short > 0 ? `Need ${short}` : `Unlock · ${preview.cost}`}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Tabs */}
@@ -177,6 +151,40 @@ export function ClosetScreen() {
           </li>
         ))}
       </ul>
+
+      {/* Unlock bar: stuck to the bottom of the screen, right where you tapped, with a small
+          try-on preview so you never scroll back up to see or buy it. */}
+      <AnimatePresence initial={false}>
+        {preview && (
+          <motion.div
+            key={preview.id}
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16, transition: { duration: 0.12 } }}
+            transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+            className="sticky bottom-3 z-20 mt-3 flex items-center gap-3 rounded-3xl bg-paper p-2 text-ink shadow-[0_12px_30px_-8px_rgba(0,0,0,.55)]"
+          >
+            <span className="relative size-12 shrink-0 overflow-hidden rounded-2xl bg-[#e9d9cf]">
+              {preview.slot === 'card'
+                ? <SceneSvg scene={preview.scene ?? 'meadow'} still className="absolute inset-0 h-full w-full" />
+                : <Avatar look={look} className="absolute inset-0" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-extrabold leading-tight">{preview.name}</p>
+              <p className="truncate text-[12px] leading-snug text-ink/60">{preview.blurb}</p>
+            </div>
+            <button
+              onClick={() => unlock(preview)}
+              disabled={short > 0}
+              className="flex min-h-11 w-[118px] shrink-0 items-center justify-center gap-1.5 clay-btn clay-ink text-sm tabular-nums disabled:bg-ink/15 disabled:text-ink/50"
+            >
+              <Coin size={16} />
+              {short > 0 ? `Need ${short}` : `Unlock · ${preview.cost}`}
+            </button>
+            <button onClick={() => setPreviewId(null)} aria-label="Stop trying on" className="grid size-9 shrink-0 place-items-center rounded-full text-ink/45 hover:text-ink">
+              <Icon name="x" size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
