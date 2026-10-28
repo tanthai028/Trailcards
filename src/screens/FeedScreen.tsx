@@ -4,6 +4,7 @@ import { useGame } from '../state/store'
 import { TOPICS, type Card } from '../data/cards'
 import type { DeckFeedCard } from '../data/decks'
 import { DeckPicker } from '../components/Decks'
+import { AvatarLevel, CoinsPill } from '../components/Hud'
 import { findCard, reviewQueue, sourceCards, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
@@ -21,11 +22,18 @@ const idsFor = (s: GameState, mode: FeedMode) =>
 
 export const MASTERY_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Familiar', mastered: 'Mastered' }
 
-export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m: FeedMode) => void; go: (t: Tab, m?: FeedMode) => void }) {
+export function FeedScreen({ mode, setMode, go, immersive, setImmersive }: {
+  mode: FeedMode
+  setMode: (m: FeedMode) => void
+  go: (t: Tab, m?: FeedMode) => void
+  immersive: boolean
+  setImmersive: (v: boolean) => void
+}) {
   const { state, answer } = useGame()
   // Snapshot the list when the mode opens, so answering a card doesn't yank it out from under you.
   const [ids, setIds] = useState(() => idsFor(state, mode))
   const [active, setActive] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
   const answerFns = useRef<Record<number, (i: number) => void>>({})
 
@@ -42,6 +50,22 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
     setActive(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeDeck, state.decks.length])
+
+  // Swipe forward: hide the chrome so the card gets the screen. Swipe back or reach the end: show it.
+  const lastActive = useRef(0)
+  useEffect(() => {
+    if (active > lastActive.current && active < ids.length) setImmersive(true)
+    else if (active < lastActive.current || active >= ids.length) setImmersive(false)
+    lastActive.current = active
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active])
+  useEffect(() => setImmersive(false), [mode, setImmersive])
+  // The scroller changes height as chrome collapses; re-seat the current card once it settles.
+  useEffect(() => {
+    const t = setTimeout(() => scroller.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'start' }), 320)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immersive])
 
   // Track which card is on screen.
   useEffect(() => {
@@ -76,28 +100,24 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 px-4 pb-2">
-        <div role="tablist" aria-label="Feed" className="flex gap-1.5">
-          {(['discover', 'review', 'saved'] as FeedMode[]).map((m) => (
-            <button
-              key={m}
-              role="tab"
-              aria-selected={mode === m}
-              onClick={() => (mode === m ? (setIds(idsFor(state, m)), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
-              className={`rounded-full px-3 py-1.5 text-xs font-extrabold capitalize transition ${mode === m ? 'bg-cream text-ink' : 'clay text-cream/70 hover:brightness-110'}`}
-            >
-              {m} <span className={mode === m ? 'text-ink/50' : 'text-cream/40'}>{counts[m]}</span>
-            </button>
-          ))}
+      {/* status-bar spacer stays; the header row itself collapses while swiping */}
+      <div className="relative z-20 pt-[env(safe-area-inset-top)]">
+        <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: immersive ? '0fr' : '1fr' }}>
+          <div className={`min-h-0 ${menuOpen ? '' : 'overflow-hidden'}`}>
+            <header className="flex items-center gap-2 px-3 pb-1.5 pt-2">
+              <AvatarLevel onClick={() => go('profile')} size={34} />
+              <ModeMenu
+                mode={mode}
+                counts={counts}
+                open={menuOpen}
+                setOpen={setMenuOpen}
+                onPick={(m) => (m === mode ? (setIds(idsFor(state, m)), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
+              />
+              <DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} />
+              <div className="ml-auto"><CoinsPill /></div>
+            </header>
+          </div>
         </div>
-        <div className="ml-auto">
-                    <DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} />
-        </div>
-      </div>
-
-      {/* thin progress through the current stack */}
-      <div className="mx-4 mb-1 h-1 overflow-hidden rounded-full bg-white/10">
-        <motion.div className="h-full rounded-full bg-gradient-to-r from-sky via-lav to-peach" animate={{ width: `${ids.length ? (Math.min(active + 1, ids.length) / ids.length) * 100 : 100}%` }} />
       </div>
 
       <div ref={scroller} className="no-scrollbar min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto scroll-smooth">
@@ -300,6 +320,59 @@ function progressNote(r: AnswerResult) {
   if (r.to === 'learning') return 'It’ll come back in Review'
   if (r.from === 'new') return 'Review it later to master it'
   return r.from === 'learning' ? 'Getting there' : 'Needs a refresh'
+}
+
+const MODE_LABEL: Record<FeedMode, string> = { discover: 'Discover', review: 'Review', saved: 'Saved' }
+
+/** Discover / Review / Saved in one compact menu instead of a row of chips. */
+function ModeMenu({ mode, counts, open, setOpen, onPick }: {
+  mode: FeedMode; counts: Record<FeedMode, number>; open: boolean; setOpen: (v: boolean) => void; onPick: (m: FeedMode) => void
+}) {
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', onKey) }
+  }, [open, setOpen])
+  return (
+    <div className="relative shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen(!open)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex min-h-9 items-center gap-1.5 rounded-full bg-cream py-1 pl-3 pr-2 text-xs font-extrabold text-ink"
+      >
+        {MODE_LABEL[mode]} <span className="tabular-nums text-ink/50">{counts[mode]}</span>
+        <Icon name="chevron" size={12} strokeWidth={3} className={`opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.ul
+            role="menu"
+            initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
+            transition={{ duration: 0.14 }}
+            className="clay absolute left-0 top-[calc(100%+6px)] z-30 w-48 origin-top-left rounded-2xl p-1.5"
+          >
+            {(['discover', 'review', 'saved'] as FeedMode[]).map((m) => (
+              <li key={m}>
+                <button
+                  role="menuitemradio"
+                  aria-checked={mode === m}
+                  onClick={() => { onPick(m); setOpen(false) }}
+                  className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-bold ${mode === m ? 'bg-gold/15 text-gold' : 'text-cream/85 hover:bg-white/5'}`}
+                >
+                  <span className="flex-1">{MODE_LABEL[m]}</span>
+                  <span className="tabular-nums text-xs opacity-60">{counts[m]}</span>
+                </button>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  )
 }
 
 const RIGHT = ['Nailed it!', 'Exactly right!', 'Sharp eyes!', 'You got it!', 'Mochi is impressed!']

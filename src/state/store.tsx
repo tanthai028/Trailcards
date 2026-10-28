@@ -25,6 +25,7 @@ interface Store {
   importDeck: (name: string, cards: DeckCard[]) => void
   deleteDeck: (id: string) => void
   setActiveDeck: (id: string | null) => void
+  dismissTip: (id: string) => void
   setName: (name: string) => void
   setTitle: (title: string | null) => void
   setDestination: (id: string) => void
@@ -104,6 +105,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       deleteDeck: (id) => {
         const s = stateRef.current
         commit({ ...s, decks: s.decks.filter((d) => d.id !== id), activeDeck: s.activeDeck === id ? null : s.activeDeck })
+      },
+      dismissTip: (id) => {
+        const s = stateRef.current
+        if (!s.tips.includes(id)) commit({ ...s, tips: [...s.tips, id] })
       },
       setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id }),
       setBody: (b) => commit(G.setBody(stateRef.current, b)),

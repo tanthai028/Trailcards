@@ -1,0 +1,16 @@
+{
+  "name": "Wayfarer",
+  "short_name": "Wayfarer",
+  "description": "Learn the world one card at a time, dress up your traveler, and turn a little van into home.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#221a33",
+  "theme_color": "#221a33",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
