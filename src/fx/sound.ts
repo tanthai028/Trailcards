@@ -96,3 +96,26 @@ export function playSwipe() {
   src.start(t)
   src.stop(t + 0.22)
 }
+
+/** Level up: a quick rising four-note fanfare with a shimmer on top. */
+export function playLevelUp() {
+  const notes = [523.25, 659.25, 783.99, 1046.5]
+  notes.forEach((f, i) => {
+    tone(f, { at: i * 0.09, dur: 0.4, gain: 0.14 })
+    tone(f * 2, { at: i * 0.09, dur: 0.22, type: 'triangle', gain: 0.03 })
+  })
+  tone(1046.5, { at: 0.36, dur: 0.9, gain: 0.1 })
+  tone(1567.98, { at: 0.42, dur: 0.8, gain: 0.06 })
+}
+
+/** Unlocking something: a short sparkly rise. */
+export function playUnlock() {
+  ;[880, 1108.73, 1318.51, 1760].forEach((f, i) => tone(f, { at: i * 0.055, dur: 0.28, type: 'triangle', gain: 0.07 }))
+  tone(659.25, { dur: 0.5, gain: 0.08 })
+}
+
+/** Achievement toast: two soft bells. */
+export function playAchievement() {
+  tone(987.77, { dur: 0.5, gain: 0.08 })
+  tone(1318.51, { at: 0.12, dur: 0.6, gain: 0.07 })
+}

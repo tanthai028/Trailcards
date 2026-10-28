@@ -47,6 +47,13 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
   const { state } = useGame()
   const lv = levelInfo(state.xp)
   const gains = useGains(state.xp)
+  // remember the level we last showed, so only a real level-up pulses (not the first render)
+  const shown = useRef(lv.level)
+  const [pulse, setPulse] = useState(0)
+  useEffect(() => {
+    if (lv.level > shown.current) setPulse((p) => p + 1)
+    shown.current = lv.level
+  }, [lv.level])
   const r = size / 2 + 2.5
   const c = 2 * Math.PI * r
   return (
@@ -61,6 +68,17 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
       <Avatar look={state.look} className="absolute inset-1 rounded-full bg-gradient-to-b from-[#fff3e2] to-[#d9c7d0]" />
       <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-ink ring-2 ring-ink">{lv.level}</span>
       <GainFloats gains={gains} className="[&>span]:bg-lav [&>span]:text-[#22183a]">{(n) => `+${n} XP`}</GainFloats>
+      <AnimatePresence>
+        {pulse > 0 && (
+          <motion.span
+            key={pulse}
+            className="pointer-events-none absolute inset-0 rounded-full ring-4 ring-gold"
+            initial={{ scale: 1, opacity: 0.95 }} animate={{ scale: 1.9, opacity: 0 }} transition={{ duration: 0.9, ease: 'easeOut' }}
+            onAnimationComplete={() => setPulse(0)}
+            aria-hidden="true"
+          />
+        )}
+      </AnimatePresence>
     </button>
   )
 }
