@@ -133,6 +133,7 @@ const SOURCES: { id: Source; label: string; steps: string[] }[] = [
 function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
   const { importDeck } = useGame()
   const [source, setSource] = useState<Source>('quizlet')
+  const [help, setHelp] = useState(false)
   const [name, setName] = useState('')
   const [text, setText] = useState('')
   const [opts, setOpts] = useState<ParseOptions>({ termSep: 'tab', rowSep: 'newline' })
@@ -172,11 +173,23 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
             <Icon name="x" size={20} />
           </button>
           <h1 id="import-title" className="font-display text-xl font-bold">Import a deck</h1>
+          <button
+            onClick={() => setHelp(!help)} aria-expanded={help} aria-label="How to copy your cards"
+            className={`ml-auto grid size-9 place-items-center rounded-full font-display text-base font-bold transition-colors ${help ? 'bg-cream text-ink' : 'clay text-cream/75'}`}
+          >
+            ?
+          </button>
         </header>
 
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          <p className="text-sm font-bold text-cream/80">Where are your cards?</p>
-          <div role="tablist" aria-label="Import from" className="mt-2 grid grid-cols-4 gap-1 rounded-full bg-white/6 p-1">
+          <p className="text-[13px] text-cream/60">Paste cards from Quizlet, Anki, Knowt or your notes.</p>
+          <AnimatePresence initial={false}>
+          {help && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }} className="overflow-hidden"
+          >
+          <div role="tablist" aria-label="Import from" className="mt-3 grid grid-cols-4 gap-1 rounded-full bg-white/6 p-1">
             {SOURCES.map((s) => (
               <button
                 key={s.id} role="tab" aria-selected={source === s.id} onClick={() => setSource(s.id)}
@@ -194,20 +207,23 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
               </li>
             ))}
           </ol>
+          </motion.div>
+          )}
+          </AnimatePresence>
 
           <div className="relative mt-4">
             <textarea
               id="deck-text" value={text} onChange={(e) => setText(e.target.value)} rows={pasted ? 4 : 6} spellCheck={false}
               placeholder="Paste your cards here" aria-label="Your cards"
-              className="w-full resize-none rounded-2xl bg-white/8 px-4 py-3 text-[13px] leading-relaxed text-cream ring-1 ring-white/12 placeholder:text-cream/35 focus:outline-none focus:ring-2 focus:ring-gold"
+              className="no-scrollbar block w-full resize-none rounded-2xl bg-white/8 py-3 pl-4 pr-24 text-[13px] leading-relaxed text-cream ring-1 ring-white/12 placeholder:text-cream/35 focus:outline-none focus:ring-2 focus:ring-gold"
             />
             {pasted ? (
               <button onClick={() => { setText(''); setTouchedSep(false); setShowAll(false) }} className="absolute right-2 top-2 rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-extrabold text-cream/70 hover:text-cream">
                 Clear
               </button>
             ) : (
-              <button onClick={paste} className="clay-btn clay-lav absolute bottom-4 left-1/2 flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full px-5 text-sm">
-                <Icon name="edit" size={15} /> Paste
+              <button onClick={paste} className="clay-btn clay-lav absolute right-2 top-2 flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-xs">
+                <Icon name="edit" size={13} /> Paste
               </button>
             )}
           </div>
