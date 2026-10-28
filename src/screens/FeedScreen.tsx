@@ -22,13 +22,7 @@ const idsFor = (s: GameState, mode: FeedMode) =>
 
 export const MASTERY_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Familiar', mastered: 'Mastered' }
 
-export function FeedScreen({ mode, setMode, go, immersive, setImmersive }: {
-  mode: FeedMode
-  setMode: (m: FeedMode) => void
-  go: (t: Tab, m?: FeedMode) => void
-  immersive: boolean
-  setImmersive: (v: boolean) => void
-}) {
+export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m: FeedMode) => void; go: (t: Tab, m?: FeedMode) => void }) {
   const { state, answer } = useGame()
   // Snapshot the list when the mode opens, so answering a card doesn't yank it out from under you.
   const [ids, setIds] = useState(() => idsFor(state, mode))
@@ -50,22 +44,6 @@ export function FeedScreen({ mode, setMode, go, immersive, setImmersive }: {
     setActive(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeDeck, state.decks.length])
-
-  // Swipe forward: hide the chrome so the card gets the screen. Swipe back or reach the end: show it.
-  const lastActive = useRef(0)
-  useEffect(() => {
-    if (active > lastActive.current && active < ids.length) setImmersive(true)
-    else if (active < lastActive.current || active >= ids.length) setImmersive(false)
-    lastActive.current = active
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
-  useEffect(() => setImmersive(false), [mode, setImmersive])
-  // The scroller changes height as chrome collapses; re-seat the current card once it settles.
-  useEffect(() => {
-    const t = setTimeout(() => scroller.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'start' }), 320)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [immersive])
 
   // Track which card is on screen.
   useEffect(() => {
@@ -100,11 +78,9 @@ export function FeedScreen({ mode, setMode, go, immersive, setImmersive }: {
 
   return (
     <div className="flex h-full flex-col">
-      {/* status-bar spacer stays; the header row itself collapses while swiping */}
-      <div className="relative z-20 pt-[env(safe-area-inset-top)]">
-        <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: immersive ? '0fr' : '1fr' }}>
-          <div className={`min-h-0 ${menuOpen ? '' : 'overflow-hidden'}`}>
-            <header className="flex items-center gap-2 px-3 pb-1.5 pt-2">
+      {/* solid behind the status bar so the page glow doesn't bleed under the clock */}
+      <div className="relative z-20 bg-ink pt-[env(safe-area-inset-top)]">
+            <header className="flex items-center gap-2 px-3 pb-2 pt-2">
               <AvatarLevel onClick={() => go('profile')} size={34} />
               <ModeMenu
                 mode={mode}
@@ -116,8 +92,6 @@ export function FeedScreen({ mode, setMode, go, immersive, setImmersive }: {
               <DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} />
               <div className="ml-auto"><CoinsPill /></div>
             </header>
-          </div>
-        </div>
       </div>
 
       <div ref={scroller} className="no-scrollbar min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto scroll-smooth">
@@ -342,7 +316,7 @@ function ModeMenu({ mode, counts, open, setOpen, onPick }: {
         onClick={() => setOpen(!open)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex min-h-9 items-center gap-1.5 rounded-full bg-cream py-1 pl-3 pr-2 text-xs font-extrabold text-ink"
+        className="flex h-9 items-center gap-1.5 rounded-full bg-cream pl-3 pr-2 text-xs font-extrabold text-ink"
       >
         {MODE_LABEL[mode]} <span className="tabular-nums text-ink/50">{counts[mode]}</span>
         <Icon name="chevron" size={12} strokeWidth={3} className={`opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />

@@ -12,7 +12,7 @@ const ITEMS: { id: Tab; label: string; icon: string }[] = [
 
 export function NavBar({ tab, onTab, dots = {} }: { tab: Tab; onTab: (t: Tab) => void; dots?: Partial<Record<Tab, boolean>> }) {
   return (
-    <nav className="relative z-20 border-t border-white/8 bg-ink/80 px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl" aria-label="Main">
+    <nav className="relative z-20 border-t border-white/8 bg-ink px-3 pb-[max(8px,calc(env(safe-area-inset-bottom)-16px))] pt-2" aria-label="Main">
       <ul className="grid grid-cols-4 gap-1">
         {ITEMS.map((it) => {
           const active = tab === it.id

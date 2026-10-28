@@ -28,7 +28,7 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
 export function CoinsPill() {
   const { state } = useGame()
   return (
-    <motion.div key={state.coins} initial={{ scale: 1.18 }} animate={{ scale: 1 }} className="flex shrink-0 items-center gap-1.5 rounded-full clay py-1.5 pl-1.5 pr-3" aria-label={`${state.coins} coins`}>
+    <motion.div key={state.coins} initial={{ scale: 1.18 }} animate={{ scale: 1 }} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full clay pl-1.5 pr-3" aria-label={`${state.coins} coins`}>
       <Coin />
       <span className="text-sm font-extrabold tabular-nums">{state.coins}</span>
     </motion.div>
@@ -39,7 +39,7 @@ export function Hud({ onProfile }: { onProfile: () => void }) {
   const { state } = useGame()
   const lv = levelInfo(state.xp)
   return (
-    <header className="relative z-20 flex items-center gap-3 px-4 pb-2 pt-[max(12px,env(safe-area-inset-top))]">
+    <header className="relative z-20 flex items-center gap-3 bg-ink px-4 pb-2 pt-[max(12px,env(safe-area-inset-top))]">
       <button
         onClick={onProfile}
         className="flex min-w-0 items-center gap-2.5 rounded-full py-1 pl-1 pr-3 transition hover:bg-white/5"

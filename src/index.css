@@ -27,6 +27,10 @@ body,
   height: 100%;
 }
 
+html {
+  background: #221a33;
+}
+
 body {
   margin: 0;
   background: radial-gradient(1100px 640px at 50% -12%, #463764 0%, #221a33 58%, #1a1428 100%) fixed;

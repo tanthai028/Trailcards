@@ -36,7 +36,7 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-label={`Studying ${active?.name ?? 'Field notes'}. Change deck`}
-        className="clay flex min-h-8 max-w-[11rem] items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-[11px] font-extrabold text-cream/85"
+        className="clay flex h-9 max-w-[11rem] items-center gap-1.5 rounded-full pl-3 pr-2 text-xs font-extrabold text-cream/85"
       >
         <Icon name="book" size={13} className="shrink-0 text-lav" />
         <span className="truncate">{active?.name ?? 'Field notes'}</span>
