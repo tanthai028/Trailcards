@@ -248,9 +248,10 @@ function Feed({ mode, setMode, go }: FeedProps) {
   )
 
   return (
-    <div className="relative flex h-full flex-col">
-      {/* What you're studying, in full, with how you're studying it underneath; you on the right. */}
-      <header className="relative z-20 flex shrink-0 touch-none items-start gap-3 px-5 pb-2.5">
+    <div className="relative h-full">
+      {/* Floats over the card's scene band: what you're studying, in full, and you on the right.
+          Card padding (16px) + inset (12px) keeps it inside the card's corners. */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex touch-none items-start gap-3 px-7 pt-3 [&>*]:pointer-events-auto">
         <div className="min-w-0 flex-1">
           <div data-tour="deck"><DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} /></div>
           <SubLine mode={mode} counts={counts} setMode={setMode} />
@@ -268,7 +269,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
         dismiss={dismissTip}
         onReview={() => setMode('review')}
       />
-      <div ref={scroller} className="no-scrollbar min-h-0 flex-1 touch-none overflow-hidden overscroll-contain [overflow-anchor:none]">
+      <div ref={scroller} className="no-scrollbar h-full touch-none overflow-hidden overscroll-contain [overflow-anchor:none]">
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
           const card = findCard(state, id)
@@ -362,30 +363,30 @@ function FeedCard({
           <SceneSvg scene={topic.scene} still={!live} className="absolute inset-0 h-full w-full" />
         </div>
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
-        <div className="absolute inset-x-3 top-3 flex items-start gap-2">
-          {isReview && (
-            <span className="rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-extrabold text-gold">
-              Review · {MASTERY_LABEL[result?.from ?? status]}
-            </span>
-          )}
-          <button
-            onClick={() => toggleBookmark(card.id)}
-            aria-pressed={saved}
-            aria-label={saved ? 'Remove from saved' : 'Save for later'}
-            className={`ml-auto grid size-9 place-items-center rounded-full transition active:scale-90 ${saved ? 'bg-gold text-ink' : 'bg-white/85 text-ink/70 hover:bg-white'}`}
-          >
-            <Icon name="bookmark" size={17} filled={saved} />
-          </button>
-        </div>
+        {/* keeps the deck name and your picture readable on light skies */}
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ink/55 via-ink/20 to-transparent" />
       </div>
 
-      <div ref={fitRef} className="relative -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-3" style={{ fontSize: 16 }}>
+      {/* bottom-right, clear of the answers: the text area below keeps room for it */}
+      <button
+        onClick={() => toggleBookmark(card.id)}
+        aria-pressed={saved}
+        aria-label={saved ? 'Remove from saved' : 'Save for later'}
+        className={`absolute bottom-3 right-3 z-10 grid size-10 place-items-center rounded-full shadow-sm ring-1 ring-ink/5 transition active:scale-90 ${saved ? 'bg-gold text-ink' : 'bg-white text-ink/60 hover:text-ink'}`}
+      >
+        <Icon name="bookmark" size={17} filled={saved} />
+      </button>
+
+      <div ref={fitRef} className="relative -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-14" style={{ fontSize: 16 }}>
         <div className="flex items-baseline justify-between gap-2">
           <p className="line-clamp-2 text-[0.68em] font-black" style={{ color: shade(topic.accent) }}>{card.hook}</p>
           {tag ? (
             <span className={`shrink-0 rounded-full px-2 py-px text-[0.62em] font-extrabold ${tag === 'New' ? 'bg-sky/30 text-[#2f5f8f]' : tag === 'Review' ? 'bg-gold/35 text-[#7a5410]' : 'bg-lav/25 text-[#5b47a8]'}`}>{tag}</span>
           ) : (
-            <span className="shrink-0 text-[0.68em] font-bold tabular-nums text-ink/40">{index + 1} / {total}</span>
+            <span className="flex shrink-0 items-center gap-1.5 text-[0.68em] font-bold tabular-nums text-ink/40">
+              {isReview && <span className="rounded-full bg-gold/35 px-2 py-px font-extrabold text-[#7a5410]">{MASTERY_LABEL[result?.from ?? status]}</span>}
+              {index + 1} / {total}
+            </span>
           )}
         </div>
         <h2 className="mt-0.5 font-display text-[1.55em] font-bold leading-[1.1] text-ink">{card.title}</h2>
