@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { HAIR_COLORS, ITEMS, ITEM_BY_ID, RARITY_STYLE, type Body, type Item, type Look, type Slot } from '../data/items'
@@ -6,6 +6,8 @@ import { Avatar, Figurine } from '../scene/Figurine'
 import { Coin, Icon } from '../components/Icon'
 import { CoinsPill } from '../components/Hud'
 import { SceneSvg } from '../art/Landscape'
+import { sparkle } from '../fx/FxLayer'
+import { playUnlock } from '../fx/sound'
 
 type ClosetTab = Exclude<Slot, 'van'>
 const TABS: { id: ClosetTab; label: string }[] = [
@@ -38,11 +40,22 @@ export function ClosetScreen() {
     } else setPreviewId(previewId === it.id ? null : it.id)
   }
   const short = preview ? preview.cost - state.coins : 0
+  const stage = useRef<HTMLDivElement>(null)
+  const unlock = (it: Item) => {
+    if (!buy(it.id)) return
+    equip(it.id)
+    if (it.slot === 'card') setCardShuffle(false)
+    setPreviewId(null)
+    playUnlock()
+    const r = stage.current?.getBoundingClientRect()
+    if (r) sparkle(r.left + r.width / 2, r.top + r.height * 0.45)
+  }
 
   return (
     <div className="no-scrollbar h-full overflow-y-auto overscroll-contain px-4 pb-6">
       {/* Stage */}
       <div
+        ref={stage}
         className="relative h-[330px] overflow-hidden rounded-[30px]"
         style={{ background: 'radial-gradient(90% 70% at 50% 35%, #fff3e2 0%, #e9d9cf 45%, #b9a8bf 100%)' }}
       >
@@ -81,7 +94,7 @@ export function ClosetScreen() {
                 <p className="truncate text-[12px] leading-snug text-ink/60">{preview.blurb}</p>
               </div>
               <button
-                onClick={() => { if (buy(preview.id)) { equip(preview.id); setPreviewId(null) } }}
+                onClick={() => unlock(preview)}
                 disabled={short > 0}
                 className="flex min-h-11 w-[128px] shrink-0 items-center justify-center gap-1.5 clay-btn clay-ink text-sm tabular-nums disabled:bg-ink/15 disabled:text-ink/50"
               >
@@ -210,9 +223,16 @@ function ItemCard({ item, look, owned, equipped, mixed, selected, affordable, on
         ) : (
           <Avatar look={look} className={`absolute inset-x-2 bottom-0 top-1 ${owned ? '' : 'opacity-85 saturate-[.85]'}`} />
         )}
-        {!owned && (
-          <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-ink/70 text-cream/80 backdrop-blur"><Icon name="lock" size={14} /></span>
-        )}
+        <AnimatePresence initial={false}>
+          {!owned && (
+            <motion.span
+              exit={{ scale: 1.7, rotate: 25, opacity: 0, transition: { duration: 0.35 } }}
+              className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-ink/70 text-cream/80"
+            >
+              <Icon name="lock" size={14} />
+            </motion.span>
+          )}
+        </AnimatePresence>
         {equipped && (
           <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-gold px-2 py-0.5 text-xs font-extrabold text-ink"><Icon name="check" size={11} strokeWidth={3.5} />{using}</span>
         )}

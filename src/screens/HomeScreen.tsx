@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { DESTINATIONS, ITEM_BY_ID, VAN_TIERS, VAN_TIER_NAMES } from '../data/items'
@@ -13,6 +13,8 @@ import { Cat, Plant } from '../art/Companions'
 import { Coin, Icon } from '../components/Icon'
 import { CoinsPill } from '../components/Hud'
 import { Trophy } from '../components/Trophy'
+import { sparkle } from '../fx/FxLayer'
+import { playUnlock } from '../fx/sound'
 import type { Tab } from '../components/NavBar'
 import type { FeedMode } from './FeedScreen'
 
@@ -28,6 +30,16 @@ const MOCHI_LINES = [
 
 export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
   const { state, buy, setDestination } = useGame()
+  const stageRef = useRef<HTMLDivElement>(null)
+  const [glow, setGlow] = useState(0)
+  const upgrade = (id: string) => {
+    setView('interior')
+    if (!buy(id)) return
+    playUnlock()
+    setGlow((g) => g + 1)
+    const r = stageRef.current?.getBoundingClientRect()
+    if (r) sparkle(r.left + r.width / 2, r.top + r.height / 2)
+  }
   const [view, setView] = useState<View>('interior')
   const [line, setLine] = useState<string | null>(null)
   const [pets, setPets] = useState(0)
@@ -67,7 +79,19 @@ export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       </div>
 
       {/* The stage: one complete room render per upgrade tier, with you standing beside it */}
-      <div className="relative aspect-square overflow-hidden rounded-[30px]" style={{ background: stageBackground(view, state.destination), transition: 'background .4s' }}>
+      <div ref={stageRef} className="relative aspect-square overflow-hidden rounded-[30px]" style={{ background: stageBackground(view, state.destination), transition: 'background .4s' }}>
+        {/* warm flash behind the new room when an upgrade lands */}
+        <AnimatePresence>
+          {glow > 0 && (
+            <motion.div
+              key={glow}
+              className="pointer-events-none absolute inset-0 z-10"
+              style={{ background: 'radial-gradient(circle at 50% 55%, rgba(255,214,130,.85), rgba(255,214,130,0) 65%)' }}
+              initial={{ opacity: 0.95 }} animate={{ opacity: 0 }} transition={{ duration: 1.3, ease: 'easeOut' }}
+              onAnimationComplete={() => setGlow(0)}
+            />
+          )}
+        </AnimatePresence>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={view === 'interior' ? `room-${tier}` : `ext-${state.destination}`}
@@ -106,7 +130,7 @@ export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
               <p className="truncate text-[12px] text-ink/60">{next.blurb}</p>
             </div>
             <button
-              onClick={() => { setView('interior'); buy(next.id) }}
+              onClick={() => upgrade(next.id)}
               disabled={state.coins < next.cost}
               className="flex min-h-11 shrink-0 items-center gap-1.5 clay-btn clay-ink px-3.5 text-sm disabled:bg-ink/15 disabled:text-ink/50"
             >
