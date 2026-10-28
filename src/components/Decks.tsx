@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { CARDS } from '../data/cards'
-import { MIN_DECK_CARDS, detectOptions, parseDeck, type ParseOptions, type RowSep, type TermSep } from '../data/decks'
+import { MIN_DECK_CARDS, cardId, detectOptions, parseDeck, type DeckCard, type ParseOptions, type RowSep, type TermSep, type UserDeck } from '../data/decks'
+import { isDue, statusOf, type Mastery } from '../state/game'
 import { Icon } from './Icon'
 
 function useEscape(onClose: () => void) {
@@ -17,7 +18,8 @@ function useEscape(onClose: () => void) {
 
 /** The "Studying: …" chip in Learn and the sheet it opens. */
 export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
-  const { state, setActiveDeck, deleteDeck, renameDeck } = useGame()
+  const { state, setActiveDeck, deleteDeck } = useGame()
+  const [editingDeck, setEditingDeck] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [importing, setImporting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -66,7 +68,7 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
                     detail={`${d.cards.length} cards · imported`}
                     on={active?.id === d.id}
                     onClick={() => choose(d.id)}
-                    onRename={(name) => renameDeck(d.id, name)}
+                    onEdit={() => { close(); setEditingDeck(d.id) }}
                     onDelete={() => (confirmDelete === d.id ? (deleteDeck(d.id), setConfirmDelete(null)) : setConfirmDelete(d.id))}
                     confirming={confirmDelete === d.id}
                   />
@@ -81,34 +83,21 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
       </AnimatePresence>, document.body)}
 
       {createPortal(<AnimatePresence>{importing && <DeckImport onClose={() => setImporting(false)} onImported={onSourceChange} />}</AnimatePresence>, document.body)}
+      {createPortal(
+        <AnimatePresence>
+          {editingDeck && state.decks.some((d) => d.id === editingDeck) && (
+            <DeckPage deck={state.decks.find((d) => d.id === editingDeck)!} onClose={() => setEditingDeck(null)} />
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </>
   )
 }
 
-function SourceRow({ label, detail, on, onClick, onRename, onDelete, confirming }: {
-  label: string; detail: string; on: boolean; onClick: () => void; onRename?: (name: string) => void; onDelete?: () => void; confirming?: boolean
+function SourceRow({ label, detail, on, onClick, onEdit, onDelete, confirming }: {
+  label: string; detail: string; on: boolean; onClick: () => void; onEdit?: () => void; onDelete?: () => void; confirming?: boolean
 }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(label)
-  const save = () => {
-    if (draft.trim() && draft.trim() !== label) onRename?.(draft)
-    setEditing(false)
-  }
-  if (editing) {
-    return (
-      <li className="flex items-center gap-1.5 rounded-2xl bg-white/6 p-1.5">
-        <form onSubmit={(e) => { e.preventDefault(); save() }} className="flex min-w-0 flex-1 items-center gap-1.5">
-          <input
-            autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={save} maxLength={40}
-            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setDraft(label); setEditing(false) } }}
-            aria-label="Deck name"
-            className="min-h-11 min-w-0 flex-1 rounded-xl bg-ink/60 px-3 text-[15px] font-bold text-cream ring-1 ring-white/15 focus:outline-none focus:ring-2 focus:ring-gold"
-          />
-          <button type="submit" onMouseDown={(e) => e.preventDefault()} className="min-h-11 shrink-0 rounded-xl bg-gold px-3.5 text-xs font-extrabold text-ink">Save</button>
-        </form>
-      </li>
-    )
-  }
   return (
     <li className={`flex items-center gap-1 rounded-2xl ${on ? 'bg-gold/15' : ''}`}>
       <button onClick={onClick} aria-pressed={on} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl px-3.5 text-left">
@@ -119,10 +108,10 @@ function SourceRow({ label, detail, on, onClick, onRename, onDelete, confirming 
         </span>
         {on && <Icon name="check" size={16} strokeWidth={3} className="text-gold" />}
       </button>
-      {onRename && !confirming && (
+      {onEdit && !confirming && (
         <button
-          onClick={() => { setDraft(label); setEditing(true) }}
-          aria-label={`Rename ${label}`}
+          onClick={onEdit}
+          aria-label={`Edit ${label}`}
           className="grid min-h-10 min-w-10 shrink-0 place-items-center rounded-xl text-cream/45 hover:text-cream"
         >
           <Icon name="edit" size={15} />
@@ -138,6 +127,149 @@ function SourceRow({ label, detail, on, onClick, onRename, onDelete, confirming 
         </button>
       )}
     </li>
+  )
+}
+
+const STATUS_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Known', mastered: 'Mastered' }
+
+/** One imported deck: rename it, see progress, flip the practice direction, and view, edit, add or remove cards. */
+function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
+  const { state, renameDeck, updateDeck } = useGame()
+  const [name, setName] = useState(deck.name)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [term, setTerm] = useState('')
+  const [def, setDef] = useState('')
+  const [filter, setFilter] = useState('')
+  useEscape(onClose)
+
+  const counts = { new: 0, learning: 0, familiar: 0, mastered: 0 } as Record<Mastery, number>
+  let due = 0
+  for (const c of deck.cards) {
+    counts[statusOf(state, c.id)]++
+    if (isDue(state, c.id)) due++
+  }
+  const atMin = deck.cards.length <= MIN_DECK_CARDS
+  const save = (cards: DeckCard[]) => updateDeck(deck.id, { cards })
+  const add = () => {
+    const t = term.trim(), d = def.trim()
+    if (!t || !d) return
+    const id = cardId(t, d)
+    if (!deck.cards.some((c) => c.id === id)) save([...deck.cards, { id, term: t, definition: d }])
+    setTerm('')
+    setDef('')
+  }
+  const shown = filter.trim()
+    ? deck.cards.filter((c) => (c.term + ' ' + c.definition).toLowerCase().includes(filter.trim().toLowerCase()))
+    : deck.cards
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[75] flex justify-center bg-ink"
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16, transition: { duration: 0.15 } }}
+      role="dialog" aria-modal="true" aria-label={`Edit ${deck.name}`}
+    >
+      <div className="flex h-full w-full max-w-[480px] flex-col">
+        <header className="flex items-center gap-2 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+20px)]">
+          <button onClick={onClose} aria-label="Close" className="grid size-10 place-items-center rounded-full text-cream/70 hover:text-cream">
+            <Icon name="x" size={20} />
+          </button>
+          <input
+            value={name} onChange={(e) => setName(e.target.value)} onBlur={() => renameDeck(deck.id, name)} maxLength={40} aria-label="Deck name"
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            className="min-w-0 flex-1 rounded-xl bg-transparent px-2 py-1 font-display text-xl font-bold text-cream focus:bg-white/8 focus:outline-none focus:ring-2 focus:ring-gold"
+          />
+        </header>
+
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+          {/* progress */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {(['new', 'learning', 'familiar', 'mastered'] as Mastery[]).map((m) => (
+              <div key={m} className="clay rounded-2xl px-1 py-2 text-center">
+                <p className="font-display text-lg font-bold tabular-nums">{counts[m]}</p>
+                <p className="text-[10px] font-extrabold text-cream/50">{STATUS_LABEL[m]}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-cream/55">{due ? `${due} card${due === 1 ? '' : 's'} due for review.` : 'Nothing due for review right now.'}</p>
+
+          {/* direction */}
+          <p className="mt-4 text-sm font-bold text-cream/80">Practice</p>
+          <div role="radiogroup" aria-label="Practice direction" className="mt-1.5 grid grid-cols-2 gap-1 rounded-full bg-white/6 p-1">
+            {[[false, 'Term → definition'], [true, 'Definition → term']].map(([rev, label]) => (
+              <button
+                key={String(rev)} role="radio" aria-checked={!!deck.reverse === rev}
+                onClick={() => updateDeck(deck.id, { reverse: rev as boolean })}
+                className={`min-h-9 rounded-full text-xs font-extrabold ${!!deck.reverse === rev ? 'bg-cream text-ink' : 'text-cream/65'}`}
+              >
+                {label as string}
+              </button>
+            ))}
+          </div>
+
+          {/* add a card */}
+          <p className="mt-4 text-sm font-bold text-cream/80">Add a card</p>
+          <form onSubmit={(e) => { e.preventDefault(); add() }} className="mt-1.5 space-y-1.5">
+            <input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Term" aria-label="New card term" className={FIELD} />
+            <input value={def} onChange={(e) => setDef(e.target.value)} placeholder="Definition" aria-label="New card definition" className={FIELD} />
+            <button type="submit" disabled={!term.trim() || !def.trim()} className={`clay-btn min-h-11 w-full text-sm ${term.trim() && def.trim() ? 'clay-butter' : 'bg-white/10 text-cream/40'}`}>Add card</button>
+          </form>
+
+          {/* cards */}
+          <div className="mt-5 flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-cream/80">{deck.cards.length} cards</p>
+            {deck.cards.length > 8 && (
+              <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search" aria-label="Search cards" className="min-h-9 w-36 rounded-full bg-white/8 px-3 text-xs font-bold text-cream ring-1 ring-white/12 placeholder:text-cream/35 focus:outline-none focus:ring-2 focus:ring-gold" />
+            )}
+          </div>
+          {atMin && <p className="mt-1 text-xs text-cream/50">A deck needs at least {MIN_DECK_CARDS} cards, so cards can't be removed right now.</p>}
+          <ul className="mt-2 space-y-2">
+            {shown.slice(0, 300).map((c) => (
+              <li key={c.id} className="clay rounded-2xl px-3.5 py-2.5">
+                {editing === c.id ? (
+                  <CardEditor
+                    card={c}
+                    onSave={(t, d) => { save(deck.cards.map((x) => (x.id === c.id ? { ...x, term: t, definition: d } : x))); setEditing(null) }}
+                    onCancel={() => setEditing(null)}
+                  />
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[14px] font-extrabold text-cream">{c.term}</p>
+                      <p className="mt-0.5 text-[13px] leading-snug text-cream/65">{c.definition}</p>
+                      <p className="mt-1 text-[10px] font-extrabold text-cream/40">{STATUS_LABEL[statusOf(state, c.id)]}</p>
+                    </div>
+                    <button onClick={() => setEditing(c.id)} aria-label={`Edit ${c.term}`} className="grid size-9 shrink-0 place-items-center rounded-xl text-cream/45 hover:text-cream"><Icon name="edit" size={14} /></button>
+                    <button
+                      onClick={() => save(deck.cards.filter((x) => x.id !== c.id))} disabled={atMin} aria-label={`Remove ${c.term}`}
+                      className="grid size-9 shrink-0 place-items-center rounded-xl text-cream/45 hover:text-coral disabled:opacity-30"
+                    ><Icon name="x" size={14} /></button>
+                  </div>
+                )}
+              </li>
+            ))}
+            {shown.length > 300 && <li className="px-1 text-xs text-cream/50">Showing 300 of {shown.length}. Search to find others.</li>}
+          </ul>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+const FIELD = 'min-h-11 w-full rounded-xl bg-white/8 px-3 text-sm font-bold text-cream ring-1 ring-white/12 placeholder:text-cream/30 focus:outline-none focus:ring-2 focus:ring-gold'
+
+/** Edit a card in place. Its id (and so its progress) stays the same. */
+function CardEditor({ card, onSave, onCancel }: { card: DeckCard; onSave: (term: string, def: string) => void; onCancel: () => void }) {
+  const [t, setT] = useState(card.term)
+  const [d, setD] = useState(card.definition)
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); if (t.trim() && d.trim()) onSave(t.trim(), d.trim()) }} className="space-y-1.5">
+      <input autoFocus value={t} onChange={(e) => setT(e.target.value)} aria-label="Term" className={FIELD} />
+      <textarea value={d} onChange={(e) => setD(e.target.value)} aria-label="Definition" rows={2} className={`${FIELD} resize-none py-2`} />
+      <div className="flex gap-1.5">
+        <button type="button" onClick={onCancel} className="min-h-10 flex-1 rounded-xl bg-white/10 text-xs font-extrabold">Cancel</button>
+        <button type="submit" className="min-h-10 flex-1 rounded-xl bg-gold text-xs font-extrabold text-ink">Save</button>
+      </div>
+    </form>
   )
 }
 

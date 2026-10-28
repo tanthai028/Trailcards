@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import * as G from './game'
 import { localSave } from './storage'
 import { ITEM_BY_ID, type Body, type HairColorId } from '../data/items'
-import { DECK_SCENES, type DeckCard, type UserDeck } from '../data/decks'
+import { DECK_SCENES, MIN_DECK_CARDS, type DeckCard, type UserDeck } from '../data/decks'
 
 export type GameEvent =
   | { id: number; kind: 'achievement'; achId: string }
@@ -30,6 +30,8 @@ interface Store {
   importDeck: (name: string, cards: DeckCard[]) => void
   deleteDeck: (id: string) => void
   renameDeck: (id: string, name: string) => void
+  /** Change a deck's cards or practice direction (rename has its own action). */
+  updateDeck: (id: string, patch: Partial<Pick<UserDeck, 'cards' | 'reverse'>>) => void
   setActiveDeck: (id: string | null) => void
   dismissTip: (id: string) => void
   setName: (name: string) => void
@@ -116,6 +118,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const clean = name.trim().slice(0, 40)
         if (!clean) return
         commit({ ...s, decks: s.decks.map((d) => (d.id === id ? { ...d, name: clean } : d)) })
+      },
+      updateDeck: (id, patch) => {
+        const s = stateRef.current
+        if (patch.cards && patch.cards.length < MIN_DECK_CARDS) return
+        commit({ ...s, decks: s.decks.map((d) => (d.id === id ? { ...d, ...patch } : d)) })
       },
       deleteDeck: (id) => {
         const s = stateRef.current

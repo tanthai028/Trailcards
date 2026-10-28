@@ -16,6 +16,8 @@ export interface UserDeck {
   scene: SceneId
   createdAt: number
   cards: DeckCard[]
+  /** Practice definition → term instead of term → definition. */
+  reverse?: boolean
 }
 
 /** Multiple choice needs a correct answer plus 3 others from the same deck. */
@@ -167,27 +169,30 @@ export function deckFeedCards(deck: UserDeck): DeckFeedCard[] {
   if (hit) return hit
   // Draw wrong answers at random from the deck's distinct definitions. Scanning the whole
   // deck for every card took about 1s at 3,000 cards; this stays instant at any size.
-  const defs = [...new Set(deck.cards.map((c) => c.definition))]
+  // reverse decks show the definition and ask for the term
+  const ask = (c: DeckCard) => (deck.reverse ? c.definition : c.term)
+  const ans = (c: DeckCard) => (deck.reverse ? c.term : c.definition)
+  const pool = [...new Set(deck.cards.map(ans))]
   const out = deck.cards.map((c) => {
     const rand = seeded(`${c.id}-wrong`)
-    const want = Math.min(3, defs.length - 1)
+    const want = Math.min(3, pool.length - 1)
     const picked = new Set<string>()
     for (let tries = 0; picked.size < want && tries < 60; tries++) {
-      const d = defs[Math.floor(rand() * defs.length)]
-      if (d !== c.definition) picked.add(d)
+      const d = pool[Math.floor(rand() * pool.length)]
+      if (d !== ans(c)) picked.add(d)
     }
     const wrong = [...picked]
-    const choices = shuffle([c.definition, ...wrong], `${c.id}-order`)
-    const prompt = c.term.trim().endsWith('?') ? 'Pick the right answer' : 'Pick the matching definition'
+    const choices = shuffle([ans(c), ...wrong], `${c.id}-order`)
+    const prompt = deck.reverse ? 'Pick the matching term' : c.term.trim().endsWith('?') ? 'Pick the right answer' : 'Pick the matching definition'
     return {
       id: c.id,
       topic: 'sky',
-      title: c.term,
+      title: ask(c),
       hook: '',
       body: '',
-      q: { kind: 'mcq', prompt, correct: c.definition, wrong, explain: c.definition },
+      q: { kind: 'mcq', prompt, correct: ans(c), wrong, explain: ans(c) },
       choices,
-      answerIndex: choices.indexOf(c.definition),
+      answerIndex: choices.indexOf(ans(c)),
       prompt,
       explain: `${c.term}: ${c.definition}`,
       deck: { id: deck.id, name: deck.name, scene: deck.scene },
