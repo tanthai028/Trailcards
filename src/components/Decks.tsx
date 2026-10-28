@@ -281,7 +281,8 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
           </div>
           <p className="mt-2 text-xs text-cream/55">{due ? `${due} card${due === 1 ? '' : 's'} due for review.` : 'Nothing due for review right now.'}</p>
 
-          {/* direction */}
+          {/* direction: only term/definition cards can be flipped */}
+          {deck.cards.some((c) => (c.kind ?? 'pair') === 'pair') && (<>
           <p className="mt-4 text-sm font-bold text-cream/80">Practice</p>
           <div role="radiogroup" aria-label="Practice direction" className="mt-1.5 grid grid-cols-2 gap-1 rounded-full bg-white/6 p-1">
             {[[false, 'Term → definition'], [true, 'Definition → term']].map(([rev, label]) => (
@@ -294,6 +295,7 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
               </button>
             ))}
           </div>
+          </>)}
 
           {/* more cards from AI, without repeating what the deck already has */}
           <button onClick={() => setMore(!more)} aria-expanded={more} className="clay mt-4 flex min-h-12 w-full items-center gap-2 rounded-2xl px-4 text-left">
@@ -340,12 +342,13 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
                 {editing === c.id ? (
                   <CardEditor
                     card={c}
-                    onSave={(t, d) => { save(deck.cards.map((x) => (x.id === c.id ? { ...x, term: t, definition: d } : x))); setEditing(null) }}
+                    onSave={(next) => { save(deck.cards.map((x) => (x.id === c.id ? next : x))); setEditing(null) }}
                     onCancel={() => setEditing(null)}
                   />
                 ) : (
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
+                      <CardKind card={c} />
                       <p className="text-[14px] font-extrabold text-cream">{c.term}</p>
                       <p className="mt-0.5 text-[13px] leading-snug text-cream/65">{c.definition}</p>
                       <p className="mt-1 text-[10px] font-extrabold text-cream/40">{STATUS_LABEL[statusOf(state, c.id)]}</p>
@@ -370,13 +373,45 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
 const FIELD = 'min-h-11 w-full rounded-xl bg-white/8 px-3 text-sm font-bold text-cream ring-1 ring-white/12 placeholder:text-cream/30 focus:outline-none focus:ring-2 focus:ring-gold'
 
 /** Edit a card in place. Its id (and so its progress) stays the same. */
-function CardEditor({ card, onSave, onCancel }: { card: DeckCard; onSave: (term: string, def: string) => void; onCancel: () => void }) {
+function CardEditor({ card, onSave, onCancel }: { card: DeckCard; onSave: (next: DeckCard) => void; onCancel: () => void }) {
+  const kind = card.kind ?? 'pair'
   const [t, setT] = useState(card.term)
   const [d, setD] = useState(card.definition)
+  const [wrong, setWrong] = useState((card.wrong ?? []).join('\n'))
+  const [ex, setEx] = useState(card.explain ?? '')
+  const save = () => {
+    if (!t.trim() || !d.trim()) return
+    const next: DeckCard = { ...card, term: t.trim(), definition: d.trim() }
+    if (kind === 'mcq') {
+      const w = [...new Set(wrong.split('\n').map((x) => x.trim()).filter((x) => x && x !== next.definition))]
+      if (!w.length) return
+      next.wrong = w
+    }
+    if (kind !== 'pair') {
+      if (ex.trim()) next.explain = ex.trim()
+      else delete next.explain
+    }
+    onSave(next)
+  }
+  const labels = kind === 'pair' ? ['Term', 'Definition'] : kind === 'mcq' ? ['Question', 'Right answer'] : ['Question', 'Model answer']
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (t.trim() && d.trim()) onSave(t.trim(), d.trim()) }} className="space-y-1.5">
-      <input autoFocus value={t} onChange={(e) => setT(e.target.value)} aria-label="Term" className={FIELD} />
-      <textarea value={d} onChange={(e) => setD(e.target.value)} aria-label="Definition" rows={2} className={`${FIELD} resize-none py-2`} />
+    <form onSubmit={(e) => { e.preventDefault(); save() }} className="space-y-1.5">
+      <p className="text-[10px] font-extrabold text-cream/45">{labels[0]}</p>
+      <input autoFocus value={t} onChange={(e) => setT(e.target.value)} aria-label={labels[0]} className={FIELD} />
+      <p className="text-[10px] font-extrabold text-cream/45">{labels[1]}</p>
+      <textarea value={d} onChange={(e) => setD(e.target.value)} aria-label={labels[1]} rows={2} className={`${FIELD} resize-none py-2`} />
+      {kind === 'mcq' && (
+        <>
+          <p className="text-[10px] font-extrabold text-cream/45">Wrong answers, one per line</p>
+          <textarea value={wrong} onChange={(e) => setWrong(e.target.value)} aria-label="Wrong answers" rows={3} className={`${FIELD} resize-none py-2`} />
+        </>
+      )}
+      {kind !== 'pair' && (
+        <>
+          <p className="text-[10px] font-extrabold text-cream/45">Explanation (optional)</p>
+          <textarea value={ex} onChange={(e) => setEx(e.target.value)} aria-label="Explanation" rows={2} className={`${FIELD} resize-none py-2`} />
+        </>
+      )}
       <div className="flex gap-1.5">
         <button type="button" onClick={onCancel} className="min-h-10 flex-1 rounded-xl bg-white/10 text-xs font-extrabold">Cancel</button>
         <button type="submit" className="min-h-10 flex-1 rounded-xl bg-gold text-xs font-extrabold text-ink">Save</button>

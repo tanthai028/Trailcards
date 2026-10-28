@@ -550,7 +550,7 @@ const firstSentence = (text: string) => (text.match(/^.*?[.!?](\s|$)/)?.[0] ?? t
 
 const MODE_LABEL: Record<FeedMode, string> = { discover: 'Study', review: 'Review', saved: 'Saved' }
 
-/** Discover / Review / Saved in one compact menu instead of a row of chips. */
+/** Study / Review / Saved in one compact menu instead of a row of chips. */
 function ModeMenu({ mode, counts, open, setOpen, onPick }: {
   mode: FeedMode; counts: Record<FeedMode, number>; open: boolean; setOpen: (v: boolean) => void; onPick: (m: FeedMode) => void
 }) {
@@ -618,8 +618,8 @@ const TOUR: { target: string; title: string; text: string; swipe?: boolean }[] =
   { target: 'text', title: 'One card, one idea', text: 'Each card teaches one thing. Read it first.' },
   { target: 'quiz', title: 'Answer the question', text: 'Right answers earn XP and coins. Misses come back later.' },
   { target: 'card', title: 'Swipe for the next card', text: 'Swipe up to move on, down to go back.', swipe: true },
-  { target: 'mode', title: 'Discover, Review, Saved', text: 'New cards here. Tap to switch to Review or Saved.' },
-  { target: 'deck', title: 'What you study', text: 'Switch decks or import your own flashcards.' },
+  { target: 'mode', title: 'Study never ends', text: 'New cards, then reviews when due, then practice. Tap for Review only or Saved.' },
+  { target: 'deck', title: 'What you study', text: 'Switch decks, or make a new one with AI or your flashcards.' },
   { target: 'goal', title: 'Daily goal', text: 'The ring fills as you answer: 10 a day builds a streak.' },
   { target: 'coins', title: 'Your coins', text: 'Spend them on outfits and van upgrades.' },
 ]
@@ -805,7 +805,7 @@ function EndCard({ mode, empty, counts, setMode, go }: { mode: FeedMode; empty: 
         )}
         {mode !== 'discover' && counts.discover > 0 && (
           <button onClick={() => setMode('discover')} className="clay-btn clay-cream py-3">
-            Discover {counts.discover} new card{counts.discover === 1 ? '' : 's'}
+            Study {counts.discover} card{counts.discover === 1 ? '' : 's'}
           </button>
         )}
         <button onClick={() => go('van')} className="clay-btn clay-plum py-3">Visit your van</button>
