@@ -117,6 +117,8 @@ export function sanitize(raw: Raw): GameState {
     tips: strArr(raw.tips),
     decks,
     activeDeck,
+    // saves from before this existed were already studying (the nature deck), so they count as chosen
+    deckChosen: bool(raw.deckChosen, raw.onboarded === true || isObj(raw.cards) && Object.keys(raw.cards).length > 0),
     xp: Math.floor(num(raw.xp, base.xp, 0)),
     coins: Math.floor(num(raw.coins, base.coins, 0)),
     cards: record(raw.cards, progress),

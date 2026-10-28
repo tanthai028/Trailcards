@@ -60,7 +60,7 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
               <span className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-white/20" aria-hidden="true" />
               <h2 className="px-1 font-display text-xl font-bold text-cream">What do you want to study?</h2>
               <ul className="no-scrollbar mt-3 max-h-[46vh] space-y-1.5 overflow-y-auto">
-                <SourceRow label="Field notes" detail={`${CARDS.length} cards · built in`} on={!active} onClick={() => choose(null)} />
+                <SourceRow label="Field notes" detail={`${CARDS.length} nature cards · built in`} on={!active} onClick={() => choose(null)} />
                 {state.decks.map((d) => (
                   <SourceRow
                     key={d.id}
@@ -402,9 +402,9 @@ const ROW_SEPS: { id: RowSep; label: string }[] = [
 const HELP_STEPS = ['Put one card per line: the term, then the definition.', 'Split them with a tab, a comma or " - ", or put each on its own line.', 'Paste it all below.']
 
 /** Pick where the cards come from, paste, check the preview, import. */
-function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
+export function DeckImport({ onClose, onImported, initialMode = 'ai' }: { onClose: () => void; onImported: () => void; initialMode?: 'ai' | 'paste' }) {
   const { importDeck } = useGame()
-  const [mode, setMode] = useState<'ai' | 'paste'>('ai')
+  const [mode, setMode] = useState<'ai' | 'paste'>(initialMode)
   const [topic, setTopic] = useState('')
   const [help, setHelp] = useState(false)
   const [name, setName] = useState('')

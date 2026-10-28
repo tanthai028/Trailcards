@@ -27,8 +27,10 @@ export interface GameState {
   tips: string[]
   /** Imported study decks. */
   decks: UserDeck[]
-  /** What Learn shows: null = the built-in field notes, otherwise a deck id. */
+  /** What Learn shows: null = the built-in nature field notes, otherwise a deck id. */
   activeDeck: string | null
+  /** Has the player picked something to study yet? Until then Learn asks. */
+  deckChosen: boolean
   xp: number
   coins: number
   cards: Record<string, CardProgress>
@@ -58,6 +60,7 @@ export const initialState = (): GameState => ({
   tips: [],
   decks: [],
   activeDeck: null,
+  deckChosen: false,
   xp: 0,
   coins: 40,
   cards: {},

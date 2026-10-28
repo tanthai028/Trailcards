@@ -110,7 +110,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const s = stateRef.current
         const id = `deck-${Date.now().toString(36)}`
         const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards, ...(topic?.trim() ? { topic: topic.trim() } : {}) }
-        commit({ ...s, decks: [...s.decks, deck], activeDeck: id })
+        commit({ ...s, decks: [...s.decks, deck], activeDeck: id, deckChosen: true })
         push([{ kind: 'toast', text: `Imported ${cards.length} cards into “${deck.name}”` }])
       },
       renameDeck: (id, name) => {
@@ -132,7 +132,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const s = stateRef.current
         if (!s.tips.includes(id)) commit({ ...s, tips: [...s.tips, id] })
       },
-      setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id }),
+      setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id, deckChosen: true }),
       setBody: (b) => commit(G.setBody(stateRef.current, b)),
       setCardShuffle: (on) => commit({ ...stateRef.current, cardShuffle: on }),
       setReduceMotion: (on) => commit({ ...stateRef.current, reduceMotion: on }),

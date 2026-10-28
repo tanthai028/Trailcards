@@ -99,6 +99,13 @@ describe('parseSave', () => {
     expect(s.coins).toBe(10 + 50 + 80)
   })
 
+  it('treats saves from before deck choice as already studying; new players must choose', () => {
+    const old = { ...real() } as Partial<GameState>
+    delete old.deckChosen
+    expect(parseSave(JSON.stringify(old))!.deckChosen).toBe(true)
+    expect(parseStoredSave(JSON.stringify(initialState()))!.deckChosen).toBe(false)
+  })
+
   it('treats non-finite numbers as missing', () => {
     const s = parseSave('{"xp": 1e999, "coins": -1e999, "cards": {}}')!
     expect(s.xp).toBe(initialState().xp)

@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { TOPICS, type Card } from '../data/cards'
 import type { DeckFeedCard } from '../data/decks'
-import { DeckPicker } from '../components/Decks'
+import { DeckImport, DeckPicker } from '../components/Decks'
+import { createPortal } from 'react-dom'
 import { AvatarLevel, CoinsPill } from '../components/Hud'
 import { cardScene, findCard, isDue, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyQueue, type AnswerResult, type GameState, type Mastery } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
@@ -238,6 +239,9 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
     [state],
   )
 
+  // New players pick what to study before the feed appears.
+  if (!state.deckChosen) return <StudyChooser />
+
   return (
     <div className="relative h-full">
       {/* floats over the card's scene band; card padding (16px) + inset (8px) keeps it inside the corners */}
@@ -258,7 +262,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
             </header>
       </div>
 
-      {state.onboarded && (tour || !state.tips.includes('tour-learn')) && <LearnTour active={active} onDone={() => { setTour(false); dismissTip('tour-learn') }} />}
+      {state.onboarded && state.deckChosen && (tour || !state.tips.includes('tour-learn')) && <LearnTour active={active} onDone={() => { setTour(false); dismissTip('tour-learn') }} />}
       <Coach
         tips={state.tips}
         answered={Object.keys(state.cards).length}
@@ -469,6 +473,40 @@ function FeedCard({
         </div>
       </div>
     </article>
+  )
+}
+
+/** First time in Learn: pick what to study. The nature deck is one option, not the default. */
+function StudyChooser() {
+  const { setActiveDeck } = useGame()
+  const [importing, setImporting] = useState<'ai' | 'paste' | null>(null)
+  const options = [
+    { title: 'Create with AI', text: 'Type a topic like "system design", or paste a job description. ChatGPT or Claude writes the cards.', icon: 'spark', run: () => setImporting('ai'), main: true },
+    { title: 'Paste flashcards', text: 'Bring a set from Quizlet, Anki, Knowt or your notes.', icon: 'book', run: () => setImporting('paste') },
+    { title: 'Try the nature deck', text: '72 built-in cards about the sky, oceans, forests and animals.', icon: 'leaf', run: () => setActiveDeck(null) },
+  ]
+  return (
+    <div className="no-scrollbar flex h-full flex-col overflow-y-auto px-4 pb-6">
+      <h1 className="mt-6 font-display text-3xl font-bold">What do you want to study?</h1>
+      <p className="mt-2 text-[15px] text-cream/65">Learn turns it into an endless feed of cards, with reviews spaced out so it sticks.</p>
+      <ul className="mt-6 space-y-2.5">
+        {options.map((o) => (
+          <li key={o.title}>
+            <button onClick={o.run} className={`flex w-full items-start gap-3 rounded-3xl p-4 text-left transition active:scale-[.98] ${o.main ? 'bg-gold text-ink' : 'clay'}`}>
+              <span className={`grid size-10 shrink-0 place-items-center rounded-2xl ${o.main ? 'bg-ink/10' : 'bg-white/8 text-gold'}`}><Icon name={o.icon} size={19} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-display text-lg font-bold leading-tight">{o.title}</span>
+                <span className={`mt-0.5 block text-[13px] leading-snug ${o.main ? 'text-ink/70' : 'text-cream/60'}`}>{o.text}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {createPortal(
+        <AnimatePresence>{importing && <DeckImport initialMode={importing} onClose={() => setImporting(null)} onImported={() => {}} />}</AnimatePresence>,
+        document.body,
+      )}
+    </div>
   )
 }
 

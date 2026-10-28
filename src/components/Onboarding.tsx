@@ -29,10 +29,10 @@ export function Onboarding() {
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-ink to-transparent" />
       </div>
       <div className="relative -mt-6 flex flex-1 flex-col px-6 pb-8">
-        <p className="text-xs font-black text-peach">Field notes from the road</p>
+        <p className="text-xs font-black text-peach">Study anything, one card at a time</p>
         <h1 id="welcome-title" className="mt-1 font-display text-5xl font-bold leading-none">Wayfarer</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-cream/80">
-          Scroll bite-sized cards about the natural world. Every right answer earns coins for new outfits and van upgrades.
+          Scroll bite-sized cards on whatever you're learning, from interview prep to a class. Every right answer earns coins for new outfits and van upgrades.
         </p>
         <form
           className="mt-auto pt-5"
