@@ -1,12 +1,10 @@
 import { motion } from 'framer-motion'
 import { Icon } from './Icon'
 
-export type Tab = 'feed' | 'closet' | 'van' | 'profile'
+export type Tab = 'feed' | 'profile'
 
 const ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: 'feed', label: 'Learn', icon: 'feed' },
-  { id: 'closet', label: 'Closet', icon: 'closet' },
-  { id: 'van', label: 'Van', icon: 'van' },
   { id: 'profile', label: 'Profile', icon: 'profile' },
 ]
 
@@ -27,10 +25,10 @@ function Road() {
   )
 }
 
-export function NavBar({ tab, onTab, dots = {} }: { tab: Tab; onTab: (t: Tab) => void; dots?: Partial<Record<Tab, boolean>> }) {
+export function NavBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   return (
     <nav className="relative z-20 touch-none border-t border-white/8 bg-ink px-3 pt-2" aria-label="Main">
-      <ul className="grid grid-cols-4 gap-1">
+      <ul className="grid grid-cols-2 gap-1">
         {ITEMS.map((it) => {
           const active = tab === it.id
           return (
@@ -51,12 +49,8 @@ export function NavBar({ tab, onTab, dots = {} }: { tab: Tab; onTab: (t: Tab) =>
                   transition={{ type: 'spring', stiffness: 600, damping: 14 }}
                 >
                   <Icon name={it.icon} size={21} />
-                  {dots[it.id] && !active && (
-                    <span className="absolute -right-1.5 -top-1 size-2.5 rounded-full bg-gold ring-2 ring-ink" aria-hidden="true" />
-                  )}
                 </motion.span>
                 <span className="relative">{it.label}</span>
-                {dots[it.id] && !active && <span className="sr-only">, something you can buy</span>}
               </button>
             </li>
           )

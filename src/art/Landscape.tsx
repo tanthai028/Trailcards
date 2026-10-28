@@ -4,7 +4,6 @@ import { useId, type ReactNode } from 'react'
 
 export type SceneId = 'meadow' | 'night' | 'peaks' | 'coast' | 'forest' | 'pasture'
 
-export const DESTINATION_SCENE: Record<string, SceneId> = { lake: 'meadow', coast: 'coast', desert: 'night' }
 
 function rng(seed: number) {
   return () => {
@@ -80,7 +79,7 @@ const pines = (seed: number, n: number, y0: number, hMin: number, hMax: number, 
   ))
 }
 
-export function Landscape({ scene, children }: { scene: SceneId; children?: ReactNode }) {
+function Landscape({ scene, children }: { scene: SceneId; children?: ReactNode }) {
   const u = useId().replace(/:/g, '')
   switch (scene) {
     case 'night':

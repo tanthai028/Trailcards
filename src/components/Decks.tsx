@@ -16,7 +16,10 @@ function useEscape(onClose: () => void) {
   }, [onClose])
 }
 
-/** The "Studying: …" chip in Learn and the sheet it opens. */
+/** Long deck names get smaller type, so the whole name fits in the header (deck names are at most 40 characters). */
+const titleSize = (name: string) => (name.length > 32 ? 'text-[16px]' : name.length > 20 ? 'text-[18px]' : 'text-[21px]')
+
+/** The deck name at the top of Learn (in full, over up to two lines) and the sheet it opens. */
 export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
   const { state, setActiveDeck, deleteDeck } = useGame()
   const [editingDeck, setEditingDeck] = useState<string | null>(null)
@@ -39,11 +42,10 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-label={`Studying ${active?.name ?? 'Field notes'}. Change deck`}
-        className="clay flex h-9 min-w-0 max-w-[11rem] items-center gap-1.5 rounded-full pl-3 pr-2 text-xs font-extrabold text-cream/85"
+        className="group flex max-w-full items-start gap-1.5 text-left"
       >
-        <Icon name="book" size={13} className="shrink-0 text-lav max-[400px]:hidden" />
-        <span className="truncate">{active?.name ?? 'Field notes'}</span>
-        <Icon name="chevron" size={12} strokeWidth={3} className="shrink-0 opacity-60" />
+        <span className={`line-clamp-3 font-display font-bold leading-[1.15] text-cream [overflow-wrap:anywhere] ${titleSize(active?.name ?? '')}`}>{active?.name ?? 'Field notes'}</span>
+        <Icon name="chevron" size={16} strokeWidth={3} className="mt-1.5 shrink-0 text-cream/45 transition-colors group-hover:text-cream" />
       </button>
 
       {/* portal: inside the Learn header the nav bar would paint over the sheet */}

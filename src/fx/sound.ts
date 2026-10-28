@@ -67,8 +67,8 @@ export function playWrong() {
   tone(120, { at: 0.02, dur: 0.18, type: 'triangle', gain: 0.06, slideTo: 70 })
 }
 
-/** A coin landing in the counter. */
-export function playCoin(i = 0) {
+/** A light chime: a recall card rated "Partly". */
+export function playChime(i = 0) {
   tone(1320 + i * 60, { dur: 0.09, type: 'triangle', gain: 0.07, slideTo: 1760 + i * 60 })
 }
 
@@ -106,12 +106,6 @@ export function playLevelUp() {
   })
   tone(1046.5, { at: 0.36, dur: 0.9, gain: 0.1 })
   tone(1567.98, { at: 0.42, dur: 0.8, gain: 0.06 })
-}
-
-/** Unlocking something: a short sparkly rise. */
-export function playUnlock() {
-  ;[880, 1108.73, 1318.51, 1760].forEach((f, i) => tone(f, { at: i * 0.055, dur: 0.28, type: 'triangle', gain: 0.07 }))
-  tone(659.25, { dur: 0.5, gain: 0.08 })
 }
 
 /** Achievement toast: two soft bells. */

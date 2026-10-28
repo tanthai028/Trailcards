@@ -5,7 +5,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { art } from './assets'
 import anchorsJson from '../assets/art/anchors.json'
 import { Character } from '../art/Character'
-import { HAIR_COLORS, type Look } from '../data/items'
+import { HAIR_COLORS, type Look } from '../data/look'
 
 type Box = [number, number, number, number]
 interface Anchor { face: Box; hair: Box; aspect: number }

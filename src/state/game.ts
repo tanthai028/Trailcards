@@ -1,9 +1,8 @@
 // Pure game rules. No React, no storage — easy to test and to move server-side later.
 import { CARDS, CARD_BY_ID, TOPIC_ORDER, type Card, type TopicId } from '../data/cards'
 import { deckFeedCards, type UserDeck } from '../data/decks'
-import { ITEMS, ITEM_BY_ID, DEFAULT_LOOK, DEFAULT_HAIR, DESTINATIONS, VAN_TIERS, hairFits, type Body, type Look, type Slot } from '../data/items'
-import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
-import type { SceneId } from '../art/Landscape'
+import { DEFAULT_LOOK, type Look } from '../data/look'
+import { ACHIEVEMENTS } from '../data/achievements'
 
 export type Mastery = 'new' | 'learning' | 'familiar' | 'mastered'
 
@@ -32,22 +31,20 @@ export interface GameState {
   /** Has the player picked something to study yet? Until then Learn asks. */
   deckChosen: boolean
   xp: number
-  coins: number
   cards: Record<string, CardProgress>
   bookmarks: string[]
-  owned: string[]
+  /** The character shown as your picture, unless you uploaded a photo. */
   look: Look
-  /** Learn cards cycle through every background you own instead of one. */
-  cardShuffle: boolean
+  /** Your uploaded picture: a small square image as a data URL, or null. */
+  photo: string | null
   /** Turn off non-essential animation, on top of the phone's own setting. */
   reduceMotion: boolean
   /** Sound effects on answers and swipes. */
   sound: boolean
   /** Answers today (local date). */
   daily: { day: string; count: number }
-  /** Days in a row the daily goal was met, and spare streak freezes. */
-  streak: { days: number; lastDay: string | null; freezes: number }
-  destination: string
+  /** Days in a row the daily goal was met. */
+  streak: { days: number; lastDay: string | null }
   achievements: Record<string, number>
   createdAt: number
 }
@@ -62,17 +59,14 @@ export const initialState = (): GameState => ({
   activeDeck: null,
   deckChosen: false,
   xp: 0,
-  coins: 40,
   cards: {},
   bookmarks: [],
-  owned: ITEMS.filter((i) => i.starter).map((i) => i.id),
   look: { ...DEFAULT_LOOK },
-  cardShuffle: false,
+  photo: null,
   reduceMotion: false,
   sound: true,
   daily: { day: '', count: 0 },
-  streak: { days: 0, lastDay: null, freezes: 0 },
-  destination: 'lake',
+  streak: { days: 0, lastDay: null },
   achievements: {},
   createdAt: Date.now(),
 })
@@ -90,20 +84,18 @@ export function levelInfo(xp: number) {
 }
 
 // ── Rewards (deterministic) ─────────────────────────────────────
-// status before answering → [xp, coins, nextStatus] for correct / wrong
-const RULES: Record<Mastery, { right: [number, number, Mastery]; wrong: [number, number, Mastery] }> = {
-  new: { right: [20, 10, 'familiar'], wrong: [5, 0, 'learning'] },
-  learning: { right: [12, 6, 'familiar'], wrong: [3, 0, 'learning'] },
-  familiar: { right: [15, 8, 'mastered'], wrong: [3, 0, 'learning'] },
-  mastered: { right: [3, 0, 'mastered'], wrong: [2, 0, 'familiar'] },
+// status before answering → [xp, nextStatus] for correct / wrong
+const RULES: Record<Mastery, { right: [number, Mastery]; wrong: [number, Mastery] }> = {
+  new: { right: [20, 'familiar'], wrong: [5, 'learning'] },
+  learning: { right: [12, 'familiar'], wrong: [3, 'learning'] },
+  familiar: { right: [15, 'mastered'], wrong: [3, 'learning'] },
+  mastered: { right: [3, 'mastered'], wrong: [2, 'familiar'] },
 }
 
 export const statusOf = (s: GameState, id: string): Mastery => s.cards[id]?.status ?? 'new'
 
 // ── Daily goal & day streak ─────────────────────────────────────
 export const DAILY_GOAL = 10
-export const FREEZE_COST = 50
-export const MAX_FREEZES = 2
 /** Local calendar day, e.g. "2026-10-28". */
 export const dayKey = (t = Date.now()) => {
   const d = new Date(t)
@@ -114,14 +106,13 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.p
 /** Answers so far today. */
 export const todayCount = (s: GameState) => (s.daily?.day === dayKey() ? s.daily.count : 0)
 // saves restored or hot-reloaded from before the daily goal may lack these fields
-const streakOf = (s: GameState): GameState['streak'] => s.streak ?? { days: 0, lastDay: null, freezes: 0 }
+const streakOf = (s: GameState): GameState['streak'] => s.streak ?? { days: 0, lastDay: null }
 
-/** The streak as it stands now: it's still alive if the goal was met yesterday or today, or freezes cover the gap. */
+/** The streak as it stands now: it's still alive if the goal was met yesterday or today. */
 export function currentStreak(s: GameState) {
-  const { days, lastDay, freezes } = streakOf(s)
+  const { days, lastDay } = streakOf(s)
   if (!lastDay || !days) return 0
-  const missed = daysBetween(lastDay, dayKey()) - 1 // full days skipped since the last goal
-  return missed <= 0 || missed <= freezes ? days : 0
+  return daysBetween(lastDay, dayKey()) <= 1 ? days : 0
 }
 
 /** Count one answer toward today; when it completes the goal, extend (or restart) the streak. */
@@ -130,22 +121,15 @@ function countDaily(s: GameState): { state: GameState; goalStreak: number | null
   const count = (s.daily?.day === today ? s.daily.count : 0) + 1
   let next: GameState = { ...s, daily: { day: today, count } }
   if (count !== DAILY_GOAL) return { state: next, goalStreak: null }
-  const { days, lastDay, freezes } = streakOf(s)
-  let streak: GameState['streak'] = { days: 1, lastDay: today, freezes }
+  const { days, lastDay } = streakOf(s)
+  let streak: GameState['streak'] = { days: 1, lastDay: today }
   if (lastDay) {
-    const missed = daysBetween(lastDay, today) - 1
-    if (missed < 0) streak = { ...streakOf(s) } // already met today
-    else if (missed === 0) streak = { days: days + 1, lastDay: today, freezes }
-    else if (missed <= freezes) streak = { days: days + 1, lastDay: today, freezes: freezes - missed } // freezes cover the gap
+    const gap = daysBetween(lastDay, today)
+    if (gap < 1) streak = { ...streakOf(s) } // already met today
+    else if (gap === 1) streak = { days: days + 1, lastDay: today }
   }
   next = { ...next, streak }
   return { state: next, goalStreak: streak.days }
-}
-
-export function buyFreeze(s: GameState): GameState | null {
-  const st = streakOf(s)
-  if (s.coins < FREEZE_COST || st.freezes >= MAX_FREEZES) return null
-  return { ...s, coins: s.coins - FREEZE_COST, streak: { ...st, freezes: st.freezes + 1 } }
 }
 
 // ── Spaced review ───────────────────────────────────────────────
@@ -187,11 +171,9 @@ export interface AnswerResult {
   /** Recall cards rated "Partly": half rewards, back tomorrow, no step up. */
   partial: boolean
   xp: number
-  coins: number
   from: Mastery
   to: Mastery
   levelUp: number | null
-  plantUp: number | null
   /** Set when this answer completed today's goal: the streak length after it. */
   goalStreak: number | null
   achievements: string[]
@@ -208,18 +190,18 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
   const now = Date.now()
   const sched = schedule(prev)
   // Answering a card before it's due (practice in the endless feed, Saved, or a quick retry
-  // after a miss) earns a little XP but no coins, and the schedule doesn't move, so the feed
+  // after a miss) earns a little XP, and the schedule doesn't move, so the feed
   // can't be farmed and reviews can't be rushed.
   const early = !!prev && from !== 'new' && sched.due > now
-  let [xp, coins, to] = correct || partial ? RULES[from].right : RULES[from].wrong
+  let [xp, to] = correct || partial ? RULES[from].right : RULES[from].wrong
   let step = 0
   let due = now + RETRY
   if (early) {
-    ;[xp, coins, to] = [correct ? 2 : 1, 0, from]
+    ;[xp, to] = [correct ? 2 : 1, from]
     ;({ step, due } = sched)
   } else if (partial) {
     // half the reward, back tomorrow at the same step
-    ;[xp, coins] = [Math.round(xp / 2), Math.round(coins / 2)]
+    xp = Math.round(xp / 2)
     step = from === 'new' || from === 'learning' ? 0 : sched.step
     due = now + INTERVALS[0]
     to = from === 'new' ? 'learning' : from === 'mastered' ? 'familiar' : from
@@ -232,12 +214,10 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
     to = 'learning'
   }
   const beforeLevel = levelInfo(s.xp).level
-  const beforePlant = plantInfo(s).stage
 
   let next: GameState = {
     ...s,
     xp: s.xp + xp,
-    coins: s.coins + coins,
     cards: {
       ...s.cards,
       [cardId]: {
@@ -256,13 +236,11 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
   const ach = checkAchievements(next)
   next = ach.state
   const afterLevel = levelInfo(next.xp).level
-  const afterPlant = plantInfo(next).stage
   return {
     state: next,
     result: {
-      correct, partial, xp, coins, from, to,
+      correct, partial, xp, from, to,
       levelUp: afterLevel > beforeLevel ? afterLevel : null,
-      plantUp: afterPlant > beforePlant ? afterPlant : null,
       goalStreak: daily.goalStreak,
       achievements: ach.unlocked,
     },
@@ -292,7 +270,7 @@ export function sourceCards(s: GameState): Card[] {
 }
 
 // ── Mastery stats ───────────────────────────────────────────────
-/** Per topic: built-in cards only. Overall: every card, so studying your own decks grows the plant too. */
+/** Per topic: built-in cards only. Overall: every card, including your own decks. */
 export function masteryCounts(s: GameState, topic?: TopicId) {
   const counts: Record<Mastery, number> = { new: 0, learning: 0, familiar: 0, mastered: 0 }
   for (const c of topic ? CARDS : allCards(s)) if (!topic || c.topic === topic) counts[statusOf(s, c.id)]++
@@ -355,93 +333,11 @@ export const reviewQueue = (s: GameState, cards: Card[] = sourceCards(s)) => {
     })
 }
 
-// ── Plant ───────────────────────────────────────────────────────
-export const PLANT_STAGES = [
-  { name: 'Seed', at: 0 },
-  { name: 'Sprout', at: 4 },
-  { name: 'Sapling', at: 12 },
-  { name: 'Leafy', at: 28 },
-  { name: 'Blooming', at: 50 },
-]
-
-/** Growth points: 1 per concept answered right, +2 more once it's mastered through review. */
-export function plantInfo(s: GameState) {
-  const m = masteryCounts(s)
-  const points = m.familiar + m.mastered * 3
-  let stage = 0
-  while (stage < PLANT_STAGES.length - 1 && points >= PLANT_STAGES[stage + 1].at) stage++
-  const nextAt = PLANT_STAGES[stage + 1]?.at ?? null
-  const base = PLANT_STAGES[stage].at
-  return { stage, points, nextAt, pct: nextAt ? (points - base) / (nextAt - base) : 1, name: PLANT_STAGES[stage].name }
-}
-
-// ── Shop & closet ───────────────────────────────────────────────
-export function buyItem(s: GameState, itemId: string): { state: GameState; ok: boolean; achievements: string[] } {
-  const item = ITEM_BY_ID[itemId]
-  if (!item || s.owned.includes(itemId) || s.coins < item.cost) return { state: s, ok: false, achievements: [] }
-  // van upgrades unlock strictly in order
-  if (item.slot === 'van' && VAN_TIERS.indexOf(itemId as (typeof VAN_TIERS)[number]) !== vanTier(s)) return { state: s, ok: false, achievements: [] }
-  const bought = { ...s, coins: s.coins - item.cost, owned: [...s.owned, itemId] }
-  const ach = checkAchievements(bought)
-  return { state: ach.state, ok: true, achievements: ach.unlocked }
-}
-
-const SLOT_KEY: Partial<Record<Slot, keyof Look>> = { outfit: 'outfit', hair: 'hair', accessory: 'accessory', card: 'card' }
-
-export function equipItem(s: GameState, itemId: string) {
-  const item = ITEM_BY_ID[itemId]
-  const key = item && SLOT_KEY[item.slot]
-  if (!key || !s.owned.includes(itemId)) return { state: s, achievements: [] as string[] }
-  if (item.slot === 'hair' && !hairFits(itemId, s.look.body)) return { state: s, achievements: [] as string[] }
-  const ach = checkAchievements({ ...s, look: { ...s.look, [key]: itemId } })
-  return { state: ach.state, achievements: ach.unlocked }
-}
-
-/** The scene behind the Learn card at a position: your chosen background, or, when mixing, your owned ones in turn so each swipe changes it. */
-export function cardScene(s: GameState, position: number): SceneId {
-  const own = ITEMS.filter((i) => i.slot === 'card' && s.owned.includes(i.id))
-  if (s.cardShuffle && own.length > 1) return own[position % own.length].scene!
-  return ITEM_BY_ID[s.look.card]?.scene ?? 'meadow'
-}
-
-/** Switch body type. Outfits and extras carry over; hair falls back to that body's free style. */
-export function setBody(s: GameState, body: Body): GameState {
-  if (s.look.body === body) return s
-  return { ...s, look: { ...s.look, body, hair: DEFAULT_HAIR[body] } }
-}
-
-/** 0 = bare van; 1–3 = upgrades owned in sequence. */
-export const vanTier = (s: GameState) => {
-  let t = 0
-  while (t < VAN_TIERS.length && s.owned.includes(VAN_TIERS[t])) t++
-  return t
-}
-
-/** Items that count toward a collection: "Bare" (no extra) is not an item, and hairstyles count only for your body type. */
-export const collectionItems = (s: GameState, slot: Slot) =>
-  ITEMS.filter((i) => i.slot === slot && i.id !== 'acc-none' && (!i.body || i.body === s.look.body))
-
-/** Tabs that hold something the player can buy right now (for nav dots). Quiet until a few cards are answered, so new players start with Learn. */
-export function affordable(s: GameState) {
-  if (Object.keys(s.cards).length < 3) return { closet: false, van: false }
-  const closet = ITEMS.some(
-    (i) => i.slot !== 'van' && !s.owned.includes(i.id) && (!i.body || i.body === s.look.body) && i.cost <= s.coins,
-  )
-  const nextVan = VAN_TIERS[vanTier(s)]
-  const van = !!nextVan && ITEM_BY_ID[nextVan].cost <= s.coins
-  return { closet, van }
-}
-
-export const unlockedDestinations = (s: GameState) =>
-  DESTINATIONS.filter((d) => levelInfo(s.xp).level >= d.level).map((d) => d.id as string)
-
 // ── Achievements ────────────────────────────────────────────────
 const RULES_ACH: Record<string, (s: GameState) => boolean> = {
   'first-card': (s) => Object.keys(s.cards).length >= 1,
   'ten-cards': (s) => Object.keys(s.cards).length >= 10,
   'mastery-10': (s) => masteryCounts(s).mastered >= 10,
-  stylist: (s) => s.look.outfit !== 'outfit-trailhead',
-  homemaker: (s) => vanTier(s) >= 2,
   ...Object.fromEntries(
     TOPIC_ORDER.map((t) => [
       `topic-${t}`,
@@ -461,7 +357,6 @@ export function checkAchievements(s: GameState) {
     unlocked,
     state: {
       ...s,
-      coins: s.coins + unlocked.reduce((sum, id) => sum + ACH_BY_ID[id].coins, 0),
       achievements: { ...s.achievements, ...Object.fromEntries(unlocked.map((id) => [id, now])) },
     },
   }

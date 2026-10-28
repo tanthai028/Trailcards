@@ -1,14 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as G from './game'
 import { localSave } from './storage'
-import { ITEM_BY_ID, type Body, type HairColorId } from '../data/items'
+import { bodyOfHair, type Look } from '../data/look'
 import { DECK_SCENES, minCards, type DeckCard, type UserDeck } from '../data/decks'
 
 export type GameEvent =
   | { id: number; kind: 'achievement'; achId: string }
   | { id: number; kind: 'levelUp'; level: number }
   | { id: number; kind: 'streak'; days: number }
-  | { id: number; kind: 'plant'; stage: number }
   | { id: number; kind: 'toast'; text: string }
 
 type NewEvent = GameEvent extends infer E ? (E extends GameEvent ? Omit<E, 'id'> : never) : never
@@ -19,14 +18,12 @@ interface Store {
   dismiss: (id: number) => void
   answer: (cardId: string, choice: number) => G.AnswerResult
   toggleBookmark: (cardId: string) => void
-  buy: (itemId: string) => boolean
-  equip: (itemId: string) => void
-  setHairColor: (c: HairColorId) => void
-  setCardShuffle: (on: boolean) => void
+  /** Your character picture. */
+  setLook: (look: Look) => void
+  /** Your uploaded picture (a small data URL), or null to use the character. */
+  setPhoto: (photo: string | null) => void
   setReduceMotion: (on: boolean) => void
   setSound: (on: boolean) => void
-  buyFreeze: () => boolean
-  setBody: (b: Body) => void
   importDeck: (name: string, cards: DeckCard[], topic?: string) => void
   deleteDeck: (id: string) => void
   renameDeck: (id: string, name: string) => void
@@ -36,8 +33,7 @@ interface Store {
   dismissTip: (id: string) => void
   setName: (name: string) => void
   setTitle: (title: string | null) => void
-  setDestination: (id: string) => void
-  finishOnboarding: (name: string, body: Body) => void
+  finishOnboarding: (name: string, look: Look) => void
   reset: () => void
   /** Replace all progress with a restored backup. */
   restore: (s: G.GameState) => void
@@ -75,14 +71,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const { state: s, result } = G.answerCard(stateRef.current, cardId, choice)
         commit(s)
         const evs: NewEvent[] = result.achievements.map((achId) => ({ kind: 'achievement' as const, achId }))
-        if (result.plantUp != null) evs.push({ kind: 'plant', stage: result.plantUp })
         if (result.levelUp != null) evs.push({ kind: 'levelUp', level: result.levelUp })
         if (result.goalStreak != null) evs.push({ kind: 'streak', days: result.goalStreak })
-        // First coins ever: point at where they're spent, once.
-        if (result.coins > 0 && !s.tips.includes('first-coins')) {
-          commit({ ...s, tips: [...s.tips, 'first-coins'] })
-          evs.push({ kind: 'toast', text: 'You earned coins! Spend them on outfits in the Closet or upgrades in the Van.' })
-        }
         push(evs)
         return result
       },
@@ -92,20 +82,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         commit({ ...s, bookmarks: has ? s.bookmarks.filter((b) => b !== cardId) : [...s.bookmarks, cardId] })
         push([{ kind: 'toast', text: has ? 'Removed from saved' : 'Saved for later' }])
       },
-      buy: (itemId) => {
-        const r = G.buyItem(stateRef.current, itemId)
-        if (r.ok) {
-          commit(r.state)
-          if (ITEM_BY_ID[itemId]?.slot === 'van') push([{ kind: 'toast', text: `Your van is now: ${ITEM_BY_ID[itemId].name}` }])
-          pushAch(r.achievements)
-        }
-        return r.ok
-      },
-      equip: (itemId) => {
-        const r = G.equipItem(stateRef.current, itemId)
-        commit(r.state)
-        pushAch(r.achievements)
-      },
+      setLook: (look) => commit({ ...stateRef.current, look: { ...look, body: bodyOfHair(look.hair) ?? look.body } }),
+      setPhoto: (photo) => commit({ ...stateRef.current, photo }),
       importDeck: (name, cards, topic) => {
         const s = stateRef.current
         const id = `deck-${Date.now().toString(36)}`
@@ -133,23 +111,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (!s.tips.includes(id)) commit({ ...s, tips: [...s.tips, id] })
       },
       setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id, deckChosen: true }),
-      setBody: (b) => commit(G.setBody(stateRef.current, b)),
-      setCardShuffle: (on) => commit({ ...stateRef.current, cardShuffle: on }),
       setReduceMotion: (on) => commit({ ...stateRef.current, reduceMotion: on }),
       setSound: (on) => commit({ ...stateRef.current, sound: on }),
-      buyFreeze: () => {
-        const next = G.buyFreeze(stateRef.current)
-        if (!next) return false
-        commit(next)
-        push([{ kind: 'toast', text: 'Streak freeze ready: it saves your streak on a day you miss.' }])
-        return true
-      },
-      setHairColor: (c) => commit({ ...stateRef.current, look: { ...stateRef.current.look, hairColor: c } }),
       setName: (name) => commit({ ...stateRef.current, name: name.trim().slice(0, 20) || 'Wanderer' }),
       setTitle: (title) => commit({ ...stateRef.current, title }),
-      setDestination: (id) => commit({ ...stateRef.current, destination: id }),
-      finishOnboarding: (name, body) =>
-        commit({ ...G.setBody(stateRef.current, body), onboarded: true, name: name.trim().slice(0, 20) || 'Wanderer' }),
+      finishOnboarding: (name, look) =>
+        commit({ ...stateRef.current, look, onboarded: true, name: name.trim().slice(0, 20) || 'Wanderer' }),
       reset: () => {
         localSave.clear()
         commit(G.initialState())

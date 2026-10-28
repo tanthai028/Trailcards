@@ -20,7 +20,7 @@ Use green (`#00FF00`) instead for anything plum, purple or magenta, and set `scr
 
 ## Room props
 
-Everything placed inside the van (decor, Mochi, plant stages) uses the room's camera and light instead of the studio style above:
+Mochi uses a warm room camera and light instead of the studio style above:
 
 > Isometric 3D render viewed from high above at a 35-degree downward angle, three-quarter view from the front-right, the same camera as an isometric dollhouse room. Warm golden interior lighting, soft warm shadows, slightly hazy soft focus, gentle ambient occlusion, soft clay-like materials.
 
@@ -52,14 +52,5 @@ Hair is always **dark indigo** in the renders: the app recolors it at runtime fr
 
 | File | Subject |
 | --- | --- |
-| van-interior | cozy camper van interior as a miniature diorama cutaway, roof and front wall removed; honey wood floor and cabinetry, raised bed with cream quilt and pastel pillows, compact kitchen, shelves, plants, round window, string lights, woven rug |
-| exterior-lake / coast / desert | the same cream-and-lavender rounded retro camper van on a floating square tile of land: alpine meadow by a lake at golden hour / grassy sea cliff at sunset / desert mesa at night with a tiny campfire |
 | cat | chubby cream-and-orange tabby curled asleep in a loaf *(room camera)* |
 | acc-glasses / acc-clip / acc-headphones / acc-hat | the extra on its own, seen exactly from the front as if worn by an invisible person |
-| plant-0 … plant-4 | the same small round terracotta pot: seed → two-leaf sprout → sapling → leafy bush → in bloom |
-| decor-fire | tiny cast-iron wood stove on a hexagonal terracotta tile |
-| decor-chair | small round peach reading armchair with honey-wood legs and a cream knit throw |
-| decor-telescope | brass telescope on a wooden tripod |
-| decor-surfboard | short mint surfboard with a cream stripe, standing on its tail |
-| decor-lights | three glowing paper lanterns hanging at different heights |
-| decor-bunting | short garland of pastel felt triangle flags |

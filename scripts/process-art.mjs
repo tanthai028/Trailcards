@@ -16,23 +16,8 @@ const OUT = path.join(root, 'src/assets/art')
 
 /** name → output width, and whether to key out the backdrop. */
 const ASSETS = {
-  // Van interior: one complete render per upgrade tier (Bare → Cozy → Lived-in → Dream)
-  'van-0': { width: 1100, key: false },
-  'van-1': { width: 1100, key: false },
-  'van-2': { width: 1100, key: false },
-  'van-3': { width: 1100, key: false },
-  'exterior-lake': { width: 1200, key: false },
-  // same render with its grey studio backdrop keyed out, for the plum onboarding header
-  'exterior-lake-cut': { width: 900, key: true, src: 'exterior-lake' },
-  'exterior-coast': { width: 1200, key: false },
-  'exterior-desert': { width: 1200, key: false },
   // Room props are rendered at the room's high three-quarter camera with warm light.
   'cat': { width: 260, key: 'chroma', screen: 'green' },
-  'plant-0': { width: 220, key: 'chroma' },
-  'plant-1': { width: 220, key: 'chroma' },
-  'plant-2': { width: 220, key: 'chroma' },
-  'plant-3': { width: 220, key: 'chroma' },
-  'plant-4': { width: 220, key: 'chroma' },
   'acc-glasses': { width: 320, key: 'chroma' },
   'acc-hat': { width: 360, key: 'chroma' },
   'acc-clip': { width: 120, key: 'chroma' },

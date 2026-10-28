@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { useGame } from './state/store'
 import { NavBar, type Tab } from './components/NavBar'
-import { affordable } from './state/game'
 import { EventLayer } from './components/EventLayer'
 import { InstallHint, shouldShowInstallHint } from './components/InstallHint'
 import { FxLayer } from './fx/FxLayer'
@@ -11,16 +10,12 @@ import { FeedScreen, type FeedMode } from './screens/FeedScreen'
 
 // Learn ships in the main bundle; the other tabs and onboarding load on demand, and are
 // fetched in the background right after the first paint so switching tabs never waits.
-const loadCloset = () => import('./screens/ClosetScreen').then((m) => ({ default: m.ClosetScreen }))
-const loadHome = () => import('./screens/HomeScreen').then((m) => ({ default: m.HomeScreen }))
 const loadProfile = () => import('./screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen }))
 const loadOnboarding = () => import('./components/Onboarding').then((m) => ({ default: m.Onboarding }))
-const ClosetScreen = lazy(loadCloset)
-const HomeScreen = lazy(loadHome)
 const ProfileScreen = lazy(loadProfile)
 const Onboarding = lazy(loadOnboarding)
 
-const TABS: Tab[] = ['feed', 'closet', 'van', 'profile']
+const TABS: Tab[] = ['feed', 'profile']
 const readHash = (): Tab => {
   const h = location.hash.replace('#', '') as Tab
   return TABS.includes(h) ? h : 'feed'
@@ -32,7 +27,7 @@ export default function App() {
   const [feedMode, setFeedMode] = useState<FeedMode>('discover')
 
   useEffect(() => {
-    const t = setTimeout(() => { loadCloset(); loadHome(); loadProfile() }, 1200)
+    const t = setTimeout(() => { loadProfile() }, 1200)
     return () => clearTimeout(t)
   }, [])
 
@@ -71,15 +66,13 @@ export default function App() {
             >
               {tab === 'feed' && <FeedScreen mode={feedMode} setMode={setFeedMode} go={go} />}
               <Suspense fallback={null}>
-                {tab === 'closet' && <ClosetScreen />}
-                {tab === 'van' && <HomeScreen go={go} />}
                 {tab === 'profile' && <ProfileScreen go={go} />}
               </Suspense>
             </motion.div>
         </main>
-        <NavBar tab={tab} onTab={(t) => go(t)} dots={affordable(state)} />
+        <NavBar tab={tab} onTab={(t) => go(t)} />
         <AnimatePresence>{state.onboarded && shouldShowInstallHint(state.tips) && <InstallHint />}</AnimatePresence>
-        <EventLayer go={go} />
+        <EventLayer />
         <FxLayer />
         <Suspense fallback={null}>
           <AnimatePresence>{!state.onboarded && <Onboarding />}</AnimatePresence>

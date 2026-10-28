@@ -4,7 +4,7 @@ import { initialState, answerCard, findCard, type GameState } from './game'
 import { CARDS } from '../data/cards'
 
 const real = (): GameState => {
-  let s: GameState = { ...initialState(), name: 'Tan', onboarded: true, coins: 155, xp: 430 }
+  let s: GameState = { ...initialState(), name: 'Tan', onboarded: true, xp: 430 }
   s = answerCard(s, CARDS[0].id, CARDS[0].answerIndex).state
   return s
 }
@@ -22,7 +22,6 @@ describe('parseSave', () => {
       const back = parseSave(text)!
       expect(back.name).toBe('Tan')
       expect(back.xp).toBe(s.xp)
-      expect(back.coins).toBe(s.coins)
       expect(back.cards[CARDS[0].id].status).toBe('familiar')
     }
   })
@@ -48,7 +47,6 @@ describe('parseSave', () => {
     const s = parseStoredSave(JSON.stringify(broken))!
     const base = initialState()
     expect(s.xp).toBe(0)
-    expect(s.coins).toBe(0)
     expect(s.name).toBe(base.name)
     expect(s.title).toBeNull()
     expect(s.onboarded).toBe(false)
@@ -57,11 +55,10 @@ describe('parseSave', () => {
     expect(s.activeDeck).toBeNull()
     expect(s.cards).toEqual({})
     expect(s.bookmarks).toEqual([])
-    expect(s.owned).toEqual(expect.arrayContaining(base.owned))
     expect(s.look).toEqual(base.look)
+    expect(s.photo).toBeNull()
     expect(s.daily).toEqual({ day: '', count: 0 })
-    expect(s.streak).toEqual({ days: 0, lastDay: null, freezes: 0 })
-    expect(s.destination).toBe('lake')
+    expect(s.streak).toEqual({ days: 0, lastDay: null })
     expect(s.achievements).toEqual({})
     expect(s.version).toBe(1)
     exercise(s)
@@ -77,26 +74,38 @@ describe('parseSave', () => {
         { id: 'd2', name: 'Empty', cards: [] },
       ],
       activeDeck: 'd2',
-      owned: ['outfit-trailhead', 12, 'not-a-real-item', 'decor-lights'],
-      look: { body: 'guy', outfit: 'outfit-nocturne', hair: 'hair-crop', hairColor: 'neon', accessory: 'acc-none', card: 'card-night' },
+      look: { body: 'girl', outfit: 'outfit-ballgown', hair: 'hair-crop', hairColor: 'neon', accessory: 'acc-hat', card: 'card-night' },
+      photo: 'javascript:alert(1)',
       streak: { days: 3, lastDay: '2026-10-01', freezes: 99 },
     }))!
     expect(Object.keys(s.cards)).toEqual(['ok'])
     expect(s.decks).toHaveLength(1)
     expect(s.decks[0]).toMatchObject({ id: 'd1', name: 'My deck', cards: [{ id: 'a', term: 'perro', definition: 'dog' }] })
     expect(s.activeDeck).toBeNull() // pointed at a deck that was dropped
-    expect(s.owned).not.toContain('not-a-real-item')
-    expect(s.owned).not.toContain('decor-lights') // retired decor is refunded by the migration
-    expect(s.look.outfit).toBe('outfit-trailhead') // Nocturne isn't owned
-    expect(s.look.hairColor).toBe('ink')
-    expect(s.look.card).toBe('card-meadow')
-    expect(s.streak.freezes).toBe(2)
+    // unknown parts fall back; the body always follows the hairstyle
+    expect(s.look).toEqual({ body: 'guy', hair: 'hair-crop', outfit: 'outfit-trailhead', hairColor: 'ink', accessory: 'acc-hat' })
+    expect(s.photo).toBeNull()
+    expect(s.streak).toEqual({ days: 3, lastDay: '2026-10-01' })
     exercise(s)
   })
 
-  it('keeps refunds for retired items through the migration', () => {
-    const s = parseSave(JSON.stringify({ ...real(), coins: 10, owned: ['decor-lights', 'hair-buns'] }))!
-    expect(s.coins).toBe(10 + 50 + 80)
+  it('drops what the app no longer has: coins, items, the van, freezes and their trophies', () => {
+    const old = {
+      ...real(), coins: 300, owned: ['outfit-courier', 'van-cozy'], destination: 'coast', cardShuffle: true, van3d: [],
+      streak: { days: 4, lastDay: '2026-10-01', freezes: 2 },
+      achievements: { 'first-card': 5, stylist: 6, homemaker: 7 }, title: 'Trendsetter',
+    }
+    const s = parseSave(JSON.stringify(old))! as GameState & Record<string, unknown>
+    for (const k of ['coins', 'owned', 'destination', 'cardShuffle', 'van3d']) expect(s[k]).toBeUndefined()
+    expect(s.streak).toEqual({ days: 4, lastDay: '2026-10-01' })
+    expect(s.achievements).toEqual({ 'first-card': 5 })
+    expect(s.title).toBeNull() // that title came from a trophy that's gone
+    expect(parseSave(JSON.stringify({ ...old, title: 'Fresh Wanderer' }))!.title).toBe('Fresh Wanderer')
+  })
+
+  it('keeps an uploaded picture', () => {
+    const photo = 'data:image/webp;base64,UklGRg=='
+    expect(parseSave(JSON.stringify({ ...real(), photo }))!.photo).toBe(photo)
   })
 
   it('treats saves from before deck choice as already studying; new players must choose', () => {
@@ -107,9 +116,8 @@ describe('parseSave', () => {
   })
 
   it('treats non-finite numbers as missing', () => {
-    const s = parseSave('{"xp": 1e999, "coins": -1e999, "cards": {}}')!
+    const s = parseSave('{"xp": 1e999, "cards": {}}')!
     expect(s.xp).toBe(initialState().xp)
-    expect(s.coins).toBe(initialState().coins)
   })
 
   it('repairs any stored object but gives up on non-objects', () => {

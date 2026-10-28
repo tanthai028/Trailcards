@@ -2,17 +2,14 @@ import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame, type GameEvent } from '../state/store'
 import { ACH_BY_ID } from '../data/achievements'
-import { DESTINATIONS } from '../data/items'
-import { PLANT_STAGES } from '../state/game'
 import { Figurine } from '../scene/Figurine'
-import { Plant } from '../art/Companions'
-import { Coin, Icon } from './Icon'
+import { ProfilePic } from './ProfilePic'
+import { Icon } from './Icon'
 import { celebrate } from '../fx/FxLayer'
 import { playAchievement, playLevelUp } from '../fx/sound'
-import type { Tab } from './NavBar'
 
-/** Toasts (achievements, plant growth, small notes) and the level-up celebration. */
-export function EventLayer({ go }: { go: (t: Tab) => void }) {
+/** Toasts (achievements, streaks, small notes) and the level-up celebration. */
+export function EventLayer() {
   const { events, dismiss, state } = useGame()
   const toasts = events.filter((e) => e.kind !== 'levelUp').slice(0, 3)
   const levelUp = events.find((e) => e.kind === 'levelUp') as Extract<GameEvent, { kind: 'levelUp' }> | undefined
@@ -48,21 +45,17 @@ export function EventLayer({ go }: { go: (t: Tab) => void }) {
               <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_50%_70%,rgba(255,210,122,.8),transparent_65%)]" />
               {/* a happy double hop once the card lands */}
               <motion.div className="relative" animate={{ y: [0, 0, -22, 0, -10, 0] }} transition={{ duration: 1.1, times: [0, 0.25, 0.45, 0.65, 0.8, 1], ease: 'easeOut' }}>
-                <Figurine look={state.look} className="mx-auto -mb-1 h-48 drop-shadow-[0_10px_14px_rgba(0,0,0,.25)]" />
+                {state.photo ? (
+                  <ProfilePic look={state.look} photo={state.photo} className="mx-auto mb-3 size-32 ring-4 ring-white shadow-xl" />
+                ) : (
+                  <Figurine look={state.look} className="mx-auto -mb-1 h-48 drop-shadow-[0_10px_14px_rgba(0,0,0,.25)]" />
+                )}
               </motion.div>
               <p className="relative text-xs font-black text-coral">Level up</p>
               <h2 className="relative font-display text-5xl font-bold">Level {levelUp.level}</h2>
-              {DESTINATIONS.filter((d) => d.level === levelUp.level).map((d) => (
-                <p key={d.id} className="relative mt-3 rounded-2xl bg-white/70 px-4 py-2 text-sm font-bold">
-                  <Icon name="map" size={16} className="mr-1 inline align-[-3px]" /> New destination: {d.name}
-                </p>
-              ))}
-              <p className="relative mt-3 text-sm text-ink/70">Your curiosity is taking you places.</p>
+              <p className="relative mt-3 text-sm text-ink/70">Your curiosity is paying off.</p>
               <div className="relative mt-5 flex gap-2">
-                {DESTINATIONS.some((d) => d.level === levelUp.level) && (
-                  <button onClick={() => { dismiss(levelUp.id); go('van') }} className="clay-btn clay-cream flex-1 py-3">Visit van</button>
-                )}
-                <button autoFocus onClick={() => dismiss(levelUp.id)} className="clay-btn clay-ink flex-1 py-3">Keep exploring</button>
+                <button autoFocus onClick={() => dismiss(levelUp.id)} className="clay-btn clay-ink flex-1 py-3">Keep learning</button>
               </div>
             </motion.div>
           </motion.div>
@@ -97,17 +90,6 @@ function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
           <span className="block text-xs font-extrabold text-gold">Achievement</span>
           <span className="block truncate font-extrabold">{a.name}</span>
           <span className="block truncate text-xs text-cream/70">Title unlocked: “{a.title}”</span>
-        </span>
-        <span className="flex items-center gap-1 text-sm font-extrabold text-gold"><Coin size={16} />+{a.coins}</span>
-      </>
-    )
-  } else if (e.kind === 'plant') {
-    body = (
-      <>
-        <Plant stage={e.stage} className="h-11 w-9 shrink-0" />
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs font-extrabold text-sage">Your plant grew</span>
-          <span className="block font-extrabold">It's now a {PLANT_STAGES[e.stage].name}!</span>
         </span>
       </>
     )

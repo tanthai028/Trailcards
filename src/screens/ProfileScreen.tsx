@@ -1,38 +1,52 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { TOPICS, TOPIC_ORDER } from '../data/cards'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
-import { RARITY_STYLE, type Slot } from '../data/items'
-import { collectionItems, currentStreak, findCard, statusOf, DAILY_GOAL, FREEZE_COST, levelInfo, masteryCounts, MAX_FREEZES, stats, todayCount, type GameState, type Mastery } from '../state/game'
+import { currentStreak, findCard, statusOf, DAILY_GOAL, levelInfo, masteryCounts, stats, todayCount, type GameState, type Mastery } from '../state/game'
 import { backupText, lastBackupAt, markBackedUp, parseSave } from '../state/storage'
-import { Figurine } from '../scene/Figurine'
-import { SceneSvg, DESTINATION_SCENE } from '../art/Landscape'
+import { SceneSvg } from '../art/Landscape'
+import { Cat } from '../art/Companions'
+import { art } from '../scene/assets'
+import { ProfilePic } from '../components/ProfilePic'
+import { PictureSheet } from '../components/PictureSheet'
 import { Icon } from '../components/Icon'
 import { Trophy } from '../components/Trophy'
 import { TitlePicker } from '../components/TitleSheet'
 import type { Tab } from '../components/NavBar'
 import { feedFocus, MASTERY_LABEL, tourReplay, type FeedMode } from './FeedScreen'
 
+const MOCHI_LINES = [
+  'Mochi slow-blinks at you. That means trust.',
+  'Mochi kneads the blanket. Very important work.',
+  'Mochi watches a moth with great scientific interest.',
+  'Mochi purrs. (Not always happiness — but this time, yes.)',
+  'Mochi’s whiskers twitch. Measuring the doorway, probably.',
+]
+
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
 export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, setName, setTitle, reset, setReduceMotion, setSound, restore, buyFreeze, toggleBookmark } = useGame()
+  const { state, setName, setTitle, reset, setReduceMotion, setSound, restore, toggleBookmark } = useGame()
   const lv = levelInfo(state.xp)
   const s = stats(state)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(state.name)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [picture, setPicture] = useState(false)
   const titles = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).map((a) => a.title)
 
   return (
     <div className="no-scrollbar h-full overflow-y-auto overscroll-contain px-4 pb-8">
       {/* Showcase banner */}
       <div className="grain relative overflow-hidden rounded-[30px]">
-        <SceneSvg scene={DESTINATION_SCENE[state.destination] ?? 'meadow'} className="absolute inset-0 h-full w-full" />
+        <SceneSvg scene="meadow" className="absolute inset-0 h-full w-full" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
-        <div className="relative flex items-end gap-3 px-4 pb-4 pt-24">
-          <Figurine look={state.look} className="cq-idle -mb-1 h-44 shrink-0 drop-shadow-[0_10px_14px_rgba(0,0,0,.45)]" />
+        <div className="relative flex items-end gap-4 px-4 pb-4 pt-20">
+          <button onClick={() => setPicture(true)} aria-label="Change your picture" className="relative shrink-0">
+            <ProfilePic look={state.look} photo={state.photo} className="size-24 shadow-xl ring-4 ring-cream" />
+            <span className="absolute -bottom-0.5 -right-0.5 grid size-8 place-items-center rounded-full bg-gold text-ink ring-2 ring-ink"><Icon name="edit" size={14} /></span>
+          </button>
           <div className="min-w-0 flex-1 pb-2">
             {editing ? (
               <form
@@ -67,7 +81,8 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         </div>
       </div>
 
-      <Daily state={state} onBuyFreeze={buyFreeze} />
+      <Daily state={state} />
+      <StudyBuddy state={state} />
 
       {/* Stats */}
       <div className="mt-4 grid grid-cols-4 gap-2">
@@ -130,34 +145,6 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         </Section>
       )}
 
-      {/* Collection */}
-      <Section title="Collection" action={{ label: 'Open closet', onClick: () => go('closet') }}>
-        <div className="grid grid-cols-2 gap-2">
-          {([['outfit', 'Outfits'], ['hair', 'Hairstyles'], ['accessory', 'Extras'], ['card', 'Card backgrounds'], ['van', 'Van upgrades']] as [Slot, string][]).map(([slot, label]) => {
-            const all = collectionItems(state, slot)
-            const own = all.filter((i) => state.owned.includes(i.id))
-            return (
-              <div key={slot} className="rounded-2xl clay p-3">
-                <div className="flex items-baseline justify-between">
-                  <p className="text-sm font-extrabold">{label}</p>
-                  <p className="text-xs font-bold tabular-nums text-cream/50">{own.length}/{all.length}</p>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {all.map((i) => (
-                    <span
-                      key={i.id}
-                      title={i.name}
-                      className="size-3.5 rounded-full"
-                      style={{ background: state.owned.includes(i.id) ? RARITY_STYLE[i.rarity].color : 'rgba(255,255,255,.1)' }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </Section>
-
       {/* Achievements */}
       <Section title="Achievements">
         <ul className="grid grid-cols-1 gap-2">
@@ -170,12 +157,14 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
                   <p className={`text-sm font-extrabold ${at ? '' : 'text-cream/60'}`}>{a.name}</p>
                   <p className="text-xs text-cream/50">{a.desc}</p>
                 </div>
-                <span className={`shrink-0 text-[11px] font-bold ${at ? 'text-gold' : 'text-cream/35'}`}>{at ? `“${a.title}”` : `+${a.coins} coins`}</span>
+                <span className={`shrink-0 text-[11px] font-bold ${at ? 'text-gold' : 'text-cream/35'}`}>{at ? `“${a.title}”` : 'Locked'}</span>
               </li>
             )
           })}
         </ul>
       </Section>
+
+      <AnimatePresence>{picture && <PictureSheet onClose={() => setPicture(false)} />}</AnimatePresence>
 
       {/* Settings */}
       <button onClick={() => { tourReplay.on = true; go('feed') }} className="clay mt-8 flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 text-left">
@@ -284,12 +273,32 @@ function Backup({ state, onRestore }: { state: GameState; onRestore: (s: GameSta
   )
 }
 
-/** Today's goal, the day streak and streak freezes (a lasting use for coins). */
-function Daily({ state, onBuyFreeze }: { state: GameState; onBuyFreeze: () => boolean }) {
+/** Mochi naps until you've hit today's goal, then keeps you company. */
+function StudyBuddy({ state }: { state: GameState }) {
+  const [pets, setPets] = useState(0)
+  const awake = todayCount(state) >= DAILY_GOAL
+  const left = DAILY_GOAL - todayCount(state)
+  const line = pets
+    ? MOCHI_LINES[(pets - 1) % MOCHI_LINES.length]
+    : awake ? 'Goal done. Mochi is wide awake and proud of you.' : `Mochi is napping. ${left} more answer${left === 1 ? '' : 's'} today to wake Mochi up.`
+  return (
+    <button onClick={() => setPets((p) => p + 1)} aria-label="Pet Mochi" className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-gradient-to-b from-peach/20 to-white/5 p-3 text-left">
+      {art('cat') ? <img src={art('cat')} alt="" className={`h-14 w-16 shrink-0 object-contain ${awake ? '' : 'opacity-80 saturate-75'}`} /> : <Cat sleeping={!awake} className="h-14 w-16 shrink-0" />}
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-extrabold text-peach">Study buddy</span>
+        <span className="block font-display text-lg font-bold leading-tight">Mochi</span>
+        <AnimatePresence mode="wait">
+          <motion.span key={line} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-0.5 block text-[12px] leading-snug text-cream/70" role="status">{line}</motion.span>
+        </AnimatePresence>
+      </span>
+    </button>
+  )
+}
+
+/** Today's goal and the day streak. */
+function Daily({ state }: { state: GameState }) {
   const today = Math.min(todayCount(state), DAILY_GOAL)
   const streak = currentStreak(state)
-  const { freezes } = state.streak ?? { freezes: 0 }
-  const canBuy = freezes < MAX_FREEZES && state.coins >= FREEZE_COST
   return (
     <section className="clay mt-4 rounded-2xl p-3">
       <div className="flex items-center gap-3">
@@ -301,12 +310,6 @@ function Daily({ state, onBuyFreeze }: { state: GameState; onBuyFreeze: () => bo
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/12">
         <motion.div className="h-full rounded-full bg-gradient-to-r from-peach to-gold" initial={false} animate={{ width: `${(today / DAILY_GOAL) * 100}%` }} />
-      </div>
-      <div className="mt-3 flex items-center gap-2">
-        <p className="min-w-0 flex-1 text-xs text-cream/60">Streak freezes: <span className="font-extrabold text-cream">{freezes}/{MAX_FREEZES}</span>. Each saves your streak on one missed day.</p>
-        <button onClick={onBuyFreeze} disabled={!canBuy} className="clay-btn clay-ink min-h-10 shrink-0 px-3 text-xs tabular-nums disabled:opacity-50">
-          {freezes >= MAX_FREEZES ? 'Full' : `Buy · ${FREEZE_COST}`}
-        </button>
       </div>
     </section>
   )

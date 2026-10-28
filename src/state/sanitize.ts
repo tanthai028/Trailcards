@@ -1,9 +1,10 @@
 // Turn whatever JSON came out of storage or a backup file into a valid GameState.
 // Every field is type-checked; anything missing or the wrong shape falls back to its
 // default, so a damaged save can lose a field but can never crash the app.
-import { initialState, MAX_FREEZES, type CardProgress, type GameState, type Mastery } from './game'
+import { ACH_BY_ID } from '../data/achievements'
+import { initialState, type CardProgress, type GameState, type Mastery } from './game'
 import { DECK_SCENES, type DeckCard, type UserDeck } from '../data/decks'
-import { DEFAULT_LOOK, DESTINATIONS, HAIR_COLORS, ITEM_BY_ID, RETIRED_DECOR, type Body, type Look, type Slot } from '../data/items'
+import { ACCESSORIES, DEFAULT_LOOK, HAIR_COLORS, HAIRS, OUTFITS, bodyOfHair, type Look } from '../data/look'
 import type { SceneId } from '../art/Landscape'
 
 type Raw = Record<string, unknown>
@@ -16,9 +17,6 @@ const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d)
 const strArr = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string'))] : [])
 
 const MASTERY: Mastery[] = ['new', 'learning', 'familiar', 'mastered']
-const BODIES: Body[] = ['girl', 'guy']
-/** Ids that aren't items any more but that the migration refunds, so they must survive until then. */
-const REFUNDABLE = new Set(['hair-buns', ...Object.keys(RETIRED_DECOR)])
 
 /** Does this look like a Wayfarer save at all? (Backup restore rejects unrelated JSON files.) */
 export function looksLikeSave(v: unknown): v is Raw {
@@ -88,31 +86,39 @@ function record<T>(v: unknown, each: (x: unknown) => T | null): Record<string, T
   return out
 }
 
-/** An equipped item must exist, sit in the right slot and be owned; otherwise wear the default. */
-function look(v: unknown, owned: string[]): Look {
+/** A known character; anything unknown falls back to the default, and hair always fits the body. */
+function look(v: unknown): Look {
   const r = isObj(v) ? v : {}
-  const body = BODIES.includes(r.body as Body) ? (r.body as Body) : DEFAULT_LOOK.body
-  const pick = (key: keyof Look, slot: Slot) => {
-    const id = r[key]
-    return typeof id === 'string' && ITEM_BY_ID[id]?.slot === slot && owned.includes(id) ? id : (DEFAULT_LOOK[key] as string)
+  const known = (list: readonly { id: string }[], id: unknown, d: string) => (list.some((x) => x.id === id) ? (id as string) : d)
+  const hair = known(HAIRS, r.hair, DEFAULT_LOOK.hair)
+  return {
+    body: bodyOfHair(hair)!,
+    hair,
+    outfit: known(OUTFITS, r.outfit, DEFAULT_LOOK.outfit),
+    hairColor: known(HAIR_COLORS, r.hairColor, DEFAULT_LOOK.hairColor) as Look['hairColor'],
+    accessory: known(ACCESSORIES, r.accessory, DEFAULT_LOOK.accessory),
   }
-  const hairColor = HAIR_COLORS.some((c) => c.id === r.hairColor) ? (r.hairColor as Look['hairColor']) : DEFAULT_LOOK.hairColor
-  return { body, outfit: pick('outfit', 'outfit'), hair: pick('hair', 'hair'), hairColor, accessory: pick('accessory', 'accessory'), card: pick('card', 'card') }
 }
 
-/** Build a valid state from raw save data. Starter items, hair that fits the body and refunds are left to the migration. */
+/** An uploaded picture: only a small image data URL is kept. */
+const photo = (v: unknown) => (typeof v === 'string' && /^data:image\/(webp|png|jpeg);base64,/.test(v) && v.length < 200_000 ? v : null)
+
+/** Build a valid state from raw save data. Fields the app no longer has (coins, items, the van…) are dropped. */
 export function sanitize(raw: Raw): GameState {
   const base = initialState()
   const decks = (Array.isArray(raw.decks) ? raw.decks : []).map(deck).filter((d): d is UserDeck => !!d)
   const deckIds = new Set(decks.map((d) => d.id))
-  const owned = [...new Set([...base.owned, ...strArr(raw.owned).filter((id) => ITEM_BY_ID[id] || REFUNDABLE.has(id))])]
   const daily = isObj(raw.daily) ? raw.daily : {}
   const streak = isObj(raw.streak) ? raw.streak : {}
   const activeDeck = typeof raw.activeDeck === 'string' && deckIds.has(raw.activeDeck) ? raw.activeDeck : null
+  // trophies for features that are gone (outfits, the van) are dropped, and so is their title
+  const achievements = record(raw.achievements, (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null))
+  for (const id of Object.keys(achievements)) if (!ACH_BY_ID[id]) delete achievements[id]
+  const titles = new Set(Object.keys(achievements).map((id) => ACH_BY_ID[id].title))
   return {
     version: 1,
     name: str(raw.name, base.name).trim().slice(0, 20) || base.name,
-    title: typeof raw.title === 'string' ? raw.title : null,
+    title: typeof raw.title === 'string' && titles.has(raw.title) ? raw.title : null,
     onboarded: bool(raw.onboarded, base.onboarded),
     tips: strArr(raw.tips),
     decks,
@@ -120,22 +126,18 @@ export function sanitize(raw: Raw): GameState {
     // saves from before this existed were already studying (the nature deck), so they count as chosen
     deckChosen: bool(raw.deckChosen, raw.onboarded === true || isObj(raw.cards) && Object.keys(raw.cards).length > 0),
     xp: Math.floor(num(raw.xp, base.xp, 0)),
-    coins: Math.floor(num(raw.coins, base.coins, 0)),
     cards: record(raw.cards, progress),
     bookmarks: strArr(raw.bookmarks),
-    owned,
-    look: look(raw.look, owned),
-    cardShuffle: bool(raw.cardShuffle, base.cardShuffle),
+    look: look(raw.look),
+    photo: photo(raw.photo),
     reduceMotion: bool(raw.reduceMotion, base.reduceMotion),
     sound: bool(raw.sound, base.sound),
     daily: { day: str(daily.day, ''), count: Math.floor(num(daily.count, 0, 0)) },
     streak: {
       days: Math.floor(num(streak.days, 0, 0)),
       lastDay: typeof streak.lastDay === 'string' ? streak.lastDay : null,
-      freezes: Math.floor(num(streak.freezes, 0, 0, MAX_FREEZES)),
     },
-    destination: DESTINATIONS.some((d) => d.id === raw.destination) ? (raw.destination as string) : base.destination,
-    achievements: record(raw.achievements, (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null)),
+    achievements,
     createdAt: num(raw.createdAt, base.createdAt, 0),
   }
 }

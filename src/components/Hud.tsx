@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { DAILY_GOAL, currentStreak, levelInfo, todayCount } from '../state/game'
-import { Avatar } from '../scene/Figurine'
-import { Coin, Icon } from './Icon'
+import { ProfilePic } from './ProfilePic'
+import { Icon } from './Icon'
 
 /** Each increase of `value` since mount, kept for a moment so it can float up next to the counter. */
 function useGains(value: number) {
@@ -68,7 +68,7 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
           strokeDasharray={c} initial={false} animate={{ strokeDashoffset: c * (1 - goal) }} transition={{ type: 'spring', stiffness: 120, damping: 20 }}
         />
       </svg>
-      <Avatar look={state.look} className="absolute inset-1 rounded-full bg-gradient-to-b from-[#fff3e2] to-[#d9c7d0]" />
+      <ProfilePic look={state.look} photo={state.photo} className="absolute inset-1" />
       <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-ink ring-2 ring-ink">{lv.level}</span>
       {/* the ring is today's goal; a flame marks a live streak */}
       {streak > 0 && (
@@ -89,19 +89,5 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
         )}
       </AnimatePresence>
     </button>
-  )
-}
-
-export function CoinsPill() {
-  const { state } = useGame()
-  const gains = useGains(state.coins)
-  return (
-    <div className="relative shrink-0" data-coin-target>
-      <motion.div key={state.coins} initial={{ scale: 1.18 }} animate={{ scale: 1 }} className="flex h-9 items-center gap-1.5 rounded-full clay pl-1.5 pr-3" aria-label={`${state.coins} coins`}>
-        <Coin />
-        <span className="text-sm font-extrabold tabular-nums">{state.coins}</span>
-      </motion.div>
-      <GainFloats gains={gains} className="[&>span]:bg-gold [&>span]:text-[#3a2a12]">{(n) => <><Coin size={12} />+{n}</>}</GainFloats>
-    </div>
   )
 }

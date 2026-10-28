@@ -1,7 +1,7 @@
 // Original chibi character, drawn as layered SVG so every slot is swappable.
 // Layer order: shadow → hair back → outfit back → body/outfit → head → face → hair front → accessory.
 import { useId, type SVGProps } from 'react'
-import { HAIR_COLORS, type Look } from '../data/items'
+import { HAIR_COLORS, type Look } from '../data/look'
 
 const SKIN = '#ffe4d4'
 const SKIN_SHADE = '#f3c2ad'

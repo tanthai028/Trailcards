@@ -5,13 +5,13 @@ import { TOPICS, type Card } from '../data/cards'
 import type { DeckFeedCard } from '../data/decks'
 import { DeckImport, DeckPicker } from '../components/Decks'
 import { createPortal } from 'react-dom'
-import { AvatarLevel, CoinsPill } from '../components/Hud'
-import { cardScene, findCard, isDue, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyQueue, type AnswerResult, type GameState, type Mastery } from '../state/game'
+import { AvatarLevel } from '../components/Hud'
+import { findCard, isDue, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyQueue, type AnswerResult, type GameState, type Mastery } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
-import { burst, flyCoins } from '../fx/FxLayer'
-import { playCoin, playCorrect, playSwipe, playWrong } from '../fx/sound'
+import { burst } from '../fx/FxLayer'
+import { playChime, playCorrect, playSwipe, playWrong } from '../fx/sound'
 import type { Tab } from '../components/NavBar'
 
 export type FeedMode = 'discover' | 'review' | 'saved'
@@ -87,11 +87,8 @@ function Feed({ mode, setMode, go }: FeedProps) {
     if (result.correct) {
       playCorrect(run)
       const r = btn?.getBoundingClientRect()
-      if (r) {
-        burst(r.left + r.width / 2, r.top + r.height / 2)
-        if (result.coins > 0) flyCoins(r, Math.ceil(result.coins / 2))
-      }
-    } else if (result.partial) playCoin(0)
+      if (r) burst(r.left + r.width / 2, r.top + r.height / 2)
+    } else if (result.partial) playChime(0)
     else playWrong()
   }
 
@@ -252,24 +249,23 @@ function Feed({ mode, setMode, go }: FeedProps) {
   )
 
   return (
-    <div className="relative h-full">
-      {/* floats over the card's scene band; card padding (16px) + inset (8px) keeps it inside the corners */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-6 pt-2.5">
-            <header className="pointer-events-auto flex touch-none items-center gap-1.5">
-              <div data-tour="goal" className="shrink-0"><AvatarLevel onClick={() => go('profile')} size={34} /></div>
-              <div data-tour="mode" className="shrink-0">
-              <ModeMenu
-                mode={mode}
-                counts={counts}
-                open={menuOpen}
-                setOpen={setMenuOpen}
-                onPick={(m) => (m === mode ? (restack(m), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
-              />
-              </div>
-              <div data-tour="deck" className="flex min-w-0"><DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} /></div>
-              <div data-tour="coins" className="ml-auto shrink-0"><CoinsPill /></div>
-            </header>
-      </div>
+    <div className="relative flex h-full flex-col">
+      {/* What you're studying, in full, with how you're studying it underneath; you on the right. */}
+      <header className="relative z-20 flex shrink-0 touch-none items-start gap-3 px-5 pb-2.5">
+        <div className="min-w-0 flex-1">
+          <div data-tour="deck"><DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} /></div>
+          <div data-tour="mode" className="mt-1 flex">
+            <ModeMenu
+              mode={mode}
+              counts={counts}
+              open={menuOpen}
+              setOpen={setMenuOpen}
+              onPick={(m) => (m === mode ? (restack(m), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
+            />
+          </div>
+        </div>
+        <div data-tour="goal" className="shrink-0"><AvatarLevel onClick={() => go('profile')} size={40} /></div>
+      </header>
 
       {state.onboarded && state.deckChosen && (tour || !state.tips.includes('tour-learn')) && <LearnTour active={active} onDone={() => { setTour(false); dismissTip('tour-learn') }} />}
       <Coach
@@ -281,7 +277,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
         dismiss={dismissTip}
         onReview={() => setMode('review')}
       />
-      <div ref={scroller} className="no-scrollbar h-full touch-none overflow-hidden overscroll-contain [overflow-anchor:none]">
+      <div ref={scroller} className="no-scrollbar min-h-0 flex-1 touch-none overflow-hidden overscroll-contain [overflow-anchor:none]">
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
           const card = findCard(state, id)
@@ -372,10 +368,10 @@ function FeedCard({
       <div className="grain relative h-[23%] min-h-[116px] shrink-0 overflow-hidden">
         {/* drifts at a fraction of the card's speed while swiping, so the scene feels deeper than the card */}
         <div className="parallax absolute inset-0" style={{ transform: `translateY(calc((var(--p, ${index}) - ${index}) * 46px)) scale(1.25)` }}>
-          <SceneSvg scene={cardScene(state, index)} still={!live} className="absolute inset-0 h-full w-full" />
+          <SceneSvg scene={topic.scene} still={!live} className="absolute inset-0 h-full w-full" />
         </div>
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
-        <div className="absolute inset-x-3 top-[68px] flex items-start gap-2">
+        <div className="absolute inset-x-3 top-3 flex items-start gap-2">
           {isReview && (
             <span className="rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-extrabold text-gold">
               Review · {MASTERY_LABEL[result?.from ?? status]}
@@ -577,9 +573,9 @@ function ModeMenu({ mode, counts, open, setOpen, onPick }: {
         onClick={() => setOpen(!open)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="relative flex h-9 items-center gap-1.5 rounded-full bg-cream pl-3 pr-2 text-xs font-extrabold text-ink"
+        className="relative flex h-7 items-center gap-1.5 rounded-full bg-white/10 pl-2.5 pr-1.5 text-xs font-extrabold text-cream/85"
       >
-        {MODE_LABEL[mode]} <span className="tabular-nums text-ink/50">{counts[mode]}</span>
+        {MODE_LABEL[mode]} <span className="tabular-nums text-cream/50">{counts[mode]}</span>
         {mode !== 'review' && counts.review > 0 && (
           <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-coral ring-2 ring-ink" aria-label={`${counts.review} due for review`} />
         )}
@@ -625,12 +621,11 @@ function shade(hex: string) {
 
 const TOUR: { target: string; title: string; text: string; swipe?: boolean }[] = [
   { target: 'text', title: 'One card, one idea', text: 'Each card teaches one thing. Read it first.' },
-  { target: 'quiz', title: 'Answer the question', text: 'Right answers earn XP and coins. Misses come back later.' },
+  { target: 'quiz', title: 'Answer the question', text: 'Right answers earn XP. Misses come back later.' },
   { target: 'card', title: 'Swipe for the next card', text: 'Swipe up to move on, down to go back.', swipe: true },
+  { target: 'deck', title: 'What you study', text: 'Tap the deck name to switch decks, or make a new one with AI or your flashcards.' },
   { target: 'mode', title: 'Study never ends', text: 'New cards, then reviews when due, then practice. Tap for Review only or Saved.' },
-  { target: 'deck', title: 'What you study', text: 'Switch decks, or make a new one with AI or your flashcards.' },
   { target: 'goal', title: 'Daily goal', text: 'The ring fills as you answer: 10 a day builds a streak.' },
-  { target: 'coins', title: 'Your coins', text: 'Spend them on outfits and van upgrades.' },
 ]
 
 /**
@@ -791,7 +786,7 @@ function NextReview() {
 function EndCard({ mode, empty, counts, setMode, go }: { mode: FeedMode; empty: boolean; counts: Record<FeedMode, number>; setMode: (m: FeedMode) => void; go: (t: Tab, m?: FeedMode) => void }) {
   const copy = {
     discover: empty
-      ? ['Nothing to study yet', 'This deck has no cards. Pick another deck, or make one with AI from the deck chip up top.']
+      ? ['Nothing to study yet', 'This deck has no cards. Tap the deck name up top to pick another, or make one with AI.']
       : ['Keep going', 'More practice cards are on the way.'],
     review: empty
       ? ['Nothing due right now', 'Cards come back here on a schedule: a day after you learn them, then 3 days, a week and longer.']
@@ -817,7 +812,7 @@ function EndCard({ mode, empty, counts, setMode, go }: { mode: FeedMode; empty: 
             Study {counts.discover} card{counts.discover === 1 ? '' : 's'}
           </button>
         )}
-        <button onClick={() => go('van')} className="clay-btn clay-plum py-3">Visit your van</button>
+        <button onClick={() => go('profile')} className="clay-btn clay-plum py-3">See your progress</button>
       </div>
     </div>
   )

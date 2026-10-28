@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  answerCard, buyFreeze, currentStreak, DAILY_GOAL, FREEZE_COST, findCard, initialState, INTERVALS, isDue, levelInfo,
-  reviewQueue, sourceCards, todayCount, buyItem, equipItem, affordable, studyQueue, practiceBatch, type GameState,
+  answerCard, currentStreak, DAILY_GOAL, findCard, initialState, INTERVALS, isDue, levelInfo,
+  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, type GameState,
 } from './game'
 import { CARDS } from '../data/cards'
 import { deckFeedCards, parseDeck, type UserDeck } from '../data/decks'
@@ -21,7 +21,7 @@ describe('answering and spaced review', () => {
   it('a new card answered right becomes familiar and is due in a day', () => {
     at(new Date(2026, 9, 1, 12).getTime())
     const { state, result } = answerCard(initialState(), card.id, right)
-    expect(result).toMatchObject({ correct: true, from: 'new', to: 'familiar', xp: 20, coins: 10 })
+    expect(result).toMatchObject({ correct: true, from: 'new', to: 'familiar', xp: 20 })
     expect(state.cards[card.id].due).toBe(Date.now() + INTERVALS[0])
     expect(isDue(state, card.id)).toBe(false)
   })
@@ -40,11 +40,11 @@ describe('answering and spaced review', () => {
     expect(s.cards[card.id].due).toBe(t + INTERVALS[2])
   })
 
-  it('answering before it is due is practice: no coins, schedule unchanged', () => {
+  it('answering before it is due is practice: little XP, schedule unchanged', () => {
     at(new Date(2026, 9, 1, 12).getTime())
     const s = answerCard(initialState(), card.id, right).state
     const { state, result } = answerCard(s, card.id, right)
-    expect(result.coins).toBe(0)
+    expect(result.xp).toBe(2)
     expect(state.cards[card.id].due).toBe(s.cards[card.id].due)
   })
 
@@ -52,7 +52,7 @@ describe('answering and spaced review', () => {
     const t = new Date(2026, 9, 1, 12).getTime()
     at(t)
     const { state, result } = answerCard(initialState(), card.id, wrong)
-    expect(result).toMatchObject({ correct: false, to: 'learning', coins: 0 })
+    expect(result).toMatchObject({ correct: false, to: 'learning' })
     expect(state.cards[card.id]).toMatchObject({ step: 0, due: t + 10 * 60_000 })
   })
 
@@ -91,37 +91,14 @@ describe('daily goal and streak', () => {
     expect(currentStreak(s)).toBe(1)
   })
 
-  it('a freeze covers one missed day and is used up', () => {
+  it('a missed day ends the streak', () => {
     let t = new Date(2026, 9, 1, 12).getTime()
     at(t)
-    let s = day({ ...initialState(), coins: 500 }, DAILY_GOAL)
-    const before = s.coins
-    s = buyFreeze(s)!
-    expect(s.coins).toBe(before - FREEZE_COST)
+    let s = day(initialState(), DAILY_GOAL)
     t += 2 * DAY; at(t)
-    expect(currentStreak(s)).toBe(1)
+    expect(currentStreak(s)).toBe(0)
     s = day(s, DAILY_GOAL)
-    expect(s.streak).toMatchObject({ days: 2, freezes: 0 })
-  })
-
-  it("won't sell a freeze you can't afford or hold", () => {
-    expect(buyFreeze({ ...initialState(), coins: 0 })).toBeNull()
-    expect(buyFreeze({ ...initialState(), coins: 999, streak: { days: 0, lastDay: null, freezes: 2 } })).toBeNull()
-  })
-})
-
-describe('shop', () => {
-  it('buys, equips and refuses what you cannot afford', () => {
-    const rich = { ...initialState(), coins: 1000 }
-    const bought = buyItem(rich, 'outfit-courier')
-    expect(bought.ok).toBe(true)
-    expect(equipItem(bought.state, 'outfit-courier').state.look.outfit).toBe('outfit-courier')
-    expect(buyItem({ ...initialState(), coins: 0 }, 'outfit-courier').ok).toBe(false)
-    expect(equipItem(initialState(), 'outfit-nocturne').state.look.outfit).toBe('outfit-trailhead') // not owned
-  })
-
-  it('keeps nav dots quiet for brand-new players', () => {
-    expect(affordable({ ...initialState(), coins: 999 })).toEqual({ closet: false, van: false })
+    expect(s.streak).toEqual({ days: 1, lastDay: s.daily.day })
   })
 })
 
@@ -171,7 +148,7 @@ describe('recall cards', () => {
   it('Got it counts as right and climbs the schedule', () => {
     at(new Date(2026, 9, 1, 12).getTime())
     const { state, result } = answerCard(base(), 'q1', 2)
-    expect(result).toMatchObject({ correct: true, partial: false, to: 'familiar', xp: 20, coins: 10 })
+    expect(result).toMatchObject({ correct: true, partial: false, to: 'familiar', xp: 20 })
     expect(state.cards.q1.due).toBe(Date.now() + INTERVALS[0])
   })
 
@@ -179,11 +156,11 @@ describe('recall cards', () => {
     const t = new Date(2026, 9, 1, 12).getTime()
     at(t)
     const { state, result } = answerCard(base(), 'q1', 0)
-    expect(result).toMatchObject({ correct: false, partial: false, to: 'learning', coins: 0 })
+    expect(result).toMatchObject({ correct: false, partial: false, to: 'learning' })
     expect(state.cards.q1.due).toBe(t + 10 * 60_000)
   })
 
-  it('Partly pays half, comes back tomorrow and does not step up', () => {
+  it('Partly pays half the XP, comes back tomorrow and does not step up', () => {
     let t = new Date(2026, 9, 1, 12).getTime()
     at(t)
     let s = answerCard(base(), 'q1', 2).state // familiar, step 0
@@ -191,7 +168,7 @@ describe('recall cards', () => {
     s = answerCard(s, 'q1', 2).state // step 1 (3 days)
     t += 3 * DAY + 1; at(t)
     const { state, result } = answerCard(s, 'q1', 1)
-    expect(result).toMatchObject({ correct: false, partial: true, xp: 8, coins: 4 })
+    expect(result).toMatchObject({ correct: false, partial: true, xp: 8 })
     expect(state.cards.q1).toMatchObject({ status: 'familiar', step: 1, due: t + INTERVALS[0] })
   })
 })
@@ -224,11 +201,10 @@ describe('endless study feed', () => {
     expect(withSkipped[1]).toBe(CARDS[3].id) // a card you scrolled past comes back right after misses
   })
 
-  it('practice pays XP but no coins and leaves the schedule alone', () => {
+  it('practice pays a little XP and leaves the schedule alone', () => {
     at(new Date(2026, 9, 1, 12).getTime())
     const s = answerCard(initialState(), card.id, wrong).state // learning, due in 10 min
     const { state, result } = answerCard(s, card.id, right) // retried right away
-    expect(result.coins).toBe(0)
     expect(result.xp).toBeGreaterThan(0)
     expect(state.cards[card.id].due).toBe(s.cards[card.id].due)
   })
