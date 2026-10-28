@@ -206,7 +206,8 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
       {/* floats over the card's scene band; card padding (16px) + inset (8px) keeps it inside the corners */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-6 pt-2.5">
             <header className="pointer-events-auto flex touch-none items-center gap-1.5">
-              <AvatarLevel onClick={() => go('profile')} size={34} />
+              <div data-tour="goal" className="shrink-0"><AvatarLevel onClick={() => go('profile')} size={34} /></div>
+              <div data-tour="mode" className="shrink-0">
               <ModeMenu
                 mode={mode}
                 counts={counts}
@@ -214,15 +215,16 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
                 setOpen={setMenuOpen}
                 onPick={(m) => (m === mode ? (setIds(idsFor(state, m)), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
               />
-              <DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} />
-              <div className="ml-auto shrink-0"><CoinsPill /></div>
+              </div>
+              <div data-tour="deck" className="flex min-w-0"><DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} /></div>
+              <div data-tour="coins" className="ml-auto shrink-0"><CoinsPill /></div>
             </header>
       </div>
 
+      {state.onboarded && !state.tips.includes('tour-learn') && <LearnTour active={active} onDone={() => dismissTip('tour-learn')} />}
       <Coach
         tips={state.tips}
         answered={Object.keys(state.cards).length}
-        answeredHere={!!(ids[active] && answers[ids[active]])}
         active={active}
         reviewDue={counts.review}
         mode={mode}
@@ -369,7 +371,7 @@ function FeedCard({
         </AnimatePresence>
 
         <div className="pt-[0.75em]">
-          <div className="relative rounded-3xl bg-white/70 p-[0.6em] ring-1 ring-ink/5">
+          <div data-tour="quiz" className="relative rounded-3xl bg-white/70 p-[0.6em] ring-1 ring-ink/5">
             {result?.correct && (answered?.streak ?? 0) >= 2 && (
               <motion.span
                 initial={{ scale: 0.4, opacity: 0, rotate: -8 }} animate={{ scale: 1, opacity: 1, rotate: 0 }}
@@ -488,12 +490,89 @@ function shade(hex: string) {
   return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`
 }
 
+const TOUR: { target: string; title: string; text: string; swipe?: boolean }[] = [
+  { target: 'card', title: 'One card, one idea', text: 'Each card teaches one thing about the natural world. Read it first.' },
+  { target: 'quiz', title: 'Answer the question', text: 'Tap the answer you think is right. Right answers earn XP and coins; misses come back later to try again.' },
+  { target: 'card', title: 'Swipe for the next card', text: 'Swipe up to move on, or down to go back.', swipe: true },
+  { target: 'mode', title: 'Discover, Review, Saved', text: 'Discover shows new cards. Tap here to switch to Review (cards coming back on a schedule) or your Saved cards.' },
+  { target: 'deck', title: 'What you study', text: 'Field notes is the built-in deck. Tap here to switch decks or import your own flashcards.' },
+  { target: 'goal', title: 'Your daily goal', text: 'The ring fills as you answer: 10 a day. Meet it on days in a row to build a streak.' },
+  { target: 'coins', title: 'Spend your coins', text: 'Coins buy outfits in the Closet and upgrades for your van.' },
+]
+
+/** A one-time spotlight tour of Learn: dims everything except the part being explained. */
+function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
+  const [step, setStep] = useState(0)
+  const [rect, setRect] = useState<DOMRect | null>(null)
+  const s = TOUR[step]
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = s.target === 'card'
+        ? document.querySelector(`main section[data-index="${active}"] article`)
+        : document.querySelector(`main [data-tour="${s.target}"]`)
+      setRect(el ? el.getBoundingClientRect() : null)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [s.target, active])
+
+  const last = step === TOUR.length - 1
+  const next = () => (last ? onDone() : setStep(step + 1))
+  const pad = 6
+  const box = rect && { top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 }
+  // the explanation goes below the highlight if there's room, else above, else (tall targets like the card) low over it
+  const room = 210
+  const place: 'below' | 'above' | 'inside' = !box ? 'inside' : innerHeight - (box.top + box.height) >= room ? 'below' : box.top >= room ? 'above' : 'inside'
+  const below = place !== 'above'
+  return (
+    <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Learn tour">
+      {box ? (
+        <motion.div
+          className="pointer-events-none absolute rounded-[26px] ring-2 ring-gold"
+          style={{ boxShadow: '0 0 0 9999px rgba(18, 12, 30, .74)' }}
+          initial={false}
+          animate={box}
+          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[rgba(18,12,30,.74)]" />
+      )}
+      {s.swipe && box && (
+        <motion.span
+          className="pointer-events-none absolute left-1/2 grid size-14 -translate-x-1/2 place-items-center rounded-full bg-cream/90 text-ink shadow-lg"
+          style={{ top: box.top + box.height * 0.55 }}
+          animate={{ y: [30, -40], opacity: [0, 1, 0] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
+          aria-hidden="true"
+        >
+          <Icon name="down" size={22} strokeWidth={3} className="rotate-180" />
+        </motion.span>
+      )}
+      <motion.div
+        key={step}
+        initial={{ opacity: 0, y: below ? -6 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+        className="absolute inset-x-4 rounded-3xl bg-paper p-4 text-ink shadow-2xl"
+        style={place === 'below' ? { top: box!.top + box!.height + 12 } : place === 'above' ? { bottom: innerHeight - box!.top + 12 } : { bottom: 110 }}
+      >
+        <p className="text-[11px] font-extrabold text-ink/45">{step + 1} of {TOUR.length}</p>
+        <p className="mt-0.5 font-display text-lg font-bold leading-tight">{s.title}</p>
+        <p className="mt-1 text-[14px] leading-snug text-ink/75">{s.text}</p>
+        <div className="mt-3 flex items-center gap-2">
+          {!last && <button onClick={onDone} className="min-h-11 rounded-xl px-3 text-sm font-extrabold text-ink/50 hover:text-ink">Skip</button>}
+          <button onClick={next} autoFocus className="clay-btn clay-ink ml-auto min-h-11 px-5 text-sm">{last ? 'Start learning' : 'Next'}</button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
 /**
  * First-run coaching, one bubble at a time: how to answer, how to move on, what the header
  * controls do, and what Review is the first time something is due. Each is shown once.
  */
-function Coach({ tips, answered, answeredHere, active, reviewDue, mode, dismiss, onReview }: {
-  tips: string[]; answered: number; answeredHere: boolean; active: number; reviewDue: number; mode: FeedMode
+function Coach({ tips, answered, active, reviewDue, mode, dismiss, onReview }: {
+  tips: string[]; answered: number; active: number; reviewDue: number; mode: FeedMode
   dismiss: (id: string) => void; onReview: () => void
 }) {
   const seen = (id: string) => tips.includes(id)
@@ -505,9 +584,8 @@ function Coach({ tips, answered, answeredHere, active, reviewDue, mode, dismiss,
   }, [answered, active])
 
   let tip: { id: string; text: string; action?: { label: string; run: () => void } } | null = null
-  if (mode === 'discover' && answered === 0 && !seen('coach-answer')) tip = { id: 'coach-answer', text: 'Read the card, then tap the answer you think is right. Right answers earn coins.' }
-  else if (answeredHere && active === 0 && !seen('coach-swipe')) tip = { id: 'coach-swipe', text: 'Swipe up for the next card.' }
-  else if (answered >= 3 && !seen('coach-header')) tip = { id: 'coach-header', text: 'Up top: Discover shows new cards (tap it for Review or Saved), and Field notes is your deck. Change it or import your own.' }
+  // the first-run basics are taught by the Learn tour; what's left is the first time reviews come due
+  if (!seen('tour-learn')) tip = null
   else if (reviewDue > 0 && mode !== 'review' && !seen('coach-review')) tip = { id: 'coach-review', text: `${reviewDue} card${reviewDue === 1 ? ' is' : 's are'} due for review. Cards come back after a day, then 3 days, a week and longer, so they stick.`, action: { label: 'Review now', run: onReview } }
 
   return (
