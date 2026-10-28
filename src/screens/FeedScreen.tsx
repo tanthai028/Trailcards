@@ -276,8 +276,10 @@ function FeedCard({
             </div>
           </div>
 
-          <div className="mt-[0.55em] flex min-h-6 flex-wrap items-center justify-center gap-1.5 text-[11px] font-extrabold">
-            {result ? (
+          {/* no hint before answering; the reward row slides in once you answer */}
+          {result && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+            <div className="flex min-h-6 flex-wrap items-center justify-center gap-1.5 pt-[0.55em] text-[11px] font-extrabold">
               <>
                 {/* the one place rewards show: pops in once, never over the question */}
                 <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 18 }} className="flex items-center gap-1.5">
@@ -289,10 +291,9 @@ function FeedCard({
                   Scroll for next <Icon name="down" size={12} strokeWidth={3} />
                 </button>
               </>
-            ) : (
-              <span className="font-semibold text-ink/35">Tap an answer · scroll to skip</span>
-            )}
-          </div>
+            </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </article>
