@@ -283,7 +283,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
           <div data-tour="deck"><DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} /></div>
           <SubLine mode={mode} counts={counts} setMode={setMode} />
         </div>
-        <div data-tour="goal" className="shrink-0"><AvatarLevel onClick={() => go('profile')} size={40} /></div>
+        <div data-tour="goal" className="shrink-0"><AvatarLevel onClick={() => go('profile')} size={52} /></div>
       </header>
 
       {state.onboarded && state.deckChosen && (tour || !state.tips.includes('tour-learn')) && <LearnTour active={active} onDone={() => { setTour(false); dismissTip('tour-learn') }} />}
@@ -622,7 +622,7 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
   const streak = currentStreak(state)
   const progress = mode === 'review'
     ? (counts.review ? `${counts.review} due` : 'All caught up')
-    : [`${Math.min(todayCount(state), DAILY_GOAL)}/${DAILY_GOAL} today`, `${fresh} new`, counts.review ? `${counts.review} due` : ''].filter(Boolean).join(' · ')
+    : [`${Math.min(todayCount(state), DAILY_GOAL)}/${DAILY_GOAL}`, `${fresh} new`, counts.review ? `${counts.review} due` : ''].filter(Boolean).join(' · ')
   const set = (patch: Partial<StudyPrefs>) => { setStudyPrefs(patch); setOpen(false) }
   const option = (on: boolean, label: string, onClick: () => void) => (
     <button role="menuitemradio" aria-checked={on} onClick={onClick}
@@ -642,7 +642,7 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
           <Icon name="flame" size={12} filled />{streak}
         </span>
       )}
-      <span className="truncate text-xs font-bold text-cream/90">{progress}</span>
+      <span className="truncate text-xs font-bold text-cream/90" title={mode === 'review' ? undefined : "Today's answers out of your daily goal, new cards left, cards due"}>{progress}</span>
       <AnimatePresence>
         {open && (
           <motion.div

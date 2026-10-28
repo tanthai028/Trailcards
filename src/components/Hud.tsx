@@ -58,10 +58,10 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
     <button onClick={onClick} className="relative shrink-0 rounded-full" style={{ width: size + 8, height: size + 8 }} aria-label={`Profile: ${state.name}, level ${lv.level}, ${lv.span - lv.into} XP to level ${lv.level + 1}`}>
       <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="absolute inset-1" />
       {/* the level badge: its ring fills with XP toward the next level */}
-      <span className="absolute -bottom-1.5 -right-1.5 grid size-7 place-items-center rounded-full bg-ink">
+      <span className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full bg-ink">
         <svg viewBox="0 0 24 24" className="absolute inset-0 -rotate-90" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="2.6" />
-          <motion.circle cx="12" cy="12" r="10" fill="none" stroke="var(--color-gold)" strokeWidth="2.6" strokeLinecap="round"
+          <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="3" />
+          <motion.circle cx="12" cy="12" r="10" fill="none" stroke="var(--color-gold)" strokeWidth="3" strokeLinecap="round"
             strokeDasharray={c} initial={false} animate={{ strokeDashoffset: c * (1 - lv.pct) }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} />
         </svg>
         <span className="relative text-[10px] font-extrabold tabular-nums text-gold">{lv.level}</span>
