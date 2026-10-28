@@ -88,9 +88,8 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
 
   return (
     <div className="flex h-full flex-col">
-      {/* solid behind the status bar; the extra 14px clears iOS's own blur under it in home-screen mode */}
-      <div className="relative z-20 bg-ink pt-[calc(env(safe-area-inset-top)+14px)]">
-            <header className="flex items-center gap-2 px-3 pb-2 pt-2">
+      <div className="relative z-20 touch-none bg-ink">
+            <header className="flex items-center gap-2 px-3 pb-2">
               <AvatarLevel onClick={() => go('profile')} size={34} />
               <ModeMenu
                 mode={mode}
@@ -104,7 +103,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
             </header>
       </div>
 
-      <div ref={scroller} className="no-scrollbar min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto scroll-smooth [overflow-anchor:none]">
+      <div ref={scroller} className="no-scrollbar min-h-0 flex-1 overscroll-contain snap-y snap-mandatory overflow-y-auto scroll-smooth [overflow-anchor:none]">
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
           const card = findCard(state, id)

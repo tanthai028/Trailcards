@@ -29,7 +29,7 @@ function Road() {
 
 export function NavBar({ tab, onTab, dots = {} }: { tab: Tab; onTab: (t: Tab) => void; dots?: Partial<Record<Tab, boolean>> }) {
   return (
-    <nav className="relative z-20 border-t border-white/8 bg-ink px-3 pt-2" aria-label="Main">
+    <nav className="relative z-20 touch-none border-t border-white/8 bg-ink px-3 pt-2" aria-label="Main">
       <ul className="grid grid-cols-4 gap-1">
         {ITEMS.map((it) => {
           const active = tab === it.id

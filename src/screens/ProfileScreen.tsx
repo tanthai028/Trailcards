@@ -25,7 +25,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
   const titles = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).map((a) => a.title)
 
   return (
-    <div className="no-scrollbar h-full overflow-y-auto px-4 pb-8">
+    <div className="no-scrollbar h-full overflow-y-auto overscroll-contain px-4 pb-8">
       {/* Showcase banner */}
       <div className="grain relative overflow-hidden rounded-[30px]">
         <SceneSvg scene={DESTINATION_SCENE[state.destination] ?? 'meadow'} className="absolute inset-0 h-full w-full" />

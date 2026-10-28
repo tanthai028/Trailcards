@@ -4,6 +4,7 @@ import { useGame } from '../state/store'
 import { HAIR_COLORS, ITEMS, ITEM_BY_ID, RARITY_STYLE, type Body, type Item, type Look, type Slot } from '../data/items'
 import { Avatar, Figurine } from '../scene/Figurine'
 import { Coin, Icon } from '../components/Icon'
+import { CoinsPill } from '../components/Hud'
 
 type ClosetTab = Exclude<Slot, 'van'>
 const TABS: { id: ClosetTab; label: string }[] = [
@@ -34,13 +35,14 @@ export function ClosetScreen() {
   const short = preview ? preview.cost - state.coins : 0
 
   return (
-    <div className="no-scrollbar h-full overflow-y-auto px-4 pb-6">
+    <div className="no-scrollbar h-full overflow-y-auto overscroll-contain px-4 pb-6">
       {/* Stage */}
       <div
         className="relative h-[330px] overflow-hidden rounded-[30px]"
         style={{ background: 'radial-gradient(90% 70% at 50% 35%, #fff3e2 0%, #e9d9cf 45%, #b9a8bf 100%)' }}
       >
         <div className="absolute bottom-[26px] left-1/2 h-9 w-48 -translate-x-1/2 rounded-[50%] bg-[#6b4f6e]/30 blur-md" />
+        <div className="absolute left-4 top-4 z-10"><CoinsPill /></div>
         <AnimatePresence mode="popLayout">
           <motion.div
             key={`${look.body}${look.outfit}${look.hair}${look.accessory}${look.hairColor}`}

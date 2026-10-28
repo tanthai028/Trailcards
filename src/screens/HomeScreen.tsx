@@ -11,6 +11,7 @@ import { FEATHER, stageBackground } from '../scene/stage'
 import { SceneSvg, DESTINATION_SCENE } from '../art/Landscape'
 import { Cat, Plant } from '../art/Companions'
 import { Coin, Icon } from '../components/Icon'
+import { CoinsPill } from '../components/Hud'
 import { Trophy } from '../components/Trophy'
 import type { Tab } from '../components/NavBar'
 import type { FeedMode } from './FeedScreen'
@@ -45,9 +46,10 @@ export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
   }
 
   return (
-    <div className="no-scrollbar h-full overflow-y-auto px-4 pb-8">
+    <div className="no-scrollbar h-full overflow-y-auto overscroll-contain px-4 pb-8">
       {/* View switch */}
-      <div role="tablist" aria-label="Van view" className="mb-3 flex w-fit rounded-full clay p-1">
+      <div className="mb-3 flex items-center justify-between">
+      <div role="tablist" aria-label="Van view" className="flex w-fit rounded-full clay p-1">
         {(['interior', 'exterior'] as View[]).map((v) => (
           <button
             key={v}
@@ -60,6 +62,8 @@ export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
             <span className="relative">{v}</span>
           </button>
         ))}
+      </div>
+      <CoinsPill />
       </div>
 
       {/* The stage: one complete room render per upgrade tier, with you standing beside it */}
