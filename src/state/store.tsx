@@ -32,6 +32,10 @@ interface Store {
   /** Change a deck's cards, practice direction, scene or shared id (rename has its own action). */
   updateDeck: (id: string, patch: Partial<Pick<UserDeck, 'cards' | 'reverse' | 'scene' | 'sharedId'>>) => void
   setActiveDeck: (id: string | null) => void
+  /** Filter and order for the deck being studied. */
+  setStudyPrefs: (patch: Partial<G.StudyPrefs>) => void
+  /** Take back an answer, given the state from just before it. */
+  undoAnswer: (before: G.GameState) => void
   dismissTip: (id: string) => void
   setName: (name: string) => void
   setTitle: (title: string | null) => void
@@ -113,6 +117,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const s = stateRef.current
         if (!s.tips.includes(id)) commit({ ...s, tips: [...s.tips, id] })
       },
+      setStudyPrefs: (patch) => {
+        const s = stateRef.current
+        commit({ ...s, studyPrefs: { ...s.studyPrefs, [G.prefsKey(s)]: { ...G.studyPrefs(s), ...patch } } })
+      },
+      undoAnswer: (before) => commit(G.undoAnswer(stateRef.current, before)),
       setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id, deckChosen: true }),
       setReduceMotion: (on) => commit({ ...stateRef.current, reduceMotion: on }),
       setSound: (on) => commit({ ...stateRef.current, sound: on }),

@@ -289,7 +289,8 @@ function seeded(str: string) {
   }
 }
 
-function shuffle<T>(list: T[], seed: string) {
+/** The same shuffle every time for the same seed. */
+export function shuffle<T>(list: T[], seed: string) {
   const out = [...list]
   const rand = seeded(seed)
   for (let i = out.length - 1; i > 0; i--) {

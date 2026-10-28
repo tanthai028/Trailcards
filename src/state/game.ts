@@ -1,6 +1,6 @@
 // Pure game rules. No React, no storage — easy to test and to move server-side later.
 import { CARDS, CARD_BY_ID, TOPIC_ORDER, type Card, type TopicId } from '../data/cards'
-import { deckFeedCards, type UserDeck } from '../data/decks'
+import { deckFeedCards, shuffle, type UserDeck } from '../data/decks'
 import { DEFAULT_AVATAR, FRAME_BY_ID, isColorFrame, type Frame } from '../data/avatars'
 import { ACHIEVEMENTS } from '../data/achievements'
 
@@ -33,6 +33,8 @@ export interface GameState {
   xp: number
   cards: Record<string, CardProgress>
   bookmarks: string[]
+  /** How each deck is studied (filter and order), keyed by deck id or 'nature' for Field notes. */
+  studyPrefs: Record<string, StudyPrefs>
   /** The icon shown as your picture, unless you uploaded a photo. */
   avatar: string
   /** The frame around your picture: 'none', a custom ring or an unlocked special one. */
@@ -63,6 +65,7 @@ export const initialState = (): GameState => ({
   xp: 0,
   cards: {},
   bookmarks: [],
+  studyPrefs: {},
   avatar: DEFAULT_AVATAR,
   frame: 'none',
   photo: null,
@@ -267,6 +270,31 @@ export const allCards = (s: GameState): Card[] => [...CARDS, ...deckCards(s)]
 export const findCard = (s: GameState, id: string): Card | undefined => CARD_BY_ID[id] ?? indexDecks(s.decks).byId.get(id)
 
 /** Cards for the active source (falls back to field notes if the deck was deleted). */
+// ── What the feed shows ─────────────────────────────────────────
+/** 'choice' = cards you answer by tapping (multiple choice, true/false, term matching). */
+export type KindFilter = 'all' | 'choice' | 'recall'
+export interface StudyPrefs {
+  kind: KindFilter
+  /** New cards in the deck's own order, or shuffled (a fresh order each day). */
+  order: 'deck' | 'shuffle'
+}
+export const DEFAULT_PREFS: StudyPrefs = { kind: 'all', order: 'deck' }
+export const prefsKey = (s: GameState) => s.activeDeck ?? 'nature'
+export const studyPrefs = (s: GameState): StudyPrefs => ({ ...DEFAULT_PREFS, ...s.studyPrefs?.[prefsKey(s)] })
+export const isRecall = (c: Card) => c.q.kind === 'recall'
+
+/** The current deck as the feed uses it: filtered by card type and put in the chosen order. */
+export function feedCards(s: GameState): Card[] {
+  const p = studyPrefs(s)
+  let cards = sourceCards(s)
+  if (p.kind !== 'all') {
+    const kept = cards.filter((c) => isRecall(c) === (p.kind === 'recall'))
+    // a filter that matches nothing (the deck changed since) shows everything instead
+    if (kept.length) cards = kept
+  }
+  return p.order === 'shuffle' ? shuffle(cards, `${prefsKey(s)}-${dayKey()}`) : cards
+}
+
 export function sourceCards(s: GameState): Card[] {
   const deck = s.activeDeck ? s.decks.find((d) => d.id === s.activeDeck) : undefined
   return deck ? deckFeedCards(deck) : CARDS
@@ -373,4 +401,12 @@ export function frameUnlocked(s: GameState, frame: Frame) {
   const f = FRAME_BY_ID[frame]
   if (!f) return false
   return 'level' in f.unlock ? levelInfo(s.xp).level >= f.unlock.level : !!s.achievements[f.unlock.trophy]
+}
+
+/**
+ * Take back the last answer: the card's progress, XP, today's count, the streak and any
+ * trophy it earned go back to how they were. Anything else changed since is kept.
+ */
+export function undoAnswer(now: GameState, before: GameState): GameState {
+  return { ...now, xp: before.xp, cards: before.cards, daily: before.daily, streak: before.streak, achievements: before.achievements }
 }

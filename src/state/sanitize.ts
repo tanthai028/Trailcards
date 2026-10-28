@@ -122,6 +122,10 @@ export function sanitize(raw: Raw): GameState {
     cards: record(raw.cards, progress),
     bookmarks: strArr(raw.bookmarks),
     // saves from the character days had a `look` instead: they start with the default icon
+    studyPrefs: record(raw.studyPrefs, (x) => {
+      if (!isObj(x)) return null
+      return { kind: x.kind === 'choice' || x.kind === 'recall' ? x.kind : 'all', order: x.order === 'shuffle' ? 'shuffle' : 'deck' } as const
+    }),
     avatar: cleanAvatar(raw.avatar),
     frame: cleanFrame(raw.frame),
     photo: photo(raw.photo),

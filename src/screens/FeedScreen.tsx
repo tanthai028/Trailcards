@@ -6,7 +6,7 @@ import type { DeckFeedCard } from '../data/decks'
 import { DeckImport, DeckPicker } from '../components/Decks'
 import { createPortal } from 'react-dom'
 import { AvatarLevel } from '../components/Hud'
-import { findCard, isDue, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyQueue, type AnswerResult, type GameState, type Mastery } from '../state/game'
+import { DAILY_GOAL, feedCards, findCard, isDue, isRecall, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyPrefs, studyQueue, todayCount, type AnswerResult, type GameState, type KindFilter, type Mastery, type StudyPrefs } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
@@ -24,11 +24,12 @@ export const feedFocus: { id: string | null } = { id: null }
 /** Set from Profile > Replay tour to show the Learn tour again next time Learn opens. */
 export const tourReplay = { on: false }
 
+// Study and Review follow the deck's card-type filter and order; Saved shows every saved card.
 const idsFor = (s: GameState, mode: FeedMode) =>
   mode === 'discover'
-    ? studyQueue(s)
+    ? studyQueue(s, feedCards(s))
     : mode === 'review'
-      ? reviewQueue(s).map((c) => c.id)
+      ? reviewQueue(s, feedCards(s)).map((c) => c.id)
       : s.bookmarks.filter((id) => findCard(s, id))
 
 export const MASTERY_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Familiar', mastered: 'Mastered' }
@@ -46,7 +47,7 @@ export function FeedScreen(props: FeedProps) {
 }
 
 function Feed({ mode, setMode, go }: FeedProps) {
-  const { state, answer, dismissTip } = useGame()
+  const { state, answer, dismissTip, undoAnswer } = useGame()
   // Snapshot the list when the mode opens, so answering a card doesn't yank it out from under you.
   const [ids, setIds] = useState(() => idsFor(state, mode))
   const [active, setActive] = useState(0)
@@ -72,13 +73,29 @@ function Feed({ mode, setMode, go }: FeedProps) {
     setAnswers({})
     setIds(next)
   }
+  // The last answer can be taken back for a few seconds (a mis-tap shouldn't cost a card's progress).
+  const [undo, setUndo] = useState<{ i: number; before: GameState; streak: number; key: number } | null>(null)
+  useEffect(() => {
+    if (!undo) return
+    const t = setTimeout(() => setUndo(null), 6000)
+    return () => clearTimeout(t)
+  }, [undo])
+  const takeBack = () => {
+    if (!undo) return
+    undoAnswer(undo.before)
+    setStreak(undo.streak)
+    setAnswers((a) => { const { [undo.i]: _gone, ...rest } = a; return rest })
+    setUndo(null)
+  }
   const pickFor = (i: number, choice: number) => {
     const id = ids[i]
     const card = id ? findCard(state, id) : undefined
     // recall cards have no choices: choice is the self-rating (0-2)
     if (!card || answers[i] || choice >= (card.q.kind === 'recall' ? 3 : card.choices.length)) return
+    const before = state
     const result = answer(id, choice)
     const run = result.correct ? streak + 1 : result.partial ? streak : 0
+    setUndo({ i, before, streak, key: Date.now() })
     setStreak(run)
     setAnswers((a) => ({ ...a, [i]: { choice, result, streak: run } }))
     // celebrate from the button that was picked (tap or keyboard)
@@ -118,15 +135,15 @@ function Feed({ mode, setMode, go }: FeedProps) {
     setActive(0)
     toTop.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.activeDeck, state.decks.length])
+  }, [state.activeDeck, state.decks.length, JSON.stringify(studyPrefs(state))])
 
   // Study never runs dry: near the end, top the stack up with practice cards,
   // skipping the ones seen most recently (as many as the deck allows).
   useEffect(() => {
     if (mode !== 'discover' || ids.length - active > 3) return
-    const deckSize = sourceCards(state).length
-    const avoid = new Set(ids.slice(-Math.max(0, Math.min(8, deckSize - 1))))
-    const more = practiceBatch(state, avoid, 10, undefined, ids[ids.length - 1])
+    const cards = feedCards(state)
+    const avoid = new Set(ids.slice(-Math.max(0, Math.min(8, cards.length - 1))))
+    const more = practiceBatch(state, avoid, 10, cards, ids[ids.length - 1])
     if (!more.length) return
     tags.current = [...tags.current, ...more.map(() => 'Practice' as Tag)]
     setIds((cur) => [...cur, ...more])
@@ -243,7 +260,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
 
   // Recount only when the game state changes, not on every swipe.
   const counts = useMemo(
-    () => ({ discover: idsFor(state, 'discover').length, review: reviewQueue(state).length, saved: state.bookmarks.length }),
+    () => ({ discover: idsFor(state, 'discover').length, review: idsFor(state, 'review').length, saved: state.bookmarks.length }),
     [state],
   )
 
@@ -296,6 +313,19 @@ function Feed({ mode, setMode, go }: FeedProps) {
           <EndCard mode={mode} empty={ids.length === 0} counts={counts} setMode={setMode} go={go} />
         </section>
       </div>
+      {/* bottom-left of the card, clear of the save button on the right */}
+      <AnimatePresence>
+        {undo && (
+          <motion.button
+            key={undo.key}
+            onClick={takeBack}
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.15 } }}
+            className="absolute bottom-5 left-7 z-30 flex min-h-10 items-center gap-1.5 rounded-full bg-ink/90 px-3.5 text-xs font-extrabold text-cream shadow-lg ring-1 ring-white/10"
+          >
+            <Icon name="refresh" size={13} strokeWidth={2.6} className="-scale-x-100" /> Undo answer
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -545,9 +575,21 @@ function Recall({ answer, shown, onReveal, grade, onGrade }: {
 
 const firstSentence = (text: string) => (text.match(/^.*?[.!?](\s|$)/)?.[0] ?? text).trim()
 
-/** Under the deck name: what this stack is, and a way back from Saved. */
+const KIND_LABEL: Record<KindFilter, string> = { all: 'All cards', choice: 'Multiple choice', recall: 'Recall' }
+
+/** Under the deck name: how far you are, which cards and in what order; or a way back from Saved. */
 function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<FeedMode, number>; setMode: (m: FeedMode) => void }) {
-  const chip = 'flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold'
+  const { state, setStudyPrefs } = useGame()
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', onKey) }
+  }, [open])
+  const chip = 'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold'
   if (mode === 'saved') {
     return (
       <div className="mt-1 flex">
@@ -557,8 +599,48 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
       </div>
     )
   }
-  if (mode === 'review') return <p className="mt-1 text-xs font-extrabold text-cream/55">Review · {counts.review ? `${counts.review} due` : 'all caught up'}</p>
-  return null
+  const p = studyPrefs(state)
+  const all = sourceCards(state)
+  // the type filter only means something when the deck has both kinds
+  const mixed = all.some(isRecall) && all.some((c) => !isRecall(c))
+  const fresh = feedCards(state).filter((c) => statusOf(state, c.id) === 'new').length
+  const progress = mode === 'review'
+    ? (counts.review ? `${counts.review} due` : 'All caught up')
+    : `${Math.min(todayCount(state), DAILY_GOAL)}/${DAILY_GOAL} today · ${fresh} new · ${counts.review} due`
+  const set = (patch: Partial<StudyPrefs>) => { setStudyPrefs(patch); setOpen(false) }
+  const option = (on: boolean, label: string, onClick: () => void) => (
+    <button role="menuitemradio" aria-checked={on} onClick={onClick}
+      className={`flex min-h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-bold ${on ? 'bg-gold/15 text-gold' : 'text-cream/85 hover:bg-white/5'}`}>
+      <span className="flex-1">{label}</span>{on && <Icon name="check" size={14} strokeWidth={3} />}
+    </button>
+  )
+  return (
+    <div className="relative mt-1 flex min-w-0 items-center gap-2" onPointerDown={(e) => e.stopPropagation()}>
+      <button onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} className={`${chip} bg-white/10 text-cream/85`}>
+        {mixed && p.kind !== 'all' ? KIND_LABEL[p.kind] : 'Cards'}{p.order === 'shuffle' && <Icon name="refresh" size={11} strokeWidth={3} className="opacity-70" />}
+        <Icon name="chevron" size={11} strokeWidth={3} className={`opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <span className="truncate text-xs font-bold text-cream/70 [text-shadow:0_1px_2px_rgba(0,0,0,.35)]">{progress}</span>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="menu"
+            initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
+            transition={{ duration: 0.14 }}
+            className="clay absolute left-0 top-[calc(100%+6px)] z-30 w-56 origin-top-left rounded-2xl p-1.5"
+          >
+            {mixed && (<>
+              <p className="px-3 pb-1 pt-1.5 text-[11px] font-extrabold text-cream/45">Show</p>
+              {(['all', 'choice', 'recall'] as KindFilter[]).map((k) => <div key={k}>{option(p.kind === k, KIND_LABEL[k], () => set({ kind: k }))}</div>)}
+            </>)}
+            <p className="px-3 pb-1 pt-1.5 text-[11px] font-extrabold text-cream/45">New cards</p>
+            {option(p.order === 'deck', 'In deck order', () => set({ order: 'deck' }))}
+            {option(p.order === 'shuffle', 'Shuffled', () => set({ order: 'shuffle' }))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
 }
 
 const RIGHT = ['Nailed it!', 'Exactly right!', 'Sharp eyes!', 'You got it!', 'Mochi is impressed!']

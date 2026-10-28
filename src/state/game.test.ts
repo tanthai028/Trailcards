@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   answerCard, currentStreak, DAILY_GOAL, findCard, initialState, INTERVALS, isDue, levelInfo,
-  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, type GameState,
+  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, feedCards, isRecall, undoAnswer, type GameState,
 } from './game'
 import { CARDS } from '../data/cards'
 import { deckFeedCards, parseDeck, type UserDeck } from '../data/decks'
@@ -223,3 +223,48 @@ describe('frames', () => {
 })
 
 const levelXp = (level: number) => 50 * level * (level - 1)
+
+describe('study filter and order', () => {
+  const mixedDeck = (): UserDeck => ({
+    id: 'mix', name: 'Mix', scene: 'meadow', createdAt: 0,
+    cards: [
+      ...parseDeck('perro\tdog\ngato\tcat\ncasa\thouse\nagua\twater\nlibro\tbook', { termSep: 'tab', rowSep: 'newline' }).cards,
+      { id: 'r1', term: 'Capital of France?', definition: 'Paris', kind: 'recall' },
+      { id: 'r2', term: 'Capital of Spain?', definition: 'Madrid', kind: 'recall' },
+    ],
+  })
+  const withDeck = (prefs = {}): GameState => ({ ...initialState(), decks: [mixedDeck()], activeDeck: 'mix', studyPrefs: { mix: { kind: 'all', order: 'deck', ...prefs } } })
+
+  it('shows only the chosen kind of card', () => {
+    expect(feedCards(withDeck()).length).toBe(7)
+    expect(feedCards(withDeck({ kind: 'recall' })).every(isRecall)).toBe(true)
+    expect(feedCards(withDeck({ kind: 'recall' })).length).toBe(2)
+    expect(feedCards(withDeck({ kind: 'choice' })).some(isRecall)).toBe(false)
+  })
+
+  it('falls back to every card when the filter matches none', () => {
+    const s: GameState = { ...initialState(), studyPrefs: { nature: { kind: 'recall', order: 'deck' } } }
+    expect(feedCards(s).length).toBe(sourceCards(s).length)
+  })
+
+  it('keeps deck order, or shuffles the same way all day', () => {
+    const ids = (s: GameState) => feedCards(s).map((c) => c.id)
+    expect(ids(withDeck())).toEqual(sourceCards(withDeck()).map((c) => c.id))
+    const shuffled = ids(withDeck({ order: 'shuffle' }))
+    expect([...shuffled].sort()).toEqual(ids(withDeck()).sort())
+    expect(ids(withDeck({ order: 'shuffle' }))).toEqual(shuffled)
+  })
+})
+
+describe('undo', () => {
+  it("takes back the answer, its XP and today's count, and keeps other changes", () => {
+    const before = initialState()
+    const after = answerCard(before, card.id, right).state
+    const bookmarked = { ...after, bookmarks: ['x'] }
+    const undone = undoAnswer(bookmarked, before)
+    expect(undone.xp).toBe(before.xp)
+    expect(undone.cards[card.id]).toBeUndefined()
+    expect(todayCount(undone)).toBe(0)
+    expect(undone.bookmarks).toEqual(['x'])
+  })
+})

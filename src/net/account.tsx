@@ -104,7 +104,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (error) break
       gain -= chunk
     }
-    memo.set(id, 'xp', String(s.xp - Math.max(0, gain)))
+    // never lower it: XP taken back by Undo was already counted, and earning it again shouldn't count twice
+    memo.set(id, 'xp', String(Math.max(sent, s.xp - Math.max(0, gain))))
     // picture: upload a new photo, or clear it
     const pic = s.photo ? fingerprint(s.photo) : ''
     let photo_url: string | null | undefined
