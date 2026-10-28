@@ -1,13 +1,22 @@
-// User-imported decks: Quizlet-style "term <sep> definition" text, turned into
-// multiple-choice cards whose wrong answers come from the same deck.
+// User-imported decks. Two ways in: Quizlet-style "term <sep> definition" text (wrong answers
+// are borrowed from the deck's other definitions), or the stricter AI card format, where each
+// card brings its own wrong answers and explanation, or is an open "recall" question.
 import type { Card } from './cards'
 import type { SceneId } from '../art/Landscape'
 
 export interface DeckCard {
   /** Hash of term + definition, so re-importing the same card keeps its progress. */
   id: string
+  /** The question (or term). */
   term: string
+  /** The right answer: the definition, the correct choice, or a recall card's model answer. */
   definition: string
+  /** pair (default): wrong answers come from other cards. mcq: brings its own. recall: self-rated. */
+  kind?: 'pair' | 'mcq' | 'recall'
+  /** mcq only: the wrong choices. */
+  wrong?: string[]
+  /** Why the answer is right, shown after answering. */
+  explain?: string
 }
 
 export interface UserDeck {
@@ -20,8 +29,10 @@ export interface UserDeck {
   reverse?: boolean
 }
 
-/** Multiple choice needs a correct answer plus 3 others from the same deck. */
+/** Term/definition cards borrow wrong answers from the deck, so they need a correct answer plus 3 others. */
 export const MIN_DECK_CARDS = 4
+/** AI-format cards carry their own answers, so one is enough. */
+export const minCards = (cards: DeckCard[]) => (cards.some((c) => (c.kind ?? 'pair') === 'pair') ? MIN_DECK_CARDS : 1)
 
 /** 'line' = term and definition on their own lines, as Knowt and plain notes copy out. */
 export type TermSep = 'tab' | 'comma' | 'dash' | 'line' | 'custom'
@@ -136,6 +147,133 @@ function collect(rows: { row: number; raw: string; pair: [string, string] | null
   return { cards, problems, duplicates }
 }
 
+// ── AI card format ──────────────────────────────────────────────
+// The app writes a prompt; the user runs it in ChatGPT or Claude and pastes the reply back.
+// Replies are messy (code fences, chatter, smart quotes, trailing commas), so parsing is
+// forgiving about the wrapper and strict about each card.
+
+export interface PromptOptions {
+  /** A topic ("system design") or a pasted job description. */
+  topic: string
+  count: number
+  /** Share of open recall questions, 0 to 1; the rest are multiple choice. */
+  recall: number
+  /** Questions already in the deck, so a follow-up prompt doesn't repeat them. */
+  avoid?: string[]
+}
+
+export function buildPrompt({ topic, count, recall, avoid = [] }: PromptOptions): string {
+  const nRecall = Math.round(count * recall)
+  const nMcq = count - nRecall
+  const isJob = topic.length > 200 || /\n/.test(topic.trim())
+  const subject = isJob
+    ? `the job description below. Cover the skills, tools and situations it asks about, the way an interviewer for this role would.\n\nJob description:\n"""\n${topic.trim()}\n"""`
+    : `this topic: ${topic.trim()}`
+  const avoidText = avoid.length
+    ? `\n\nThe deck already has these questions. Don't repeat them or ask the same thing in other words:\n${avoid.slice(0, 120).map((q) => `- ${q}`).join('\n')}`
+    : ''
+  return `Write ${count} interview-prep flashcards about ${subject}
+
+Make ${nMcq} multiple-choice cards and ${nRecall} open "recall" cards. Mix easy, medium and hard. Each card tests one idea. Questions should be ones a real interviewer might ask.
+
+- Multiple choice: exactly 4 choices, one clearly correct; the 3 wrong ones should be plausible mistakes, not jokes. Keep choices short.
+- Recall: an open question to answer out loud. "answer" is a model answer of 2-4 sentences or short key points.
+- "explain" says in 1-2 sentences why the answer is right.${avoidText}
+
+Reply with ONLY this JSON, no other text:
+{"deck":"short deck name","cards":[
+ {"type":"mcq","q":"question","choices":["A","B","C","D"],"answer":0,"explain":"why"},
+ {"type":"recall","q":"question","answer":"model answer","explain":"why it matters"}
+]}
+"answer" for multiple choice is the index (0-3) of the correct choice.`
+}
+
+/** Does pasted text look like the AI JSON format rather than term/definition lines? */
+export const looksLikeAiFormat = (text: string) => {
+  const t = text.trim()
+  return /^\`\`\`/.test(t) || /^[{[]/.test(t) || /"cards"\s*:/.test(t)
+}
+
+/** Pull the JSON out of a chat reply and parse it, repairing the usual damage. */
+function extractJson(text: string): unknown {
+  let t = text.replace(/\`\`\`(?:json)?/gi, '').trim()
+  const start = t.search(/[{[]/)
+  const end = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'))
+  if (start < 0 || end < start) return undefined
+  t = t.slice(start, end + 1)
+  const attempts = [
+    t,
+    t.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'").replace(/,\s*([}\]])/g, '$1'),
+  ]
+  for (const a of attempts) {
+    try {
+      return JSON.parse(a)
+    } catch {
+      /* try the next repair */
+    }
+  }
+  return undefined
+}
+
+const text = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : typeof v === 'number' ? String(v) : '')
+
+export interface AiParseResult extends ParseResult {
+  /** Deck name the reply suggested, if any. */
+  name: string
+  /** Set when the reply had no readable JSON at all. */
+  error?: string
+}
+
+export function parseAiDeck(input: string): AiParseResult {
+  const data = extractJson(input)
+  const list = Array.isArray(data) ? data : data && typeof data === 'object' ? (data as { cards?: unknown }).cards : undefined
+  if (!Array.isArray(list)) {
+    return { name: '', cards: [], problems: [], duplicates: 0, error: data === undefined ? "Couldn't find the cards in that reply. Paste the whole answer, including the { } brackets." : 'The reply has no "cards" list.' }
+  }
+  const name = data && typeof data === 'object' && !Array.isArray(data) ? text((data as { deck?: unknown; name?: unknown }).deck ?? (data as { name?: unknown }).name).slice(0, 40) : ''
+  const cards: DeckCard[] = []
+  const problems: ParseResult['problems'] = []
+  const seen = new Set<string>()
+  let duplicates = 0
+  list.forEach((raw, i) => {
+    const row = i + 1
+    const c = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+    const q = text(c.q ?? c.question ?? c.prompt)
+    const explain = text(c.explain ?? c.explanation ?? c.why) || undefined
+    const type = text(c.type ?? c.kind).toLowerCase()
+    const choices = Array.isArray(c.choices ?? c.options) ? ((c.choices ?? c.options) as unknown[]).map(text).filter(Boolean) : []
+    const fail = (reason: string) => problems.push({ row, text: q || JSON.stringify(raw ?? '').slice(0, 40), reason })
+    if (!q) return fail('Missing question')
+    let card: DeckCard
+    if (type === 'recall' || (!choices.length && type !== 'mcq')) {
+      const answer = text(c.answer ?? c.a)
+      if (!answer) return fail('Missing answer')
+      card = { id: cardId(q, answer), term: q, definition: answer, kind: 'recall', ...(explain ? { explain } : {}) }
+    } else {
+      const distinct = [...new Set(choices)]
+      if (distinct.length < 2) return fail('Needs at least 2 different choices')
+      if (distinct.length > 6) return fail('Too many choices (6 at most)')
+      // answer may be an index, a letter (A-D) or the choice's text
+      const a = c.answer ?? c.correct
+      let idx = -1
+      if (typeof a === 'number') idx = Number.isInteger(a) ? a : -1
+      else if (typeof a === 'string') {
+        const t = a.trim()
+        if (/^[A-Fa-f]$/.test(t)) idx = t.toUpperCase().charCodeAt(0) - 65
+        else if (/^\d+$/.test(t)) idx = Number(t)
+        else idx = choices.findIndex((ch) => ch.toLowerCase() === text(t).toLowerCase())
+      }
+      if (idx < 0 || idx >= choices.length) return fail('Answer doesn\'t match a choice')
+      const right = choices[idx]
+      card = { id: cardId(q, right), term: q, definition: right, kind: 'mcq', wrong: distinct.filter((ch) => ch !== right), ...(explain ? { explain } : {}) }
+    }
+    if (seen.has(card.id)) return duplicates++
+    seen.add(card.id)
+    cards.push(card)
+  })
+  return { name, cards, problems, duplicates }
+}
+
 // ── Deck cards -> feed cards ─────────────────────────────────────
 function seeded(str: string) {
   let h = 2166136261
@@ -172,8 +310,26 @@ export function deckFeedCards(deck: UserDeck): DeckFeedCard[] {
   // reverse decks show the definition and ask for the term
   const ask = (c: DeckCard) => (deck.reverse ? c.definition : c.term)
   const ans = (c: DeckCard) => (deck.reverse ? c.term : c.definition)
-  const pool = [...new Set(deck.cards.map(ans))]
-  const out = deck.cards.map((c) => {
+  const pool = [...new Set(deck.cards.filter((c) => (c.kind ?? 'pair') === 'pair').map(ans))]
+  const out = deck.cards.map((c): DeckFeedCard => {
+    const meta = { id: c.id, topic: 'sky' as const, hook: '', body: '', deck: { id: deck.id, name: deck.name, scene: deck.scene } }
+    if (c.kind === 'recall') {
+      const prompt = 'Think of your answer, then reveal it'
+      return {
+        ...meta, title: c.term, choices: [], answerIndex: -1, prompt,
+        q: { kind: 'recall', prompt, answer: c.definition, explain: c.explain ?? '' },
+        explain: c.explain ?? '',
+      }
+    }
+    if (c.kind === 'mcq' && c.wrong?.length) {
+      const choices = shuffle([c.definition, ...c.wrong], `${c.id}-order`)
+      const prompt = 'Pick the right answer'
+      return {
+        ...meta, title: c.term, choices, answerIndex: choices.indexOf(c.definition), prompt,
+        q: { kind: 'mcq', prompt, correct: c.definition, wrong: c.wrong, explain: c.explain ?? c.definition },
+        explain: c.explain ?? c.definition,
+      }
+    }
     const rand = seeded(`${c.id}-wrong`)
     const want = Math.min(3, pool.length - 1)
     const picked = new Set<string>()

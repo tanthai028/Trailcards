@@ -26,6 +26,8 @@ export const TOPIC_ORDER: TopicId[] = ['sky', 'night', 'earth', 'ocean', 'forest
 type Question =
   | { kind: 'mcq'; prompt: string; correct: string; wrong: string[]; explain: string }
   | { kind: 'tf'; prompt: string; answer: boolean; explain: string }
+  /** Open question: think, reveal the model answer, rate yourself. */
+  | { kind: 'recall'; prompt: string; answer: string; explain: string }
 
 export interface CardData {
   id: string
@@ -37,6 +39,7 @@ export interface CardData {
 }
 
 export interface Card extends CardData {
+  /** Empty for recall cards, which are answered by rating yourself. */
   choices: string[]
   answerIndex: number
   prompt: string
@@ -691,6 +694,7 @@ function build(c: CardData): Card {
   if (c.q.kind === 'tf') {
     return { ...c, choices: ['True', 'False'], answerIndex: c.q.answer ? 0 : 1, prompt: c.q.prompt, explain: c.q.explain }
   }
+  if (c.q.kind === 'recall') return { ...c, choices: [], answerIndex: -1, prompt: c.q.prompt, explain: c.q.explain }
   const rand = seeded(c.id)
   const choices = [c.q.correct, ...c.q.wrong]
   for (let i = choices.length - 1; i > 0; i--) {

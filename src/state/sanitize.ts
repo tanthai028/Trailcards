@@ -30,7 +30,17 @@ function deckCard(v: unknown): DeckCard | null {
   const term = str(v.term, '').trim()
   const definition = str(v.definition, '').trim()
   const id = str(v.id, '')
-  return id && term && definition ? { id, term, definition } : null
+  if (!id || !term || !definition) return null
+  const card: DeckCard = { id, term, definition }
+  const explain = str(v.explain, '').trim()
+  if (explain) card.explain = explain
+  if (v.kind === 'recall') card.kind = 'recall'
+  else if (v.kind === 'mcq') {
+    // an mcq card without usable wrong choices falls back to a plain pair
+    const wrong = strArr(v.wrong).map((w) => w.trim()).filter((w) => w && w !== definition)
+    if (wrong.length) Object.assign(card, { kind: 'mcq', wrong })
+  }
+  return card
 }
 
 function deck(v: unknown): UserDeck | null {
