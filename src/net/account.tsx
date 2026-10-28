@@ -181,7 +181,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Account>(() => ({
     status, email, me, client,
     sendCode: async (address) => {
-      const { error } = await client!.auth.signInWithOtp({ email: address.trim(), options: { shouldCreateUser: true, emailRedirectTo: location.origin } })
+      const { error } = await client!.auth.signInWithOtp({ email: address.trim(), options: { shouldCreateUser: true, emailRedirectTo: `${location.origin}/` } })
       if (error) throw new Error(errorText(error))
     },
     verifyCode: async (address, code) => {
