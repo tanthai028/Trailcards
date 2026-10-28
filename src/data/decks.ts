@@ -21,7 +21,8 @@ export interface UserDeck {
 /** Multiple choice needs a correct answer plus 3 others from the same deck. */
 export const MIN_DECK_CARDS = 4
 
-export type TermSep = 'tab' | 'comma' | 'dash' | 'custom'
+/** 'line' = term and definition on their own lines, as Knowt and plain notes copy out. */
+export type TermSep = 'tab' | 'comma' | 'dash' | 'line' | 'custom'
 export type RowSep = 'newline' | 'semicolon' | 'custom'
 
 export interface ParseOptions {
@@ -50,8 +51,10 @@ export const cardId = (term: string, definition: string) => `u-${hash(`${term.to
 export function detectOptions(text: string): ParseOptions {
   if (text.includes('\t')) return { termSep: 'tab', rowSep: 'newline' }
   const lines = text.split(/\r?\n/).filter((l) => l.trim())
-  if (lines.length && lines.filter((l) => / - /.test(l)).length >= lines.length / 2) return { termSep: 'dash', rowSep: 'newline' }
-  return { termSep: 'comma', rowSep: 'newline' }
+  const most = (re: RegExp) => lines.length > 0 && lines.filter((l) => re.test(l)).length >= lines.length / 2
+  if (most(/ - /)) return { termSep: 'dash', rowSep: 'newline' }
+  if (most(/,/)) return { termSep: 'comma', rowSep: 'newline' }
+  return { termSep: 'line', rowSep: 'newline' }
 }
 
 /** Split one row in two at the first separator. Commas respect "quoted, fields" like CSV. */
@@ -80,20 +83,49 @@ function splitRow(row: string, o: ParseOptions): [string, string] | null {
 
 const clean = (s: string) => s.replace(/^"|"$/g, '').replace(/\s+/g, ' ').trim()
 
+/**
+ * Term and definition on separate lines. With blank lines between cards, the first
+ * line of each block is the term and the rest is the definition; otherwise lines pair up.
+ */
+function lineRows(text: string): { row: number; pair: [string, string] | null; raw: string }[] {
+  const lines = text.split(/\r?\n/)
+  const blocks: { row: number; lines: string[] }[] = []
+  let cur: { row: number; lines: string[] } | null = null
+  lines.forEach((l, i) => {
+    if (!l.trim()) { cur = null; return }
+    if (!cur) blocks.push((cur = { row: i + 1, lines: [] }))
+    cur.lines.push(l)
+  })
+  if (blocks.length > 1 && blocks.every((b) => b.lines.length >= 2)) {
+    return blocks.map((b) => ({ row: b.row, pair: [b.lines[0], b.lines.slice(1).join(' ')], raw: b.lines.join(' ') }))
+  }
+  const filled = lines.map((l, i) => ({ l, row: i + 1 })).filter((x) => x.l.trim())
+  const out: { row: number; pair: [string, string] | null; raw: string }[] = []
+  for (let i = 0; i < filled.length; i += 2) {
+    const a = filled[i]
+    const b = filled[i + 1]
+    out.push({ row: a.row, pair: b ? [a.l, b.l] : null, raw: a.l })
+  }
+  return out
+}
+
 export function parseDeck(text: string, o: ParseOptions): ParseResult {
+  if (o.termSep === 'line') return collect(lineRows(text))
   const rowSep = o.rowSep === 'newline' ? /\r?\n/ : o.rowSep === 'semicolon' ? ';' : o.customRow || '\n'
   const rows = text.split(rowSep)
+  return collect(rows.map((raw, i) => ({ row: i + 1, raw, pair: raw.trim() ? splitRow(raw, o) : null })).filter((r) => r.raw.trim()))
+}
+
+function collect(rows: { row: number; raw: string; pair: [string, string] | null }[]): ParseResult {
   const cards: DeckCard[] = []
   const problems: ParseResult['problems'] = []
   const seen = new Set<string>()
   let duplicates = 0
-  rows.forEach((raw, i) => {
-    if (!raw.trim()) return
-    const pair = splitRow(raw, o)
-    if (!pair) return problems.push({ row: i + 1, text: raw.trim(), reason: 'No separator found' })
+  rows.forEach(({ row, raw, pair }) => {
+    if (!pair) return problems.push({ row, text: raw.trim(), reason: 'No definition found' })
     const [term, definition] = pair.map(clean)
-    if (!term) return problems.push({ row: i + 1, text: raw.trim(), reason: 'Missing term' })
-    if (!definition) return problems.push({ row: i + 1, text: raw.trim(), reason: 'Missing definition' })
+    if (!term) return problems.push({ row, text: raw.trim(), reason: 'Missing term' })
+    if (!definition) return problems.push({ row, text: raw.trim(), reason: 'Missing definition' })
     const id = cardId(term, definition)
     if (seen.has(id)) return duplicates++
     seen.add(id)
