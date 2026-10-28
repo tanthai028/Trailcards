@@ -112,6 +112,12 @@ describe('parseSave', () => {
     expect(parseSave(JSON.stringify(old))!.avatar).toBe('paw')
   })
 
+  it('drops topic trophies from the old built-in topics', () => {
+    const s = parseSave(JSON.stringify({ ...real(), achievements: { 'first-card': 1, 'topic-sky': 2 }, title: 'Cloud Reader' }))!
+    expect(s.achievements).toEqual({ 'first-card': 1 })
+    expect(s.title).toBeNull()
+  })
+
   it('keeps an uploaded picture', () => {
     const photo = 'data:image/webp;base64,UklGRg=='
     expect(parseSave(JSON.stringify({ ...real(), photo }))!.photo).toBe(photo)

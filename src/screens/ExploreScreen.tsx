@@ -126,7 +126,7 @@ function DeckPreview({ listing, onClose, onChanged, go }: { listing: Listing; on
 
   const add = async () => {
     if (!deck) return
-    importDeck(deck.name, deck.cards, { topic: deck.topic, scene: deck.scene, reverse: deck.reverse })
+    importDeck(deck.name, deck.cards, { topic: deck.topic, scene: deck.scene, reverse: deck.reverse, origin: 'explore' })
     void client!.rpc('count_copy', { deck: listing.id })
     onClose()
     go('feed')

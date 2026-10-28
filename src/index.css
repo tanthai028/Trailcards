@@ -37,6 +37,10 @@ body {
   overflow: hidden;
   overscroll-behavior: none;
 }
+/* no double-tap zoom anywhere (pinch is blocked in main.tsx) */
+html {
+  touch-action: manipulation;
+}
 
 /* Profile > Reduce motion: CSS transitions and keyframes stop too (Framer motion is handled by MotionConfig). */
 [data-reduce-motion] .parallax {

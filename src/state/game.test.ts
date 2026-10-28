@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   answerCard, currentStreak, DAILY_GOAL, findCard, initialState, INTERVALS, isDue, levelInfo,
-  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, feedCards, isRecall, undoAnswer, type GameState,
+  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, feedCards, isRecall, undoAnswer, comebacks, type GameState,
 } from './game'
 import { CARDS } from '../data/cards'
 import { deckFeedCards, parseDeck, type UserDeck } from '../data/decks'
@@ -266,5 +266,28 @@ describe('undo', () => {
     expect(undone.cards[card.id]).toBeUndefined()
     expect(todayCount(undone)).toBe(0)
     expect(undone.bookmarks).toEqual(['x'])
+  })
+})
+
+describe('habit and effort trophies', () => {
+  it('counts goal days once per day, in a row or not', () => {
+    let t = new Date(2026, 9, 1, 12).getTime()
+    at(t)
+    let s = initialState()
+    for (let i = 0; i < DAILY_GOAL + 3; i++) s = answerCard(s, CARDS[i].id, CARDS[i].answerIndex).state
+    expect(s.goalDays).toBe(1) // answering past the goal doesn't count twice
+    t += 3 * DAY; at(t) // a gap: the streak resets, the goal days don't
+    for (let i = 20; i < 20 + DAILY_GOAL; i++) s = answerCard(s, CARDS[i].id, CARDS[i].answerIndex).state
+    expect(s.goalDays).toBe(2)
+    expect(s.streak.days).toBe(1)
+  })
+
+  it('a card missed and later got right is a comeback', () => {
+    at(new Date(2026, 9, 1, 12).getTime())
+    let s = answerCard(initialState(), card.id, wrong).state
+    expect(comebacks(s)).toBe(0)
+    at(new Date(2026, 9, 1, 13).getTime()) // due again after the 10-minute retry
+    s = answerCard(s, card.id, right).state
+    expect(comebacks(s)).toBe(1)
   })
 })

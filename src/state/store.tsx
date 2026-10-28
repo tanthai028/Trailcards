@@ -26,7 +26,8 @@ interface Store {
   setPhoto: (photo: string | null) => void
   setReduceMotion: (on: boolean) => void
   setSound: (on: boolean) => void
-  importDeck: (name: string, cards: DeckCard[], opts?: Partial<Pick<UserDeck, 'topic' | 'scene' | 'reverse'>>) => void
+  setHaptics: (on: boolean) => void
+  importDeck: (name: string, cards: DeckCard[], opts?: Partial<Pick<UserDeck, 'topic' | 'scene' | 'reverse' | 'origin'>>) => void
   deleteDeck: (id: string) => void
   renameDeck: (id: string, name: string) => void
   /** Change a deck's cards, practice direction, scene or shared id (rename has its own action). */
@@ -94,9 +95,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       importDeck: (name, cards, opts = {}) => {
         const s = stateRef.current
         const id = `deck-${Date.now().toString(36)}`
-        const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: opts.scene ?? DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards, ...(opts.topic?.trim() ? { topic: opts.topic.trim() } : {}), ...(opts.reverse ? { reverse: true } : {}) }
-        commit({ ...s, decks: [...s.decks, deck], activeDeck: id, deckChosen: true })
+        const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: opts.scene ?? DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards, ...(opts.topic?.trim() ? { topic: opts.topic.trim() } : {}), ...(opts.reverse ? { reverse: true } : {}), ...(opts.origin ? { origin: opts.origin } : {}) }
+        // deck trophies (Deck Builder, Librarian, Explorer) are checked here, not only on answers
+        const ach = G.checkAchievements({ ...s, decks: [...s.decks, deck], activeDeck: id, deckChosen: true })
+        commit(ach.state)
         push([{ kind: 'toast', text: `Imported ${cards.length} cards into “${deck.name}”` }])
+        pushAch(ach.unlocked)
       },
       renameDeck: (id, name) => {
         const s = stateRef.current
@@ -107,7 +111,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       updateDeck: (id, patch) => {
         const s = stateRef.current
         if (patch.cards && patch.cards.length < minCards(patch.cards)) return
-        commit({ ...s, decks: s.decks.map((d) => (d.id === id ? { ...d, ...patch } : d)) })
+        const ach = G.checkAchievements({ ...s, decks: s.decks.map((d) => (d.id === id ? { ...d, ...patch } : d)) })
+        commit(ach.state)
+        pushAch(ach.unlocked)
       },
       deleteDeck: (id) => {
         const s = stateRef.current
@@ -125,6 +131,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id, deckChosen: true }),
       setReduceMotion: (on) => commit({ ...stateRef.current, reduceMotion: on }),
       setSound: (on) => commit({ ...stateRef.current, sound: on }),
+      setHaptics: (on) => commit({ ...stateRef.current, haptics: on }),
       setName: (name) => commit({ ...stateRef.current, name: name.trim().slice(0, 20) || 'Wanderer' }),
       setTitle: (title) => commit({ ...stateRef.current, title }),
       finishOnboarding: (name, avatar) =>

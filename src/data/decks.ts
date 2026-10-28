@@ -31,6 +31,8 @@ export interface UserDeck {
   topic?: string
   /** Set while this deck is shared with the group: its id on the server. */
   sharedId?: string
+  /** 'explore' when it was added from a deck a friend shared. */
+  origin?: 'explore'
 }
 
 /** Term/definition cards borrow wrong answers from the deck, so they need a correct answer plus 3 others. */

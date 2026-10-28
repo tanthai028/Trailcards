@@ -59,6 +59,7 @@ export function cleanDeck(v: unknown): UserDeck | null {
     ...(typeof v.reverse === 'boolean' ? { reverse: v.reverse } : {}),
     ...(typeof v.topic === 'string' && v.topic.trim() ? { topic: v.topic.slice(0, 4000) } : {}),
     ...(typeof v.sharedId === 'string' && v.sharedId ? { sharedId: v.sharedId } : {}),
+    ...(v.origin === 'explore' ? { origin: 'explore' as const } : {}),
   }
 }
 
@@ -131,11 +132,14 @@ export function sanitize(raw: Raw): GameState {
     photo: photo(raw.photo),
     reduceMotion: bool(raw.reduceMotion, base.reduceMotion),
     sound: bool(raw.sound, base.sound),
+    haptics: bool(raw.haptics, base.haptics),
     daily: { day: str(daily.day, ''), count: Math.floor(num(daily.count, 0, 0)) },
     streak: {
       days: Math.floor(num(streak.days, 0, 0)),
       lastDay: typeof streak.lastDay === 'string' ? streak.lastDay : null,
     },
+    // saves from before this counted at least their current streak
+    goalDays: Math.floor(num(raw.goalDays, num(streak.days, 0, 0), 0)),
     achievements,
     createdAt: num(raw.createdAt, base.createdAt, 0),
   }

@@ -1,5 +1,5 @@
 // Pure game rules. No React, no storage — easy to test and to move server-side later.
-import { CARDS, CARD_BY_ID, TOPIC_ORDER, type Card, type TopicId } from '../data/cards'
+import { CARDS, CARD_BY_ID, type Card } from '../data/cards'
 import { deckFeedCards, shuffle, type UserDeck } from '../data/decks'
 import { DEFAULT_AVATAR, FRAME_BY_ID, isColorFrame, type Frame } from '../data/avatars'
 import { ACHIEVEMENTS } from '../data/achievements'
@@ -45,10 +45,14 @@ export interface GameState {
   reduceMotion: boolean
   /** Sound effects on answers and swipes. */
   sound: boolean
+  /** Haptic taps on answers (phones that support them). */
+  haptics: boolean
   /** Answers today (local date). */
   daily: { day: string; count: number }
   /** Days in a row the daily goal was met. */
   streak: { days: number; lastDay: string | null }
+  /** Days the daily goal was met in all, in a row or not. */
+  goalDays: number
   achievements: Record<string, number>
   createdAt: number
 }
@@ -71,8 +75,10 @@ export const initialState = (): GameState => ({
   photo: null,
   reduceMotion: false,
   sound: true,
+  haptics: true,
   daily: { day: '', count: 0 },
   streak: { days: 0, lastDay: null },
+  goalDays: 0,
   achievements: {},
   createdAt: Date.now(),
 })
@@ -134,7 +140,9 @@ function countDaily(s: GameState): { state: GameState; goalStreak: number | null
     if (gap < 1) streak = { ...streakOf(s) } // already met today
     else if (gap === 1) streak = { days: days + 1, lastDay: today }
   }
-  next = { ...next, streak }
+  // a new day's goal (not a second one today) counts toward Habit Builder
+  const firstToday = !lastDay || daysBetween(lastDay, today) >= 1
+  next = { ...next, streak, goalDays: (s.goalDays ?? 0) + (firstToday ? 1 : 0) }
   return { state: next, goalStreak: streak.days }
 }
 
@@ -301,10 +309,10 @@ export function sourceCards(s: GameState): Card[] {
 }
 
 // ── Mastery stats ───────────────────────────────────────────────
-/** Per topic: built-in cards only. Overall: every card, including your own decks. */
-export function masteryCounts(s: GameState, topic?: TopicId) {
+/** Every card: Field notes and your own decks. */
+export function masteryCounts(s: GameState) {
   const counts: Record<Mastery, number> = { new: 0, learning: 0, familiar: 0, mastered: 0 }
-  for (const c of topic ? CARDS : allCards(s)) if (!topic || c.topic === topic) counts[statusOf(s, c.id)]++
+  for (const c of allCards(s)) counts[statusOf(s, c.id)]++
   return counts
 }
 
@@ -365,21 +373,30 @@ export const reviewQueue = (s: GameState, cards: Card[] = sourceCards(s)) => {
 }
 
 // ── Achievements ────────────────────────────────────────────────
+const hourOfAnswer = (s: GameState, from: number, to: number) => Object.values(s.cards).some((c) => { const h = new Date(c.lastAt).getHours(); return h >= from && h < to })
+/** Cards you missed at some point and have since got right (they've left "learning"). */
+export const comebacks = (s: GameState) => Object.values(s.cards).filter((c) => c.attempts > c.correct && (c.status === 'familiar' || c.status === 'mastered')).length
+
 const RULES_ACH: Record<string, (s: GameState) => boolean> = {
   'first-card': (s) => Object.keys(s.cards).length >= 1,
   'ten-cards': (s) => Object.keys(s.cards).length >= 10,
-  'mastery-10': (s) => masteryCounts(s).mastered >= 10,
+  'answers-100': (s) => totalAnswers(s) >= 100,
+  'answers-1000': (s) => totalAnswers(s) >= 1000,
+  'streak-3': (s) => (s.streak?.days ?? 0) >= 3,
   'streak-7': (s) => (s.streak?.days ?? 0) >= 7,
   'streak-30': (s) => (s.streak?.days ?? 0) >= 30,
-  ...Object.fromEntries(
-    TOPIC_ORDER.map((t) => [
-      `topic-${t}`,
-      (s: GameState) => {
-        const m = masteryCounts(s, t)
-        return m.new === 0 && m.learning === 0
-      },
-    ]),
-  ),
+  'streak-100': (s) => (s.streak?.days ?? 0) >= 100,
+  'goal-days-30': (s) => (s.goalDays ?? 0) >= 30,
+  'mastery-10': (s) => masteryCounts(s).mastered >= 10,
+  'mastery-50': (s) => masteryCounts(s).mastered >= 50,
+  'mastery-200': (s) => masteryCounts(s).mastered >= 200,
+  'comeback-10': (s) => comebacks(s) >= 10,
+  'first-deck': (s) => s.decks.length >= 1,
+  'decks-5': (s) => s.decks.length >= 5,
+  'share-deck': (s) => s.decks.some((d) => d.sharedId),
+  explorer: (s) => s.decks.some((d) => d.origin === 'explore'),
+  'night-owl': (s) => hourOfAnswer(s, 0, 4),
+  'early-bird': (s) => hourOfAnswer(s, 5, 7),
 }
 
 export function checkAchievements(s: GameState) {
@@ -409,4 +426,59 @@ export function frameUnlocked(s: GameState, frame: Frame) {
  */
 export function undoAnswer(now: GameState, before: GameState): GameState {
   return { ...now, xp: before.xp, cards: before.cards, daily: before.daily, streak: before.streak, achievements: before.achievements }
+}
+
+// ── Profile summaries ───────────────────────────────────────────
+/** Every answer ever given, right or wrong. */
+export const totalAnswers = (s: GameState) => Object.values(s.cards).reduce((n, c) => n + c.attempts, 0)
+
+export interface DeckProgress {
+  /** null = Field notes. */
+  id: string | null
+  name: string
+  counts: Record<Mastery, number>
+  due: number
+}
+
+/** Mastery for each deck you have: Field notes (once you've studied it, or if it's all you have) and your own decks. */
+export function deckProgress(s: GameState): DeckProgress[] {
+  const now = Date.now()
+  const of = (id: string | null, name: string, cards: Card[]): DeckProgress => {
+    const counts: Record<Mastery, number> = { new: 0, learning: 0, familiar: 0, mastered: 0 }
+    let due = 0
+    for (const c of cards) {
+      counts[statusOf(s, c.id)]++
+      if (isDue(s, c.id, now)) due++
+    }
+    return { id, name, counts, due }
+  }
+  const out = s.decks.map((d) => of(d.id, d.name, deckFeedCards(d)))
+  const nature = of(null, 'Field notes', CARDS)
+  const studied = nature.counts.new < CARDS.length
+  return studied || !out.length ? [nature, ...out] : out
+}
+
+/** How far along a trophy is, for a progress bar: [now, goal]. Null when it has no count. */
+export function achievementProgress(s: GameState, id: string): [number, number] | null {
+  const of = (now: number, goal: number): [number, number] => [Math.min(now, goal), goal]
+  const answered = Object.keys(s.cards).length
+  const streak = currentStreak(s)
+  switch (id) {
+    case 'first-card': return of(answered, 1)
+    case 'ten-cards': return of(answered, 10)
+    case 'answers-100': return of(totalAnswers(s), 100)
+    case 'answers-1000': return of(totalAnswers(s), 1000)
+    case 'streak-3': return of(streak, 3)
+    case 'streak-7': return of(streak, 7)
+    case 'streak-30': return of(streak, 30)
+    case 'streak-100': return of(streak, 100)
+    case 'goal-days-30': return of(s.goalDays ?? 0, 30)
+    case 'mastery-10': return of(masteryCounts(s).mastered, 10)
+    case 'mastery-50': return of(masteryCounts(s).mastered, 50)
+    case 'mastery-200': return of(masteryCounts(s).mastered, 200)
+    case 'comeback-10': return of(comebacks(s), 10)
+    case 'first-deck': return of(s.decks.length, 1)
+    case 'decks-5': return of(s.decks.length, 5)
+    default: return null
+  }
 }

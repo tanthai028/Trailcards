@@ -1,7 +1,7 @@
 // Tiny synthesized sound effects (Web Audio). No audio files: each sound is a few
-// oscillators or a noise burst, so it adds almost nothing to the bundle.
-// iOS only lets audio start inside a user gesture; every sound here is played from a tap,
-// and the context is also resumed on the first touch anywhere.
+// oscillators or a noise burst through a soft echo, so it adds almost nothing to the bundle.
+// iOS only lets audio start inside a tap, and mutes web audio when the phone's ring/silent
+// switch is on silent; haptics (haptics.ts) carry the feedback then.
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
@@ -18,24 +18,36 @@ function audio() {
     if (!AC) return null
     ctx = new AC()
     master = ctx.createGain()
-    master.gain.value = 0.6
+    master.gain.value = 0.7
     master.connect(ctx.destination)
+    // a short, dark echo makes the chimes ring a little instead of stopping dead
+    const echo = ctx.createDelay(0.5)
+    echo.delayTime.value = 0.13
+    const feedback = ctx.createGain()
+    feedback.gain.value = 0.28
+    const tone = ctx.createBiquadFilter()
+    tone.type = 'lowpass'
+    tone.frequency.value = 2600
+    const wet = ctx.createGain()
+    wet.gain.value = 0.22
+    master.connect(echo).connect(tone).connect(feedback).connect(echo)
+    tone.connect(wet).connect(ctx.destination)
   }
   if (ctx.state === 'suspended') void ctx.resume()
   return ctx
 }
 
-// Wake the audio context on the first touch so the first answer isn't silent.
+// Wake audio on taps until it's actually running (iOS ignores the first touch-down).
 if (typeof window !== 'undefined') {
   const wake = () => {
-    audio()
-    window.removeEventListener('pointerdown', wake)
+    const c = audio()
+    if (c?.state === 'running') for (const e of ['pointerup', 'touchend', 'keydown'] as const) window.removeEventListener(e, wake)
   }
-  window.addEventListener('pointerdown', wake)
+  for (const e of ['pointerup', 'touchend', 'keydown'] as const) window.addEventListener(e, wake, { passive: true })
 }
 
 /** One enveloped oscillator note. */
-function tone(freq: number, { at = 0, dur = 0.3, type = 'sine' as OscillatorType, gain = 0.2, slideTo }: { at?: number; dur?: number; type?: OscillatorType; gain?: number; slideTo?: number } = {}) {
+function tone(freq: number, { at = 0, dur = 0.3, type = 'sine' as OscillatorType, gain = 0.2, slideTo, attack = 0.008 }: { at?: number; dur?: number; type?: OscillatorType; gain?: number; slideTo?: number; attack?: number } = {}) {
   const c = audio()
   if (!c || !master) return
   const t = c.currentTime + at
@@ -45,31 +57,40 @@ function tone(freq: number, { at = 0, dur = 0.3, type = 'sine' as OscillatorType
   osc.frequency.setValueAtTime(freq, t)
   if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur)
   env.gain.setValueAtTime(0.0001, t)
-  env.gain.exponentialRampToValueAtTime(gain, t + 0.012)
+  env.gain.exponentialRampToValueAtTime(gain, t + attack)
   env.gain.exponentialRampToValueAtTime(0.0001, t + dur)
   osc.connect(env).connect(master)
   osc.start(t)
   osc.stop(t + dur + 0.02)
 }
 
-/** Right answer: a bright two-note chime that climbs a semitone per answer in the streak. */
+/** A mallet note: a round body, a bright overtone that fades fast, and a soft knock. */
+function mallet(freq: number, at = 0, gain = 0.16) {
+  tone(freq, { at, dur: 0.55, gain })
+  tone(freq * 4, { at, dur: 0.09, type: 'triangle', gain: gain * 0.25 })
+  tone(freq * 2, { at, dur: 0.25, gain: gain * 0.3 })
+}
+
+/** Right answer: a quick rising arpeggio that climbs a semitone per answer in the streak, with sparkles on a long run. */
 export function playCorrect(streak = 1) {
   const step = Math.min(Math.max(streak - 1, 0), 12)
-  const base = 660 * 2 ** (step / 12)
-  tone(base, { dur: 0.32, gain: 0.16 })
-  tone(base * 1.5, { at: 0.07, dur: 0.38, gain: 0.12 })
-  tone(base * 3, { at: 0.07, dur: 0.18, type: 'triangle', gain: 0.03 })
+  const base = 523.25 * 2 ** (step / 12)
+  mallet(base, 0, 0.15)
+  mallet(base * 1.25, 0.055, 0.13)
+  mallet(base * 1.5, 0.11, 0.14)
+  if (streak >= 5) [2, 2.5, 3].forEach((m, i) => tone(base * m, { at: 0.18 + i * 0.05, dur: 0.22, type: 'triangle', gain: 0.035 }))
 }
 
-/** Wrong answer: a soft low thud, not a buzzer. */
+/** Wrong answer: two soft falling notes, gentle rather than a buzzer. */
 export function playWrong() {
-  tone(170, { dur: 0.22, gain: 0.22, slideTo: 80 })
-  tone(120, { at: 0.02, dur: 0.18, type: 'triangle', gain: 0.06, slideTo: 70 })
+  tone(311.13, { dur: 0.18, type: 'triangle', gain: 0.12, slideTo: 293.66 })
+  tone(246.94, { at: 0.12, dur: 0.32, type: 'triangle', gain: 0.12, slideTo: 233.08 })
+  tone(110, { dur: 0.16, gain: 0.12, slideTo: 70 })
 }
 
-/** A light chime: a recall card rated "Partly". */
+/** A light chime: a recall card rated "Partly", or taking an answer back. */
 export function playChime(i = 0) {
-  tone(1320 + i * 60, { dur: 0.09, type: 'triangle', gain: 0.07, slideTo: 1760 + i * 60 })
+  mallet(880 + i * 60, 0, 0.09)
 }
 
 /** Moving to another card: a very quiet airy swish. */
@@ -90,26 +111,21 @@ export function playSwipe() {
   band.frequency.exponentialRampToValueAtTime(1800, t + 0.18)
   const env = c.createGain()
   env.gain.setValueAtTime(0.0001, t)
-  env.gain.exponentialRampToValueAtTime(0.05, t + 0.04)
+  env.gain.exponentialRampToValueAtTime(0.045, t + 0.04)
   env.gain.exponentialRampToValueAtTime(0.0001, t + 0.2)
   src.connect(band).connect(env).connect(master)
   src.start(t)
   src.stop(t + 0.22)
 }
 
-/** Level up: a quick rising four-note fanfare with a shimmer on top. */
+/** Level up: a rising fanfare that lands on a ringing chord. */
 export function playLevelUp() {
-  const notes = [523.25, 659.25, 783.99, 1046.5]
-  notes.forEach((f, i) => {
-    tone(f, { at: i * 0.09, dur: 0.4, gain: 0.14 })
-    tone(f * 2, { at: i * 0.09, dur: 0.22, type: 'triangle', gain: 0.03 })
-  })
-  tone(1046.5, { at: 0.36, dur: 0.9, gain: 0.1 })
-  tone(1567.98, { at: 0.42, dur: 0.8, gain: 0.06 })
+  ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => mallet(f, i * 0.085, 0.13))
+  ;[1046.5, 1318.51, 1567.98].forEach((f, i) => tone(f, { at: 0.36 + i * 0.02, dur: 1.1, gain: 0.07, attack: 0.03 }))
 }
 
-/** Achievement toast: two soft bells. */
+/** Achievement or streak toast: two bells. */
 export function playAchievement() {
-  tone(987.77, { dur: 0.5, gain: 0.08 })
-  tone(1318.51, { at: 0.12, dur: 0.6, gain: 0.07 })
+  mallet(987.77, 0, 0.1)
+  mallet(1318.51, 0.12, 0.1)
 }

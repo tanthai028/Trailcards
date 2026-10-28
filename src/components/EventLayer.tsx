@@ -6,6 +6,7 @@ import { ProfilePic } from './ProfilePic'
 import { Icon } from './Icon'
 import { celebrate } from '../fx/FxLayer'
 import { playAchievement, playLevelUp } from '../fx/sound'
+import { haptic } from '../fx/haptics'
 
 /** Toasts (achievements, streaks, small notes) and the level-up celebration. */
 export function EventLayer() {
@@ -16,6 +17,7 @@ export function EventLayer() {
   useEffect(() => {
     if (!levelUp) return
     playLevelUp()
+    haptic('heavy')
     celebrate()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && dismiss(levelUp.id)
     window.addEventListener('keydown', onKey)

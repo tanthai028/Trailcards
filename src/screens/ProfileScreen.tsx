@@ -1,13 +1,10 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
-import { TOPICS, TOPIC_ORDER } from '../data/cards'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
-import { currentStreak, findCard, statusOf, DAILY_GOAL, levelInfo, masteryCounts, stats, todayCount, type GameState, type Mastery } from '../state/game'
+import { achievementProgress, currentStreak, deckProgress, findCard, statusOf, DAILY_GOAL, levelInfo, stats, todayCount, type GameState, type Mastery } from '../state/game'
 import { backupText, lastBackupAt, markBackedUp, parseSave } from '../state/storage'
 import { SceneSvg } from '../art/Landscape'
-import { Cat } from '../art/Companions'
-import { art } from '../scene/assets'
 import { ProfilePic } from '../components/ProfilePic'
 import { PictureSheet } from '../components/PictureSheet'
 import { JoinSheet } from '../components/JoinSheet'
@@ -18,18 +15,10 @@ import { TitlePicker } from '../components/TitleSheet'
 import type { Tab } from '../components/NavBar'
 import { feedFocus, MASTERY_LABEL, tourReplay, type FeedMode } from './FeedScreen'
 
-const MOCHI_LINES = [
-  'Mochi slow-blinks at you. That means trust.',
-  'Mochi kneads the blanket. Very important work.',
-  'Mochi watches a moth with great scientific interest.',
-  'Mochi purrs. (Not always happiness — but this time, yes.)',
-  'Mochi’s whiskers twitch. Measuring the doorway, probably.',
-]
-
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
 export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, setName, setTitle, reset, setReduceMotion, setSound, restore, toggleBookmark } = useGame()
+  const { state, setName, setTitle, reset, setReduceMotion, setSound, setHaptics, restore, toggleBookmark, setActiveDeck } = useGame()
   const lv = levelInfo(state.xp)
   const s = stats(state)
   const [editing, setEditing] = useState(false)
@@ -83,51 +72,42 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         </div>
       </div>
 
-      <Daily state={state} />
-      <StudyBuddy state={state} />
+      <StatTiles state={state} />
 
-      {/* Stats */}
-      <div className="mt-4 grid grid-cols-4 gap-2">
-        {[
-          ['Explored', `${s.explored}/${s.total}`],
-          ['Accuracy', s.attempts ? `${s.accuracy}%` : '—'],
-          ['Mastered', s.mastered],
-          ['Answers', s.attempts],
-        ].map(([k, v]) => (
-          <div key={k} className="rounded-2xl clay px-2 py-3 text-center">
-            <p className="font-display text-xl font-bold tabular-nums">{v}</p>
-            <p className="text-[10px] font-extrabold text-cream/50">{k}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Mastery tracker */}
-      <Section title="Mastery" action={s.learning + s.familiar > 0 ? { label: `Review ${s.learning + s.familiar}`, onClick: () => go('feed', 'review') } : undefined}>
-        <div className="space-y-2.5 rounded-3xl clay p-4">
-          {TOPIC_ORDER.map((t) => {
-            const m = masteryCounts(state, t)
-            const total = m.new + m.learning + m.familiar + m.mastered
+      {/* Mastery, for each deck you have: tap one to study it */}
+      <Section title="Mastery" hint={`${s.mastered} mastered`}>
+        <ul className="space-y-2">
+          {deckProgress(state).map((d) => {
+            const total = d.counts.new + d.counts.learning + d.counts.familiar + d.counts.mastered
+            const known = d.counts.familiar + d.counts.mastered
+            const on = (state.activeDeck ?? null) === d.id
             return (
-              <div key={t}>
-                <div className="mb-1 flex justify-between text-xs font-bold">
-                  <span>{TOPICS[t].name}</span>
-                  <span className="text-cream/50 tabular-nums">{m.mastered} mastered · {m.familiar + m.mastered}/{total} known</span>
-                </div>
-                <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-label={`${TOPICS[t].name}: ${m.mastered} mastered, ${m.familiar} familiar, ${m.learning} learning, ${m.new} new`}>
-                  {(['mastered', 'familiar', 'learning', 'new'] as Mastery[]).map((k) =>
-                    m[k] ? <motion.span key={k} className="h-full" style={{ background: MASTERY_COLORS[k] }} initial={{ flexGrow: 0 }} animate={{ flexGrow: m[k] }} /> : null,
-                  )}
-                </div>
-              </div>
+              <li key={d.id ?? 'nature'}>
+                <button onClick={() => { setActiveDeck(d.id); go('feed', 'discover') }} className={`clay w-full rounded-2xl p-3 text-left ring-1 ${on ? 'ring-gold/40' : 'ring-transparent'}`}>
+                  <span className="flex items-baseline gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm font-extrabold">{d.name}</span>
+                    {d.due > 0 && <span className="shrink-0 rounded-full bg-coral/25 px-2 py-0.5 text-[10px] font-extrabold text-coral">{d.due} due</span>}
+                    <span className="shrink-0 text-xs font-bold tabular-nums text-cream/50">{total ? Math.round((known / total) * 100) : 0}% known</span>
+                  </span>
+                  <span className="mt-2 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-white/8" aria-label={`${d.name}: ${d.counts.mastered} mastered, ${d.counts.familiar} familiar, ${d.counts.learning} learning, ${d.counts.new} new`}>
+                    {(['mastered', 'familiar', 'learning'] as Mastery[]).map((k) =>
+                      d.counts[k] ? <motion.span key={k} className="h-full rounded-full" style={{ background: MASTERY_COLORS[k] }} initial={{ width: 0 }} animate={{ width: `${(d.counts[k] / total) * 100}%` }} /> : null,
+                    )}
+                  </span>
+                  <span className="mt-1.5 block text-[11px] font-bold tabular-nums text-cream/45">
+                    {d.counts.mastered} mastered · {d.counts.familiar} familiar · {d.counts.learning} learning · {d.counts.new} new
+                  </span>
+                </button>
+              </li>
             )
           })}
-          <div className="flex flex-wrap gap-3 pt-1 text-[11px] font-bold text-cream/60">
-            {(['mastered', 'familiar', 'learning', 'new'] as Mastery[]).map((k) => (
-              <span key={k} className="flex items-center gap-1 capitalize"><span className="size-2.5 rounded-full" style={{ background: MASTERY_COLORS[k] }} />{k}</span>
-            ))}
-          </div>
-          <p className="text-[11px] leading-snug text-cream/45">Right once → familiar. Right again when it comes back in Review, spaced over days → mastered. Misses come back for another try.</p>
+        </ul>
+        <div className="mt-2 flex flex-wrap gap-3 px-1 text-[11px] font-bold text-cream/55">
+          {(['mastered', 'familiar', 'learning'] as Mastery[]).map((k) => (
+            <span key={k} className="flex items-center gap-1 capitalize"><span className="size-2.5 rounded-full" style={{ background: MASTERY_COLORS[k] }} />{k}</span>
+          ))}
         </div>
+        <p className="mt-1 px-1 text-[11px] leading-snug text-cream/40">Right once: familiar. Right again each time it comes back in Review, spaced over days: mastered.</p>
       </Section>
 
       {/* Saved cards: a list instead of swiping through them */}
@@ -147,22 +127,27 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         </Section>
       )}
 
-      {/* Achievements */}
-      <Section title="Achievements">
-        <ul className="grid grid-cols-1 gap-2">
-          {ACHIEVEMENTS.map((a) => {
-            const at = state.achievements[a.id]
-            return (
-              <li key={a.id} className={`flex items-center gap-3 rounded-2xl p-2.5 pr-3 ring-1 ${at ? 'bg-gold/10 ring-gold/30' : 'clay ring-white/8'}`}>
-                <Trophy a={ACH_BY_ID[a.id]} earned={!!at} size={36} />
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-extrabold ${at ? '' : 'text-cream/60'}`}>{a.name}</p>
-                  <p className="text-xs text-cream/50">{a.desc}</p>
-                </div>
-                <span className={`shrink-0 text-[11px] font-bold ${at ? 'text-gold' : 'text-cream/35'}`}>{at ? `“${a.title}”` : 'Locked'}</span>
+      {/* Achievements: earned first, then the ones you're closest to */}
+      <Section title="Achievements" hint={`${ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length}/${ACHIEVEMENTS.length} earned`}>
+        <ul className="grid grid-cols-3 gap-2">
+          {ACHIEVEMENTS
+            .map((a) => ({ a, at: state.achievements[a.id], p: achievementProgress(state, a.id) }))
+            .sort((x, y) => (x.at ? 0 : 1) - (y.at ? 0 : 1) || (y.p ? y.p[0] / y.p[1] : 0) - (x.p ? x.p[0] / x.p[1] : 0))
+            .map(({ a, at, p }) => (
+              <li key={a.id} className={`flex flex-col items-center rounded-2xl px-2 pb-2.5 pt-3 text-center ring-1 ${at ? 'bg-gold/10 ring-gold/30' : 'clay ring-white/8'}`}>
+                <Trophy a={ACH_BY_ID[a.id]} earned={!!at} size={40} />
+                <p className={`mt-1 line-clamp-1 text-[12px] font-extrabold ${at ? '' : 'text-cream/70'}`}>{a.name}</p>
+                <p className="mt-0.5 line-clamp-3 min-h-[3.6em] text-[10px] leading-tight text-cream/45">{at ? `Title: “${a.title}”` : a.desc}</p>
+                {!at && p && (
+                  <span className="mt-1.5 flex w-full items-center gap-1.5" aria-label={`${p[0]} of ${p[1]}`}>
+                    <span className="block h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <span className="block h-full rounded-full bg-gold/70" style={{ width: `${(p[0] / p[1]) * 100}%` }} />
+                    </span>
+                    <span className="text-[9px] font-extrabold tabular-nums text-cream/45">{p[0]}/{p[1]}</span>
+                  </span>
+                )}
               </li>
-            )
-          })}
+            ))}
         </ul>
       </Section>
 
@@ -176,7 +161,8 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         <span className="flex-1 text-sm font-extrabold">Replay the Learn tour</span>
         <Icon name="chevron" size={14} className="-rotate-90 text-cream/40" />
       </button>
-      <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards." on={state.sound} onChange={setSound} className="mt-2" />
+      <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards. On iPhone, the silent switch mutes them." on={state.sound} onChange={setSound} className="mt-2" />
+      <Toggle label="Haptics" hint="A little tap on answers, on phones that support it." on={state.haptics} onChange={setHaptics} className="mt-2" />
       <button
         onClick={() => setReduceMotion(!state.reduceMotion)}
         role="switch"
@@ -299,45 +285,38 @@ function AccountRow() {
   )
 }
 
-/** Mochi naps until you've hit today's goal, then keeps you company. */
-function StudyBuddy({ state }: { state: GameState }) {
-  const [pets, setPets] = useState(0)
-  const awake = todayCount(state) >= DAILY_GOAL
-  const left = DAILY_GOAL - todayCount(state)
-  const line = pets
-    ? MOCHI_LINES[(pets - 1) % MOCHI_LINES.length]
-    : awake ? 'Goal done. Mochi is wide awake and proud of you.' : `Mochi is napping. ${left} more answer${left === 1 ? '' : 's'} today to wake Mochi up.`
-  return (
-    <button onClick={() => setPets((p) => p + 1)} aria-label="Pet Mochi" className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-gradient-to-b from-peach/20 to-white/5 p-3 text-left">
-      {art('cat') ? <img src={art('cat')} alt="" className={`h-14 w-16 shrink-0 object-contain ${awake ? '' : 'opacity-80 saturate-75'}`} /> : <Cat sleeping={!awake} className="h-14 w-16 shrink-0" />}
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs font-extrabold text-peach">Study buddy</span>
-        <span className="block font-display text-lg font-bold leading-tight">Mochi</span>
-        <AnimatePresence mode="wait">
-          <motion.span key={line} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-0.5 block text-[12px] leading-snug text-cream/70" role="status">{line}</motion.span>
-        </AnimatePresence>
-      </span>
-    </button>
-  )
-}
-
-/** Today's goal and the day streak. */
-function Daily({ state }: { state: GameState }) {
+/** Streak, today's goal, accuracy and answers at a glance. */
+function StatTiles({ state }: { state: GameState }) {
   const today = Math.min(todayCount(state), DAILY_GOAL)
   const streak = currentStreak(state)
+  const s = stats(state)
+  const tile = 'clay flex flex-col items-center justify-center rounded-2xl px-1 py-3 text-center'
   return (
-    <section className="clay mt-4 rounded-2xl p-3">
-      <div className="flex items-center gap-3">
-        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-peach to-gold text-[#5a3208]"><Icon name="flame" size={22} filled /></span>
-        <div className="min-w-0 flex-1">
-          <p className="font-display text-lg font-bold leading-tight">{streak ? `${streak}-day streak` : 'No streak yet'}</p>
-          <p className="text-xs text-cream/60">Today {today}/{DAILY_GOAL} answers{today >= DAILY_GOAL ? ' · goal done' : ''}</p>
-        </div>
+    <div className="mt-4 grid grid-cols-4 gap-2">
+      <div className={tile}>
+        <span className={`grid size-8 place-items-center rounded-full ${streak ? 'bg-gradient-to-br from-peach to-gold text-[#5a3208]' : 'bg-white/8 text-cream/40'}`}><Icon name="flame" size={16} filled={!!streak} /></span>
+        <p className="mt-1.5 font-display text-lg font-bold leading-none tabular-nums">{streak}</p>
+        <p className="mt-0.5 text-[10px] font-extrabold text-cream/50">day streak</p>
       </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/12">
-        <motion.div className="h-full rounded-full bg-gradient-to-r from-peach to-gold" initial={false} animate={{ width: `${(today / DAILY_GOAL) * 100}%` }} />
+      <div className={tile}>
+        <svg viewBox="0 0 36 36" className="size-8 -rotate-90" aria-hidden="true">
+          <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="4" />
+          <motion.circle cx="18" cy="18" r="15" fill="none" stroke="var(--color-gold)" strokeWidth="4" strokeLinecap="round" strokeDasharray={94.2} initial={false} animate={{ strokeDashoffset: 94.2 * (1 - today / DAILY_GOAL) }} />
+        </svg>
+        <p className="mt-1.5 font-display text-lg font-bold leading-none tabular-nums">{today}/{DAILY_GOAL}</p>
+        <p className="mt-0.5 text-[10px] font-extrabold text-cream/50">today</p>
       </div>
-    </section>
+      <div className={tile}>
+        <span className="grid size-8 place-items-center rounded-full bg-sage/20 text-sage"><Icon name="check" size={16} strokeWidth={3} /></span>
+        <p className="mt-1.5 font-display text-lg font-bold leading-none tabular-nums">{s.attempts ? `${s.accuracy}%` : '—'}</p>
+        <p className="mt-0.5 text-[10px] font-extrabold text-cream/50">accuracy</p>
+      </div>
+      <div className={tile}>
+        <span className="grid size-8 place-items-center rounded-full bg-lav/20 text-lav"><Icon name="book" size={16} /></span>
+        <p className="mt-1.5 font-display text-lg font-bold leading-none tabular-nums">{s.attempts}</p>
+        <p className="mt-0.5 text-[10px] font-extrabold text-cream/50">answers</p>
+      </div>
+    </div>
   )
 }
 
@@ -355,11 +334,12 @@ function Toggle({ label, hint, on, onChange, className = '' }: { label: string; 
   )
 }
 
-function Section({ title, action, children }: { title: string; action?: { label: string; onClick: () => void }; children: ReactNode }) {
+function Section({ title, hint, action, children }: { title: string; hint?: string; action?: { label: string; onClick: () => void }; children: ReactNode }) {
   return (
     <section className="mt-6">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">{title}</h2>
+        {hint && <span className="text-xs font-bold text-cream/45">{hint}</span>}
         {action && (
           <button onClick={action.onClick} className="rounded-full clay px-3 py-1 text-xs font-extrabold hover:brightness-110">{action.label}</button>
         )}

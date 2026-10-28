@@ -60,11 +60,8 @@ export function JoinSheet({ onClose }: { onClose: () => void }) {
         <p className="mt-1 text-sm text-cream/65">
           Enter the code we emailed to {email}. If you're in the home-screen app, stay here: don't tap the email's link, it opens Safari instead.
         </p>
-        <div className="relative">
-          <input value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="Sign-in code" inputMode="numeric" autoComplete="one-time-code" autoCapitalize="off" autoCorrect="off" spellCheck={false} aria-label="Sign-in link or code" className={`${FIELD} pr-24 tracking-[0.2em]`} />
-          <button type="button" onClick={() => void navigator.clipboard?.readText().then((t) => t && setCode(t.trim())).catch(() => {})}
-            className="clay-btn clay-lav absolute right-2 top-1/2 mt-1 min-h-9 -translate-y-1/2 px-3.5 text-xs">Paste</button>
-        </div>
+        {/* iPhone offers the code from Mail above the keyboard; a pasted sign-in link works here too */}
+        <input value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="Sign-in code" inputMode="numeric" autoComplete="one-time-code" autoCapitalize="off" autoCorrect="off" spellCheck={false} aria-label="Sign-in code or link" className={`${FIELD} text-center tracking-[0.3em]`} />
         <button disabled={busy || code.length < 6} className="clay-btn clay-butter mt-3 min-h-12 w-full text-[15px] disabled:opacity-50">{busy ? 'Checking…' : 'Sign in'}</button>
         <button type="button" onClick={() => { setSent(false); setCode('') }} className="mt-3 w-full text-xs font-bold text-cream/50">Use a different email</button>
       </form>

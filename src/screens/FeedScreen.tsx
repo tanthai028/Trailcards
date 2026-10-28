@@ -6,12 +6,14 @@ import type { DeckFeedCard } from '../data/decks'
 import { DeckImport, DeckPicker } from '../components/Decks'
 import { createPortal } from 'react-dom'
 import { AvatarLevel } from '../components/Hud'
+import { MochiPeek } from '../components/MochiPeek'
 import { DAILY_GOAL, feedCards, findCard, isDue, isRecall, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyPrefs, studyQueue, todayCount, type AnswerResult, type GameState, type KindFilter, type Mastery, type StudyPrefs } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
 import { burst } from '../fx/FxLayer'
 import { playChime, playCorrect, playSwipe, playWrong } from '../fx/sound'
+import { haptic } from '../fx/haptics'
 import type { Tab } from '../components/NavBar'
 
 export type FeedMode = 'discover' | 'review' | 'saved'
@@ -74,6 +76,8 @@ function Feed({ mode, setMode, go }: FeedProps) {
     setIds(next)
   }
   // The last answer can be taken back for a few seconds (a mis-tap shouldn't cost a card's progress).
+  const [cheer, setCheer] = useState(0)
+  const reduced = state.reduceMotion || (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)
   const [undo, setUndo] = useState<{ i: number; before: GameState; streak: number; key: number } | null>(null)
   useEffect(() => {
     if (!undo) return
@@ -83,6 +87,8 @@ function Feed({ mode, setMode, go }: FeedProps) {
   const takeBack = () => {
     if (!undo) return
     undoAnswer(undo.before)
+    playChime(0)
+    haptic('light')
     setStreak(undo.streak)
     setAnswers((a) => { const { [undo.i]: _gone, ...rest } = a; return rest })
     setUndo(null)
@@ -96,10 +102,13 @@ function Feed({ mode, setMode, go }: FeedProps) {
     const result = answer(id, choice)
     const run = result.correct ? streak + 1 : result.partial ? streak : 0
     setUndo({ i, before, streak, key: Date.now() })
+    // Mochi pops up to cheer a run of right answers
+    if (result.correct && (run === 3 || run === 5 || run % 10 === 0)) setCheer(Date.now())
     setStreak(run)
     setAnswers((a) => ({ ...a, [i]: { choice, result, streak: run } }))
     // celebrate from the button that was picked (tap or keyboard)
     const btn = scroller.current?.querySelector(`[data-index="${i}"] [data-choice="${choice}"]`)
+    haptic(result.correct ? 'success' : result.partial ? 'light' : 'error')
     if (result.correct) {
       playCorrect(run)
       const r = btn?.getBoundingClientRect()
@@ -267,8 +276,8 @@ function Feed({ mode, setMode, go }: FeedProps) {
   return (
     <div className="relative h-full">
       {/* Floats over the card's scene band: what you're studying, in full, and you on the right.
-          Card padding (16px) + inset (12px) keeps it inside the card's corners. */}
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex touch-none items-start gap-3 px-7 pt-3 [&>*]:pointer-events-auto">
+          Card padding (16px) + inset (20px) keeps it clear of the card's rounded corners. */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex touch-none items-start gap-3 px-9 pt-5 [&>*]:pointer-events-auto">
         <div className="min-w-0 flex-1">
           <div data-tour="deck"><DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} /></div>
           <SubLine mode={mode} counts={counts} setMode={setMode} />
@@ -313,6 +322,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
           <EndCard mode={mode} empty={ids.length === 0} counts={counts} setMode={setMode} go={go} />
         </section>
       </div>
+      <MochiPeek cheer={cheer} off={reduced || mode === 'saved'} />
       {/* bottom-left of the card, clear of the save button on the right */}
       <AnimatePresence>
         {undo && (
