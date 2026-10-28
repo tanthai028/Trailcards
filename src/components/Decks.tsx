@@ -286,18 +286,12 @@ const ROW_SEPS: { id: RowSep; label: string }[] = [
   { id: 'custom', label: 'Custom' },
 ]
 
-type Source = 'quizlet' | 'anki' | 'knowt' | 'other'
-const SOURCES: { id: Source; label: string; steps: string[] }[] = [
-  { id: 'quizlet', label: 'Quizlet', steps: ['Open your set on quizlet.com.', 'Tap ⋯, then Export.', 'Tap Copy text and paste it below.'] },
-  { id: 'anki', label: 'Anki', steps: ['In Anki on a computer, choose File, then Export.', 'Pick Notes in Plain Text and save.', 'Open the file, copy everything and paste it below.'] },
-  { id: 'knowt', label: 'Knowt', steps: ['Open your set and select all the terms and definitions.', 'Copy and paste them below.', 'Terms and definitions on separate lines work fine.'] },
-  { id: 'other', label: 'Other', steps: ['Put one card per line: the term, then the definition.', 'Split them with a tab, a comma or " - ", or put each on its own line.', 'Paste it all below.'] },
-]
+/** The ? help: how to lay out pasted cards (works for Quizlet, Anki and Knowt exports too). */
+const HELP_STEPS = ['Put one card per line: the term, then the definition.', 'Split them with a tab, a comma or " - ", or put each on its own line.', 'Paste it all below.']
 
 /** Pick where the cards come from, paste, check the preview, import. */
 function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
   const { importDeck } = useGame()
-  const [source, setSource] = useState<Source>('quizlet')
   const [help, setHelp] = useState(false)
   const [name, setName] = useState('')
   const [text, setText] = useState('')
@@ -314,7 +308,6 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
   const ok = count >= MIN_DECK_CARDS
   const pasted = text.trim().length > 0
   const setSep = (o: Partial<ParseOptions>) => { setTouchedSep(true); setOpts({ ...effective, ...o }) }
-  const steps = SOURCES.find((s) => s.id === source)!.steps
 
   // Clipboard read can be refused (or prompt on iOS); then just focus the box for a manual paste.
   const paste = async () => {
@@ -354,18 +347,8 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
             initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18 }} className="overflow-hidden"
           >
-          <div role="tablist" aria-label="Import from" className="mt-3 grid grid-cols-4 gap-1 rounded-full bg-white/6 p-1">
-            {SOURCES.map((s) => (
-              <button
-                key={s.id} role="tab" aria-selected={source === s.id} onClick={() => setSource(s.id)}
-                className={`min-h-9 rounded-full text-xs font-extrabold transition-colors ${source === s.id ? 'bg-cream text-ink' : 'text-cream/65 hover:text-cream'}`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
           <ol className="mt-3 space-y-1.5">
-            {steps.map((step, i) => (
+            {HELP_STEPS.map((step, i) => (
               <li key={step} className="flex gap-2.5 text-[13px] leading-snug text-cream/75">
                 <span className="grid size-5 shrink-0 place-items-center rounded-full bg-lav/20 text-[11px] font-extrabold text-lav">{i + 1}</span>
                 {step}
