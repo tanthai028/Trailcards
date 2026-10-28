@@ -37,9 +37,9 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-label={`Studying ${active?.name ?? 'Field notes'}. Change deck`}
-        className="clay flex h-9 max-w-[11rem] items-center gap-1.5 rounded-full pl-3 pr-2 text-xs font-extrabold text-cream/85"
+        className="clay flex h-9 min-w-0 max-w-[11rem] items-center gap-1.5 rounded-full pl-3 pr-2 text-xs font-extrabold text-cream/85"
       >
-        <Icon name="book" size={13} className="shrink-0 text-lav" />
+        <Icon name="book" size={13} className="shrink-0 text-lav max-[400px]:hidden" />
         <span className="truncate">{active?.name ?? 'Field notes'}</span>
         <Icon name="chevron" size={12} strokeWidth={3} className="shrink-0 opacity-60" />
       </button>
@@ -168,7 +168,7 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
       role="dialog" aria-modal="true" aria-labelledby="import-title"
     >
       <div className="flex h-full w-full max-w-[480px] flex-col">
-        <header className="flex items-center gap-2 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+20px)]">
+        <header className="flex items-center gap-2 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+28px)]">
           <button onClick={onClose} aria-label="Close import" className="grid size-10 place-items-center rounded-full text-cream/70 hover:text-cream">
             <Icon name="x" size={20} />
           </button>

@@ -87,9 +87,10 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   const counts = { discover: idsFor(state, 'discover').length, review: reviewQueue(state).length, saved: state.bookmarks.length }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="relative z-20 touch-none bg-ink">
-            <header className="flex items-center gap-2 px-3 pb-2">
+    <div className="relative h-full">
+      {/* floats over the card's scene band; card padding (16px) + inset (8px) keeps it inside the corners */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-6 pt-2.5">
+            <header className="pointer-events-auto flex touch-none items-center gap-1.5">
               <AvatarLevel onClick={() => go('profile')} size={34} />
               <ModeMenu
                 mode={mode}
@@ -99,16 +100,16 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
                 onPick={(m) => (m === mode ? (setIds(idsFor(state, m)), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
               />
               <DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} />
-              <div className="ml-auto"><CoinsPill /></div>
+              <div className="ml-auto shrink-0"><CoinsPill /></div>
             </header>
       </div>
 
-      <div ref={scroller} className="no-scrollbar min-h-0 flex-1 overscroll-contain snap-y snap-mandatory overflow-y-auto scroll-smooth [overflow-anchor:none]">
+      <div ref={scroller} className="no-scrollbar h-full overscroll-contain snap-y snap-mandatory overflow-y-auto scroll-smooth [overflow-anchor:none]">
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
           const card = findCard(state, id)
           return card && (
-          <section key={`${mode}-${id}`} data-index={i} className="h-full snap-start snap-always px-3 py-2" aria-label={`Card ${i + 1} of ${ids.length}`}>
+          <section key={`${mode}-${id}`} data-index={i} className="h-full snap-start snap-always px-4 pb-2" aria-label={`Card ${i + 1} of ${ids.length}`}>
             <FeedCard
               card={card}
               mode={mode}
@@ -121,7 +122,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
           </section>
           )
         })}
-        <section data-index={ids.length} className="h-full snap-start px-3 py-2">
+        <section data-index={ids.length} className="h-full snap-start px-4 pb-2">
           <EndCard mode={mode} empty={ids.length === 0} counts={counts} setMode={setMode} go={go} />
         </section>
       </div>
@@ -182,10 +183,10 @@ function FeedCard({
 
   return (
     <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-paper text-ink shadow-[0_20px_50px_-20px_rgba(0,0,0,.6)]">
-      <div className="grain relative h-[15%] min-h-[54px] shrink-0 overflow-hidden">
+      <div className="grain relative h-[23%] min-h-[116px] shrink-0 overflow-hidden">
         <SceneSvg scene={topic.scene} className="absolute inset-0 h-full w-full" />
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
-        <div className="absolute inset-x-3 top-3 flex items-start gap-2">
+        <div className="absolute inset-x-3 top-[68px] flex items-start gap-2">
           <span className="flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-ink backdrop-blur">
             <span className="size-2 rounded-full" style={{ background: topic.accent }} />
             {topic.name}

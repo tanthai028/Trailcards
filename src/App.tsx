@@ -37,8 +37,8 @@ export default function App() {
   return (
     // fixed inset-0 fills the whole screen in iOS standalone, where 100dvh can leave a gap at the bottom
     <div className="fixed inset-0 mx-auto flex max-w-[480px] flex-col sm:py-3">
-      {/* one top inset for every tab, so nothing shifts when you switch; the extra 20px clears the blur iOS puts under the status bar */}
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-ink pt-[calc(env(safe-area-inset-top)+20px)] sm:rounded-[34px] sm:shadow-[0_30px_80px_-20px_rgba(0,0,0,.6)] sm:ring-1 sm:ring-white/10">
+      {/* one top inset for every tab, so nothing shifts when you switch; the extra 28px clears the blur iOS puts under the status bar */}
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-ink pt-[calc(env(safe-area-inset-top)+28px)] sm:rounded-[34px] sm:shadow-[0_30px_80px_-20px_rgba(0,0,0,.6)] sm:ring-1 sm:ring-white/10">
         <main className="relative min-h-0 flex-1">
           {/* Enter-only transition: an exit + mode="wait" could stall and leave the tab blank. */}
             <motion.div
