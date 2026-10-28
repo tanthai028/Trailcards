@@ -58,10 +58,10 @@ export function JoinSheet({ onClose }: { onClose: () => void }) {
       <form onSubmit={run(() => verifyCode(email, code))}>
         <h2 className="font-display text-2xl font-bold">Check your email</h2>
         <p className="mt-1 text-sm text-cream/65">
-          We sent a sign-in email to {email}. <b className="text-cream/85">Don't tap the link:</b> press and hold it, choose Copy, then paste it here. (If the email shows a code, type that instead.)
+          Enter the code we emailed to {email}. If you're in the home-screen app, stay here: don't tap the email's link, it opens Safari instead.
         </p>
         <div className="relative">
-          <input value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="Paste the link or type the code" autoComplete="one-time-code" autoCapitalize="off" autoCorrect="off" spellCheck={false} aria-label="Sign-in link or code" className={`${FIELD} pr-24 text-base`} />
+          <input value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="Sign-in code" inputMode="numeric" autoComplete="one-time-code" autoCapitalize="off" autoCorrect="off" spellCheck={false} aria-label="Sign-in link or code" className={`${FIELD} pr-24 tracking-[0.2em]`} />
           <button type="button" onClick={() => void navigator.clipboard?.readText().then((t) => t && setCode(t.trim())).catch(() => {})}
             className="clay-btn clay-lav absolute right-2 top-1/2 mt-1 min-h-9 -translate-y-1/2 px-3.5 text-xs">Paste</button>
         </div>
