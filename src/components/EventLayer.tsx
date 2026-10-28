@@ -74,7 +74,7 @@ export function EventLayer({ go }: { go: (t: Tab) => void }) {
 
 function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
   useEffect(() => {
-    if (e.kind === 'achievement') playAchievement()
+    if (e.kind === 'achievement' || e.kind === 'streak') playAchievement()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => {
@@ -108,6 +108,19 @@ function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-extrabold text-sage">Your plant grew</span>
           <span className="block font-extrabold">It's now a {PLANT_STAGES[e.stage].name}!</span>
+        </span>
+      </>
+    )
+  } else if (e.kind === 'streak') {
+    body = (
+      <>
+        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-peach to-gold text-[#5a3208]">
+          <Icon name="flame" size={20} filled />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-extrabold text-gold">Daily goal done</span>
+          <span className="block font-extrabold">{e.days === 1 ? 'Day 1 of your streak' : `${e.days}-day streak!`}</span>
+          <span className="block truncate text-xs text-cream/70">Come back tomorrow to keep it going.</span>
         </span>
       </>
     )

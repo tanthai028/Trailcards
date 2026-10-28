@@ -41,6 +41,10 @@ export interface GameState {
   reduceMotion: boolean
   /** Sound effects on answers and swipes. */
   sound: boolean
+  /** Answers today (local date). */
+  daily: { day: string; count: number }
+  /** Days in a row the daily goal was met, and spare streak freezes. */
+  streak: { days: number; lastDay: string | null; freezes: number }
   destination: string
   achievements: Record<string, number>
   createdAt: number
@@ -63,6 +67,8 @@ export const initialState = (): GameState => ({
   cardShuffle: false,
   reduceMotion: false,
   sound: true,
+  daily: { day: '', count: 0 },
+  streak: { days: 0, lastDay: null, freezes: 0 },
   destination: 'lake',
   achievements: {},
   createdAt: Date.now(),
@@ -90,6 +96,51 @@ const RULES: Record<Mastery, { right: [number, number, Mastery]; wrong: [number,
 }
 
 export const statusOf = (s: GameState, id: string): Mastery => s.cards[id]?.status ?? 'new'
+
+// ── Daily goal & day streak ─────────────────────────────────────
+export const DAILY_GOAL = 10
+export const FREEZE_COST = 50
+export const MAX_FREEZES = 2
+/** Local calendar day, e.g. "2026-10-28". */
+export const dayKey = (t = Date.now()) => {
+  const d = new Date(t)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000)
+
+/** Answers so far today. */
+export const todayCount = (s: GameState) => (s.daily.day === dayKey() ? s.daily.count : 0)
+
+/** The streak as it stands now: it's still alive if the goal was met yesterday or today, or freezes cover the gap. */
+export function currentStreak(s: GameState) {
+  const { days, lastDay, freezes } = s.streak
+  if (!lastDay || !days) return 0
+  const missed = daysBetween(lastDay, dayKey()) - 1 // full days skipped since the last goal
+  return missed <= 0 || missed <= freezes ? days : 0
+}
+
+/** Count one answer toward today; when it completes the goal, extend (or restart) the streak. */
+function countDaily(s: GameState): { state: GameState; goalStreak: number | null } {
+  const today = dayKey()
+  const count = (s.daily.day === today ? s.daily.count : 0) + 1
+  let next: GameState = { ...s, daily: { day: today, count } }
+  if (count !== DAILY_GOAL) return { state: next, goalStreak: null }
+  const { days, lastDay, freezes } = s.streak
+  let streak: GameState['streak'] = { days: 1, lastDay: today, freezes }
+  if (lastDay) {
+    const missed = daysBetween(lastDay, today) - 1
+    if (missed < 0) streak = { ...s.streak } // already met today
+    else if (missed === 0) streak = { days: days + 1, lastDay: today, freezes }
+    else if (missed <= freezes) streak = { days: days + 1, lastDay: today, freezes: freezes - missed } // freezes cover the gap
+  }
+  next = { ...next, streak }
+  return { state: next, goalStreak: streak.days }
+}
+
+export function buyFreeze(s: GameState): GameState | null {
+  if (s.coins < FREEZE_COST || s.streak.freezes >= MAX_FREEZES) return null
+  return { ...s, coins: s.coins - FREEZE_COST, streak: { ...s.streak, freezes: s.streak.freezes + 1 } }
+}
 
 // ── Spaced review ───────────────────────────────────────────────
 // Each right answer on a due card pushes the next review further out; a miss starts over
@@ -133,6 +184,8 @@ export interface AnswerResult {
   to: Mastery
   levelUp: number | null
   plantUp: number | null
+  /** Set when this answer completed today's goal: the streak length after it. */
+  goalStreak: number | null
   achievements: string[]
 }
 
@@ -180,6 +233,8 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
       },
     },
   }
+  const daily = countDaily(next)
+  next = daily.state
   const ach = checkAchievements(next)
   next = ach.state
   const afterLevel = levelInfo(next.xp).level
@@ -190,6 +245,7 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
       correct, xp, coins, from, to,
       levelUp: afterLevel > beforeLevel ? afterLevel : null,
       plantUp: afterPlant > beforePlant ? afterPlant : null,
+      goalStreak: daily.goalStreak,
       achievements: ach.unlocked,
     },
   }

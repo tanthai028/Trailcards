@@ -7,6 +7,7 @@ import { DECK_SCENES, type DeckCard, type UserDeck } from '../data/decks'
 export type GameEvent =
   | { id: number; kind: 'achievement'; achId: string }
   | { id: number; kind: 'levelUp'; level: number }
+  | { id: number; kind: 'streak'; days: number }
   | { id: number; kind: 'plant'; stage: number }
   | { id: number; kind: 'toast'; text: string }
 
@@ -24,6 +25,7 @@ interface Store {
   setCardShuffle: (on: boolean) => void
   setReduceMotion: (on: boolean) => void
   setSound: (on: boolean) => void
+  buyFreeze: () => boolean
   setBody: (b: Body) => void
   importDeck: (name: string, cards: DeckCard[]) => void
   deleteDeck: (id: string) => void
@@ -73,6 +75,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const evs: NewEvent[] = result.achievements.map((achId) => ({ kind: 'achievement' as const, achId }))
         if (result.plantUp != null) evs.push({ kind: 'plant', stage: result.plantUp })
         if (result.levelUp != null) evs.push({ kind: 'levelUp', level: result.levelUp })
+        if (result.goalStreak != null) evs.push({ kind: 'streak', days: result.goalStreak })
         // First coins ever: point at where they're spent, once.
         if (result.coins > 0 && !s.tips.includes('first-coins')) {
           commit({ ...s, tips: [...s.tips, 'first-coins'] })
@@ -127,6 +130,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setCardShuffle: (on) => commit({ ...stateRef.current, cardShuffle: on }),
       setReduceMotion: (on) => commit({ ...stateRef.current, reduceMotion: on }),
       setSound: (on) => commit({ ...stateRef.current, sound: on }),
+      buyFreeze: () => {
+        const next = G.buyFreeze(stateRef.current)
+        if (!next) return false
+        commit(next)
+        push([{ kind: 'toast', text: 'Streak freeze ready: it saves your streak on a day you miss.' }])
+        return true
+      },
       setHairColor: (c) => commit({ ...stateRef.current, look: { ...stateRef.current.look, hairColor: c } }),
       setName: (name) => commit({ ...stateRef.current, name: name.trim().slice(0, 20) || 'Wanderer' }),
       setTitle: (title) => commit({ ...stateRef.current, title }),

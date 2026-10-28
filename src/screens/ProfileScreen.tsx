@@ -4,7 +4,7 @@ import { useGame } from '../state/store'
 import { TOPICS, TOPIC_ORDER } from '../data/cards'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
 import { RARITY_STYLE, type Slot } from '../data/items'
-import { collectionItems, levelInfo, masteryCounts, stats, type GameState, type Mastery } from '../state/game'
+import { collectionItems, currentStreak, DAILY_GOAL, FREEZE_COST, levelInfo, masteryCounts, MAX_FREEZES, stats, todayCount, type GameState, type Mastery } from '../state/game'
 import { backupText, lastBackupAt, markBackedUp, parseSave } from '../state/storage'
 import { Figurine } from '../scene/Figurine'
 import { SceneSvg, DESTINATION_SCENE } from '../art/Landscape'
@@ -17,7 +17,7 @@ import type { FeedMode } from './FeedScreen'
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
 export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, setName, setTitle, reset, setReduceMotion, setSound, restore } = useGame()
+  const { state, setName, setTitle, reset, setReduceMotion, setSound, restore, buyFreeze } = useGame()
   const lv = levelInfo(state.xp)
   const s = stats(state)
   const [editing, setEditing] = useState(false)
@@ -66,6 +66,8 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
           </div>
         </div>
       </div>
+
+      <Daily state={state} onBuyFreeze={buyFreeze} />
 
       {/* Stats */}
       <div className="mt-4 grid grid-cols-4 gap-2">
@@ -256,6 +258,34 @@ function Backup({ state, onRestore }: { state: GameState; onRestore: (s: GameSta
       )}
       {msg && <p className="mt-2 text-xs font-bold text-cream/70" role="status">{msg}</p>}
       <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+    </section>
+  )
+}
+
+/** Today's goal, the day streak and streak freezes (a lasting use for coins). */
+function Daily({ state, onBuyFreeze }: { state: GameState; onBuyFreeze: () => boolean }) {
+  const today = Math.min(todayCount(state), DAILY_GOAL)
+  const streak = currentStreak(state)
+  const { freezes } = state.streak
+  const canBuy = freezes < MAX_FREEZES && state.coins >= FREEZE_COST
+  return (
+    <section className="clay mt-4 rounded-2xl p-3">
+      <div className="flex items-center gap-3">
+        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-peach to-gold text-[#5a3208]"><Icon name="flame" size={22} filled /></span>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-lg font-bold leading-tight">{streak ? `${streak}-day streak` : 'No streak yet'}</p>
+          <p className="text-xs text-cream/60">Today {today}/{DAILY_GOAL} answers{today >= DAILY_GOAL ? ' · goal done' : ''}</p>
+        </div>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/12">
+        <motion.div className="h-full rounded-full bg-gradient-to-r from-peach to-gold" initial={false} animate={{ width: `${(today / DAILY_GOAL) * 100}%` }} />
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <p className="min-w-0 flex-1 text-xs text-cream/60">Streak freezes: <span className="font-extrabold text-cream">{freezes}/{MAX_FREEZES}</span>. Each saves your streak on one missed day.</p>
+        <button onClick={onBuyFreeze} disabled={!canBuy} className="clay-btn clay-ink min-h-10 shrink-0 px-3 text-xs tabular-nums disabled:opacity-50">
+          {freezes >= MAX_FREEZES ? 'Full' : `Buy · ${FREEZE_COST}`}
+        </button>
+      </div>
     </section>
   )
 }

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
-import { levelInfo } from '../state/game'
+import { DAILY_GOAL, currentStreak, levelInfo, todayCount } from '../state/game'
 import { Avatar } from '../scene/Figurine'
-import { Coin } from './Icon'
+import { Coin, Icon } from './Icon'
 
 /** Each increase of `value` since mount, kept for a moment so it can float up next to the counter. */
 function useGains(value: number) {
@@ -46,6 +46,9 @@ function GainFloats({ gains, className, children }: { gains: { id: number; amoun
 export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?: number }) {
   const { state } = useGame()
   const lv = levelInfo(state.xp)
+  const today = todayCount(state)
+  const goal = Math.min(1, today / DAILY_GOAL)
+  const streak = currentStreak(state)
   const gains = useGains(state.xp)
   // remember the level we last showed, so only a real level-up pulses (not the first render)
   const shown = useRef(lv.level)
@@ -57,16 +60,22 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
   const r = size / 2 + 2.5
   const c = 2 * Math.PI * r
   return (
-    <button onClick={onClick} className="relative shrink-0 rounded-full" style={{ width: size + 8, height: size + 8 }} aria-label={`Profile: ${state.name}, level ${lv.level}, ${lv.into} of ${lv.span} XP to next level`}>
+    <button onClick={onClick} className="relative shrink-0 rounded-full" style={{ width: size + 8, height: size + 8 }} aria-label={`Profile: ${state.name}, level ${lv.level}. Today ${Math.min(today, DAILY_GOAL)} of ${DAILY_GOAL} answers${streak ? `, ${streak}-day streak` : ''}`}>
       <svg className="absolute inset-0 -rotate-90" viewBox={`0 0 ${size + 8} ${size + 8}`} aria-hidden="true">
         <circle cx={size / 2 + 4} cy={size / 2 + 4} r={r} fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="3" />
         <motion.circle
           cx={size / 2 + 4} cy={size / 2 + 4} r={r} fill="none" stroke="var(--color-gold)" strokeWidth="3" strokeLinecap="round"
-          strokeDasharray={c} initial={false} animate={{ strokeDashoffset: c * (1 - lv.pct) }} transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+          strokeDasharray={c} initial={false} animate={{ strokeDashoffset: c * (1 - goal) }} transition={{ type: 'spring', stiffness: 120, damping: 20 }}
         />
       </svg>
       <Avatar look={state.look} className="absolute inset-1 rounded-full bg-gradient-to-b from-[#fff3e2] to-[#d9c7d0]" />
       <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-ink ring-2 ring-ink">{lv.level}</span>
+      {/* the ring is today's goal; a flame marks a live streak */}
+      {streak > 0 && (
+        <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center gap-px rounded-full bg-gradient-to-r from-peach to-gold px-1 text-[9px] font-extrabold text-[#5a3208] ring-2 ring-ink">
+          <Icon name="flame" size={9} filled />{streak}
+        </span>
+      )}
       <GainFloats gains={gains} className="[&>span]:bg-lav [&>span]:text-[#22183a]">{(n) => `+${n} XP`}</GainFloats>
       <AnimatePresence>
         {pulse > 0 && (
