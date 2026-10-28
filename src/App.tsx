@@ -5,6 +5,8 @@ import { NavBar, type Tab } from './components/NavBar'
 import { affordable } from './state/game'
 import { EventLayer } from './components/EventLayer'
 import { InstallHint, shouldShowInstallHint } from './components/InstallHint'
+import { FxLayer } from './fx/FxLayer'
+import { setSoundEnabled } from './fx/sound'
 import { FeedScreen, type FeedMode } from './screens/FeedScreen'
 
 // Learn ships in the main bundle; the other tabs and onboarding load on demand, and are
@@ -38,6 +40,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.toggleAttribute('data-reduce-motion', state.reduceMotion)
   }, [state.reduceMotion])
+  useEffect(() => setSoundEnabled(state.sound), [state.sound])
 
   useEffect(() => {
     const onHash = () => setTab(readHash())
@@ -77,6 +80,7 @@ export default function App() {
         <NavBar tab={tab} onTab={(t) => go(t)} dots={affordable(state)} />
         <AnimatePresence>{state.onboarded && shouldShowInstallHint(state.tips) && <InstallHint />}</AnimatePresence>
         <EventLayer go={go} />
+        <FxLayer />
         <Suspense fallback={null}>
           <AnimatePresence>{!state.onboarded && <Onboarding />}</AnimatePresence>
         </Suspense>

@@ -39,6 +39,15 @@ body {
 }
 
 /* Profile > Reduce motion: CSS transitions and keyframes stop too (Framer motion is handled by MotionConfig). */
+[data-reduce-motion] .parallax {
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .parallax {
+    transform: none !important;
+  }
+}
+
 [data-reduce-motion] *,
 [data-reduce-motion] *::before,
 [data-reduce-motion] *::after {

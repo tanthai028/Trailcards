@@ -16,7 +16,7 @@ import type { FeedMode } from './FeedScreen'
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
 export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, setName, setTitle, reset, setReduceMotion } = useGame()
+  const { state, setName, setTitle, reset, setReduceMotion, setSound } = useGame()
   const lv = levelInfo(state.xp)
   const s = stats(state)
   const [editing, setEditing] = useState(false)
@@ -158,11 +158,12 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       </Section>
 
       {/* Settings */}
+      <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards." on={state.sound} onChange={setSound} className="mt-8" />
       <button
         onClick={() => setReduceMotion(!state.reduceMotion)}
         role="switch"
         aria-checked={state.reduceMotion}
-        className="clay mt-8 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
+        className="clay mt-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-extrabold">Reduce motion</span>
@@ -190,6 +191,20 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         <p className="mt-2 text-[11px] text-cream/30">Progress saves automatically on this device.</p>
       </div>
     </div>
+  )
+}
+
+function Toggle({ label, hint, on, onChange, className = '' }: { label: string; hint: string; on: boolean; onChange: (v: boolean) => void; className?: string }) {
+  return (
+    <button onClick={() => onChange(!on)} role="switch" aria-checked={on} className={`clay flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ${className}`}>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-extrabold">{label}</span>
+        <span className="block text-xs text-cream/55">{hint}</span>
+      </span>
+      <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-gold' : 'bg-white/15'}`}>
+        <span className={`absolute top-1 size-5 rounded-full bg-cream shadow transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+      </span>
+    </button>
   )
 }
 

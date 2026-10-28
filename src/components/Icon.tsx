@@ -26,6 +26,7 @@ const PATHS: Record<string, string> = {
   edit: 'M4 20h4L19 9l-4-4L4 16v4Z',
   heart: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z',
   map: 'M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6Zm6-2v14m6-12v14',
+  flame: 'M12 21c-4 0-7-2.7-7-6.5 0-3 2-5 3.5-6.5.3 2 1.3 3 2.5 3.5C11 8 12 5 15 3c-.5 3 1 5 2.5 6.5S19 12.5 19 14.5C19 18.3 16 21 12 21Z',
 }
 
 export function Icon({ name, size = 20, filled = false, ...rest }: { name: keyof typeof PATHS | string; size?: number; filled?: boolean } & SVGProps<SVGSVGElement>) {

@@ -36,6 +36,8 @@ export interface GameState {
   cardShuffle: boolean
   /** Turn off non-essential animation, on top of the phone's own setting. */
   reduceMotion: boolean
+  /** Sound effects on answers and swipes. */
+  sound: boolean
   destination: string
   achievements: Record<string, number>
   createdAt: number
@@ -57,6 +59,7 @@ export const initialState = (): GameState => ({
   look: { ...DEFAULT_LOOK },
   cardShuffle: false,
   reduceMotion: false,
+  sound: true,
   destination: 'lake',
   achievements: {},
   createdAt: Date.now(),

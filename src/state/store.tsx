@@ -23,6 +23,7 @@ interface Store {
   setHairColor: (c: HairColorId) => void
   setCardShuffle: (on: boolean) => void
   setReduceMotion: (on: boolean) => void
+  setSound: (on: boolean) => void
   setBody: (b: Body) => void
   importDeck: (name: string, cards: DeckCard[]) => void
   deleteDeck: (id: string) => void
@@ -116,6 +117,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setBody: (b) => commit(G.setBody(stateRef.current, b)),
       setCardShuffle: (on) => commit({ ...stateRef.current, cardShuffle: on }),
       setReduceMotion: (on) => commit({ ...stateRef.current, reduceMotion: on }),
+      setSound: (on) => commit({ ...stateRef.current, sound: on }),
       setHairColor: (c) => commit({ ...stateRef.current, look: { ...stateRef.current.look, hairColor: c } }),
       setName: (name) => commit({ ...stateRef.current, name: name.trim().slice(0, 20) || 'Wanderer' }),
       setTitle: (title) => commit({ ...stateRef.current, title }),

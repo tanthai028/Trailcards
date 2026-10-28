@@ -69,7 +69,7 @@ export function CoinsPill() {
   const { state } = useGame()
   const gains = useGains(state.coins)
   return (
-    <div className="relative shrink-0">
+    <div className="relative shrink-0" data-coin-target>
       <motion.div key={state.coins} initial={{ scale: 1.18 }} animate={{ scale: 1 }} className="flex h-9 items-center gap-1.5 rounded-full clay pl-1.5 pr-3" aria-label={`${state.coins} coins`}>
         <Coin />
         <span className="text-sm font-extrabold tabular-nums">{state.coins}</span>

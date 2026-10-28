@@ -9,6 +9,8 @@ import { cardScene, findCard, reviewQueue, sourceCards, statusOf, type AnswerRes
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
+import { burst, flyCoins } from '../fx/FxLayer'
+import { playCorrect, playSwipe, playWrong } from '../fx/sound'
 import type { Tab } from '../components/NavBar'
 
 export type FeedMode = 'discover' | 'review' | 'saved'
@@ -31,12 +33,26 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   const scroller = useRef<HTMLDivElement>(null)
   // Answers for this stack, kept here (not in each card) because cards far from view are unmounted.
   const [answers, setAnswers] = useState<Record<string, Answered>>({})
+  // Correct answers in a row this session; a wrong answer resets it.
+  const [streak, setStreak] = useState(0)
   useEffect(() => setAnswers({}), [ids])
   const pickFor = (id: string, choice: number) => {
     const card = findCard(state, id)
     if (!card || answers[id] || choice >= card.choices.length) return
     const result = answer(id, choice)
-    setAnswers((a) => ({ ...a, [id]: { choice, result } }))
+    const run = result.correct ? streak + 1 : 0
+    setStreak(run)
+    setAnswers((a) => ({ ...a, [id]: { choice, result, streak: run } }))
+    // celebrate from the button that was picked (tap or keyboard)
+    const btn = scroller.current?.querySelector(`[data-index="${ids.indexOf(id)}"] [data-choice="${choice}"]`)
+    if (result.correct) {
+      playCorrect(run)
+      const r = btn?.getBoundingClientRect()
+      if (r) {
+        burst(r.left + r.width / 2, r.top + r.height / 2)
+        if (result.coins > 0) flyCoins(r, Math.ceil(result.coins / 2))
+      }
+    } else playWrong()
   }
 
   // Jump back to the first card once a new stack has rendered. Scrolling before that lands
@@ -83,6 +99,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
     if (!el) return
     cancelAnimationFrame(anim.current)
     const to = i * el.clientHeight
+    if (i !== Math.round(el.scrollTop / el.clientHeight)) playSwipe()
     if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-reduce-motion')) { el.scrollTop = to; return }
     const from = el.scrollTop
     const start = performance.now()
@@ -144,12 +161,17 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
     el.addEventListener('touchend', onEnd)
     el.addEventListener('touchcancel', onEnd)
     el.addEventListener('wheel', onWheel, { passive: false })
+    // Scroll position in cards, read by each card's scene to drift slower than the card (depth).
+    const onScroll = () => el.style.setProperty('--p', String(el.scrollTop / el.clientHeight))
+    onScroll()
+    el.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       el.removeEventListener('touchstart', onStart)
       el.removeEventListener('touchmove', onMove)
       el.removeEventListener('touchend', onEnd)
       el.removeEventListener('touchcancel', onEnd)
       el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('scroll', onScroll)
     }
   }, [scrollTo])
 
@@ -218,7 +240,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   )
 }
 
-interface Answered { choice: number; result: AnswerResult }
+interface Answered { choice: number; result: AnswerResult; streak: number }
 
 function FeedCard({
   card, mode, index, total, answered, onPick,
@@ -270,7 +292,10 @@ function FeedCard({
   return (
     <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-paper text-ink shadow-[0_20px_50px_-20px_rgba(0,0,0,.6)]">
       <div className="grain relative h-[23%] min-h-[116px] shrink-0 overflow-hidden">
-        <SceneSvg scene={cardScene(state, index)} className="absolute inset-0 h-full w-full" />
+        {/* drifts at a fraction of the card's speed while swiping, so the scene feels deeper than the card */}
+        <div className="parallax absolute inset-0" style={{ transform: `translateY(calc((var(--p, ${index}) - ${index}) * 46px)) scale(1.25)` }}>
+          <SceneSvg scene={cardScene(state, index)} className="absolute inset-0 h-full w-full" />
+        </div>
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
         <div className="absolute inset-x-3 top-[68px] flex items-start gap-2">
           {isReview && (
@@ -323,7 +348,16 @@ function FeedCard({
         </AnimatePresence>
 
         <div className="pt-[0.75em]">
-          <div className="rounded-3xl bg-white/70 p-[0.6em] ring-1 ring-ink/5">
+          <div className="relative rounded-3xl bg-white/70 p-[0.6em] ring-1 ring-ink/5">
+            {result?.correct && (answered?.streak ?? 0) >= 2 && (
+              <motion.span
+                initial={{ scale: 0.4, opacity: 0, rotate: -8 }} animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 16 }}
+                className="absolute -top-3 right-3 flex items-center gap-1 rounded-full bg-gradient-to-r from-peach to-gold px-2.5 py-1 text-[11px] font-extrabold text-[#5a3208] shadow-md"
+              >
+                <Icon name="flame" size={13} filled /> {answered!.streak} in a row
+              </motion.span>
+            )}
             <p className="px-1 pb-[0.5em] text-[0.92em] font-extrabold leading-snug">{card.prompt}</p>
             <div className={`grid gap-[0.45em] ${card.choices.length === 2 && !result ? 'grid-cols-2' : ''}`}>
               <AnimatePresence initial={false}>
@@ -335,6 +369,7 @@ function FeedCard({
                       key={i}
                       layout
                       onClick={() => pick(i)}
+                      data-choice={i}
                       disabled={!!result}
                       whileTap={result ? undefined : { scale: 0.97 }}
                       initial={false}
