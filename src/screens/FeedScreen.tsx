@@ -33,7 +33,19 @@ const idsFor = (s: GameState, mode: FeedMode) =>
 
 export const MASTERY_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Familiar', mastered: 'Mastered' }
 
-export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m: FeedMode) => void; go: (t: Tab, m?: FeedMode) => void }) {
+type FeedProps = { mode: FeedMode; setMode: (m: FeedMode) => void; go: (t: Tab, m?: FeedMode) => void }
+
+/**
+ * New players pick what to study before the feed appears. The feed is its own component so
+ * it mounts fresh once a deck is chosen: its swipe and scroll listeners attach to the card
+ * scroller on mount, which doesn't exist while the chooser is showing.
+ */
+export function FeedScreen(props: FeedProps) {
+  const { state } = useGame()
+  return state.deckChosen ? <Feed {...props} /> : <StudyChooser />
+}
+
+function Feed({ mode, setMode, go }: FeedProps) {
   const { state, answer, dismissTip } = useGame()
   // Snapshot the list when the mode opens, so answering a card doesn't yank it out from under you.
   const [ids, setIds] = useState(() => idsFor(state, mode))
@@ -238,9 +250,6 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
     () => ({ discover: idsFor(state, 'discover').length, review: reviewQueue(state).length, saved: state.bookmarks.length }),
     [state],
   )
-
-  // New players pick what to study before the feed appears.
-  if (!state.deckChosen) return <StudyChooser />
 
   return (
     <div className="relative h-full">
