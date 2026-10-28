@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   answerCard, buyFreeze, currentStreak, DAILY_GOAL, FREEZE_COST, findCard, initialState, INTERVALS, isDue, levelInfo,
-  reviewQueue, sourceCards, todayCount, buyItem, equipItem, affordable, type GameState,
+  reviewQueue, sourceCards, todayCount, buyItem, equipItem, affordable, studyQueue, practiceBatch, type GameState,
 } from './game'
 import { CARDS } from '../data/cards'
 import { deckFeedCards, parseDeck, type UserDeck } from '../data/decks'
@@ -193,5 +193,43 @@ describe('recall cards', () => {
     const { state, result } = answerCard(s, 'q1', 1)
     expect(result).toMatchObject({ correct: false, partial: true, xp: 8, coins: 4 })
     expect(state.cards.q1).toMatchObject({ status: 'familiar', step: 1, due: t + INTERVALS[0] })
+  })
+})
+
+describe('endless study feed', () => {
+  it('mixes one due review after every 3 new cards', () => {
+    let t = new Date(2026, 9, 1, 12).getTime()
+    at(t)
+    let s = initialState()
+    for (const c of CARDS.slice(0, 2)) s = answerCard(s, c.id, c.answerIndex).state
+    t += DAY + 1; at(t)
+    const q = studyQueue(s)
+    expect(q.slice(0, 4)).toEqual([CARDS[2].id, CARDS[3].id, CARDS[4].id, expect.stringMatching(new RegExp(`^(${CARDS[0].id}|${CARDS[1].id})$`))])
+    expect(q).toHaveLength(CARDS.length) // 70 new + 2 due
+  })
+
+  it('keeps going with practice when nothing is new or due, weakest first', () => {
+    at(new Date(2026, 9, 1, 12).getTime())
+    const cards = CARDS.slice(0, 3)
+    let s: GameState = initialState()
+    s = answerCard(s, cards[0].id, cards[0].answerIndex).state // familiar
+    s = answerCard(s, cards[1].id, (cards[1].answerIndex + 1) % cards[1].choices.length).state // learning
+    s = answerCard(s, cards[2].id, cards[2].answerIndex).state // familiar
+    expect(studyQueue(s, cards)).toEqual([]) // nothing new, nothing due yet
+    const batch = practiceBatch(s, new Set(), 10, cards)
+    expect(batch[0]).toBe(cards[1].id) // the miss first
+    expect(practiceBatch(s, new Set([cards[1].id]), 10, cards)).not.toContain(cards[1].id) // skips recent
+    expect(practiceBatch(s, new Set(cards.map((c) => c.id)), 10, cards, cards[2].id)).not.toContain(cards[2].id) // never the last card again
+    const withSkipped = practiceBatch(s, new Set(), 10, CARDS.slice(0, 4))
+    expect(withSkipped[1]).toBe(CARDS[3].id) // a card you scrolled past comes back right after misses
+  })
+
+  it('practice pays XP but no coins and leaves the schedule alone', () => {
+    at(new Date(2026, 9, 1, 12).getTime())
+    const s = answerCard(initialState(), card.id, wrong).state // learning, due in 10 min
+    const { state, result } = answerCard(s, card.id, right) // retried right away
+    expect(result.coins).toBe(0)
+    expect(result.xp).toBeGreaterThan(0)
+    expect(state.cards[card.id].due).toBe(s.cards[card.id].due)
   })
 })

@@ -5,7 +5,7 @@ import { TOPICS, type Card } from '../data/cards'
 import type { DeckFeedCard } from '../data/decks'
 import { DeckPicker } from '../components/Decks'
 import { AvatarLevel, CoinsPill } from '../components/Hud'
-import { cardScene, findCard, nextDueAt, reviewQueue, sourceCards, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
+import { cardScene, findCard, isDue, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyQueue, type AnswerResult, type GameState, type Mastery } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
@@ -15,6 +15,9 @@ import type { Tab } from '../components/NavBar'
 
 export type FeedMode = 'discover' | 'review' | 'saved'
 
+type Tag = 'New' | 'Review' | 'Practice'
+const tagFor = (s: GameState, id: string): Tag => (statusOf(s, id) === 'new' ? 'New' : isDue(s, id) ? 'Review' : 'Practice')
+
 /** Set before opening Learn to land on a specific card (e.g. from the Saved list in Profile). */
 export const feedFocus: { id: string | null } = { id: null }
 /** Set from Profile > Replay tour to show the Learn tour again next time Learn opens. */
@@ -22,7 +25,7 @@ export const tourReplay = { on: false }
 
 const idsFor = (s: GameState, mode: FeedMode) =>
   mode === 'discover'
-    ? sourceCards(s).filter((c) => statusOf(s, c.id) === 'new').map((c) => c.id)
+    ? studyQueue(s)
     : mode === 'review'
       ? reviewQueue(s).map((c) => c.id)
       : s.bookmarks.filter((id) => findCard(s, id))
@@ -44,20 +47,30 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   }, [])
   const scroller = useRef<HTMLDivElement>(null)
   // Answers for this stack, kept here (not in each card) because cards far from view are unmounted.
-  const [answers, setAnswers] = useState<Record<string, Answered>>({})
+  // Keyed by position, not card id: the endless Study feed can bring a card back later.
+  const [answers, setAnswers] = useState<Record<number, Answered>>({})
   // Correct answers in a row this session; a wrong answer resets it.
   const [streak, setStreak] = useState(0)
-  useEffect(() => setAnswers({}), [ids])
-  const pickFor = (id: string, choice: number) => {
-    const card = findCard(state, id)
+  // New / Review / Practice for each position, fixed when it joins the stack
+  const tags = useRef<Tag[]>([])
+  // Rebuild the stack (mode or deck change, or picking the same mode again)
+  const restack = (m: FeedMode) => {
+    const next = idsFor(state, m)
+    tags.current = next.map((id) => tagFor(state, id))
+    setAnswers({})
+    setIds(next)
+  }
+  const pickFor = (i: number, choice: number) => {
+    const id = ids[i]
+    const card = id ? findCard(state, id) : undefined
     // recall cards have no choices: choice is the self-rating (0-2)
-    if (!card || answers[id] || choice >= (card.q.kind === 'recall' ? 3 : card.choices.length)) return
+    if (!card || answers[i] || choice >= (card.q.kind === 'recall' ? 3 : card.choices.length)) return
     const result = answer(id, choice)
     const run = result.correct ? streak + 1 : result.partial ? streak : 0
     setStreak(run)
-    setAnswers((a) => ({ ...a, [id]: { choice, result, streak: run } }))
+    setAnswers((a) => ({ ...a, [i]: { choice, result, streak: run } }))
     // celebrate from the button that was picked (tap or keyboard)
-    const btn = scroller.current?.querySelector(`[data-index="${ids.indexOf(id)}"] [data-choice="${choice}"]`)
+    const btn = scroller.current?.querySelector(`[data-index="${i}"] [data-choice="${choice}"]`)
     if (result.correct) {
       playCorrect(run)
       const r = btn?.getBoundingClientRect()
@@ -84,7 +97,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   }, [ids])
 
   useEffect(() => {
-    setIds(idsFor(state, mode))
+    restack(mode)
     setActive(0)
     toTop.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,11 +105,24 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
 
   // Switching or importing a deck re-snapshots the stack for the current mode.
   useEffect(() => {
-    setIds(idsFor(state, mode))
+    restack(mode)
     setActive(0)
     toTop.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeDeck, state.decks.length])
+
+  // Study never runs dry: near the end, top the stack up with practice cards,
+  // skipping the ones seen most recently (as many as the deck allows).
+  useEffect(() => {
+    if (mode !== 'discover' || ids.length - active > 3) return
+    const deckSize = sourceCards(state).length
+    const avoid = new Set(ids.slice(-Math.max(0, Math.min(8, deckSize - 1))))
+    const more = practiceBatch(state, avoid, 10, undefined, ids[ids.length - 1])
+    if (!more.length) return
+    tags.current = [...tags.current, ...more.map(() => 'Practice' as Tag)]
+    setIds((cur) => [...cur, ...more])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, active, ids.length, state])
 
   // Track which card is on screen.
   useEffect(() => {
@@ -198,7 +224,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return
-      if (/^[1-4]$/.test(e.key)) { if (ids[active]) pickFor(ids[active], Number(e.key) - 1) }
+      if (/^[1-4]$/.test(e.key)) pickFor(active, Number(e.key) - 1)
       else if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); scrollTo(Math.min(active + 1, ids.length)) }
       else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); scrollTo(Math.max(active - 1, 0)) }
     }
@@ -224,7 +250,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
                 counts={counts}
                 open={menuOpen}
                 setOpen={setMenuOpen}
-                onPick={(m) => (m === mode ? (setIds(idsFor(state, m)), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
+                onPick={(m) => (m === mode ? (restack(m), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
               />
               </div>
               <div data-tour="deck" className="flex min-w-0"><DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} /></div>
@@ -249,7 +275,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
           // Only the current card and two on each side are drawn; the rest are empty pages that keep the scroll length.
           const near = Math.abs(i - active) <= 2
           return card && (
-          <section key={`${mode}-${id}`} data-index={i} className="h-full px-4 pb-2" aria-label={`Card ${i + 1} of ${ids.length}`}>
+          <section key={`${mode}-${i}-${id}`} data-index={i} className="h-full px-4 pb-2" aria-label={mode === 'discover' ? `Card ${i + 1}` : `Card ${i + 1} of ${ids.length}`}>
             {near && (
               <FeedCard
                 card={card}
@@ -257,8 +283,9 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
                 index={i}
                 live={i === active}
                 total={ids.length}
-                answered={answers[id]}
-                onPick={(choice) => pickFor(id, choice)}
+                tag={mode === 'discover' ? tags.current[i] ?? tagFor(state, id) : undefined}
+                answered={answers[i]}
+                onPick={(choice) => pickFor(i, choice)}
               />
             )}
           </section>
@@ -275,7 +302,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
 interface Answered { choice: number; result: AnswerResult; streak: number }
 
 function FeedCard({
-  card, mode, index, live, total, answered, onPick,
+  card, mode, index, live, total, tag, answered, onPick,
 }: {
   card: Card
   mode: FeedMode
@@ -283,6 +310,8 @@ function FeedCard({
   /** The card on screen; only it runs ambient scene animation. */
   live: boolean
   total: number
+  /** Study feed: what this card is here for. */
+  tag?: Tag
   answered?: Answered
   onPick: (choice: number) => void
 }) {
@@ -353,7 +382,11 @@ function FeedCard({
       <div ref={fitRef} className="relative -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-3" style={{ fontSize: 16 }}>
         <div className="flex items-baseline justify-between gap-2">
           <p className="line-clamp-2 text-[0.68em] font-black" style={{ color: shade(topic.accent) }}>{card.hook}</p>
-          <span className="shrink-0 text-[0.68em] font-bold tabular-nums text-ink/40">{index + 1} / {total}</span>
+          {tag ? (
+            <span className={`shrink-0 rounded-full px-2 py-px text-[0.62em] font-extrabold ${tag === 'New' ? 'bg-sky/30 text-[#2f5f8f]' : tag === 'Review' ? 'bg-gold/35 text-[#7a5410]' : 'bg-lav/25 text-[#5b47a8]'}`}>{tag}</span>
+          ) : (
+            <span className="shrink-0 text-[0.68em] font-bold tabular-nums text-ink/40">{index + 1} / {total}</span>
+          )}
         </div>
         <h2 className="mt-0.5 font-display text-[1.55em] font-bold leading-[1.1] text-ink">{card.title}</h2>
 
@@ -477,7 +510,7 @@ function Recall({ answer, shown, onReveal, grade, onGrade }: {
 
 const firstSentence = (text: string) => (text.match(/^.*?[.!?](\s|$)/)?.[0] ?? text).trim()
 
-const MODE_LABEL: Record<FeedMode, string> = { discover: 'Discover', review: 'Review', saved: 'Saved' }
+const MODE_LABEL: Record<FeedMode, string> = { discover: 'Study', review: 'Review', saved: 'Saved' }
 
 /** Discover / Review / Saved in one compact menu instead of a row of chips. */
 function ModeMenu({ mode, counts, open, setOpen, onPick }: {
@@ -711,8 +744,8 @@ function NextReview() {
 function EndCard({ mode, empty, counts, setMode, go }: { mode: FeedMode; empty: boolean; counts: Record<FeedMode, number>; setMode: (m: FeedMode) => void; go: (t: Tab, m?: FeedMode) => void }) {
   const copy = {
     discover: empty
-      ? ['Every card explored', 'You’ve seen all the field notes for now. Review keeps them fresh — and grows your plant.']
-      : ['You’re all caught up', 'That’s the end of this stack. Revisit shaky concepts in Review to master them.'],
+      ? ['Nothing to study yet', 'This deck has no cards. Pick another deck, or make one with AI from the deck chip up top.']
+      : ['Keep going', 'More practice cards are on the way.'],
     review: empty
       ? ['Nothing due right now', 'Cards come back here on a schedule: a day after you learn them, then 3 days, a week and longer.']
       : ['Review done', 'Nice. Each card you got right comes back later, spaced further out every time.'],

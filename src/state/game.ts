@@ -204,9 +204,10 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
   const partial = grade === 1
   const now = Date.now()
   const sched = schedule(prev)
-  // Answering a card before it's due (e.g. from Saved) is practice: a little XP, no coins,
-  // and the schedule doesn't move, so reviews can't be rushed or farmed.
-  const early = !!prev && from !== 'new' && from !== 'learning' && sched.due > now
+  // Answering a card before it's due (practice in the endless feed, Saved, or a quick retry
+  // after a miss) earns a little XP but no coins, and the schedule doesn't move, so the feed
+  // can't be farmed and reviews can't be rushed.
+  const early = !!prev && from !== 'new' && sched.due > now
   let [xp, coins, to] = correct || partial ? RULES[from].right : RULES[from].wrong
   let step = 0
   let due = now + RETRY
@@ -306,6 +307,37 @@ export function stats(s: GameState) {
     accuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
     ...masteryCounts(s),
   }
+}
+
+/**
+ * The Study feed: new cards with due reviews mixed in (one after every 3 new), then any
+ * remaining reviews. When it runs out, the feed keeps going with practiceBatch.
+ */
+export function studyQueue(s: GameState, cards: Card[] = sourceCards(s)): string[] {
+  const fresh = cards.filter((c) => statusOf(s, c.id) === 'new').map((c) => c.id)
+  const due = reviewQueue(s, cards).map((c) => c.id)
+  const out: string[] = []
+  let d = 0
+  fresh.forEach((id, i) => {
+    out.push(id)
+    if ((i + 1) % 3 === 0 && d < due.length) out.push(due[d++])
+  })
+  while (d < due.length) out.push(due[d++])
+  return out
+}
+
+/**
+ * Practice once nothing is new or due: misses first, then cards you scrolled past, then the rest,
+ * least recently seen first. Recent cards are skipped; if that leaves nothing, only the very
+ * last one is (a one-card deck simply repeats).
+ */
+export function practiceBatch(s: GameState, avoid: Set<string>, n = 10, cards: Card[] = sourceCards(s), last?: string): string[] {
+  const rank: Record<Mastery, number> = { learning: 0, new: 1, familiar: 2, mastered: 3 }
+  const by = (a: Card, b: Card) => rank[statusOf(s, a.id)] - rank[statusOf(s, b.id)] || (s.cards[a.id]?.lastAt ?? 0) - (s.cards[b.id]?.lastAt ?? 0)
+  let pool = cards.filter((c) => !avoid.has(c.id))
+  if (!pool.length) pool = cards.filter((c) => c.id !== last)
+  if (!pool.length) pool = cards
+  return [...pool].sort(by).slice(0, n).map((c) => c.id)
 }
 
 /** Cards due for review now: misses first, then the most overdue. */
