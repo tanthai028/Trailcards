@@ -491,26 +491,40 @@ function shade(hex: string) {
 }
 
 const TOUR: { target: string; title: string; text: string; swipe?: boolean }[] = [
-  { target: 'card', title: 'One card, one idea', text: 'Each card teaches one thing about the natural world. Read it first.' },
-  { target: 'quiz', title: 'Answer the question', text: 'Tap the answer you think is right. Right answers earn XP and coins; misses come back later to try again.' },
-  { target: 'card', title: 'Swipe for the next card', text: 'Swipe up to move on, or down to go back.', swipe: true },
-  { target: 'mode', title: 'Discover, Review, Saved', text: 'Discover shows new cards. Tap here to switch to Review (cards coming back on a schedule) or your Saved cards.' },
-  { target: 'deck', title: 'What you study', text: 'Field notes is the built-in deck. Tap here to switch decks or import your own flashcards.' },
-  { target: 'goal', title: 'Your daily goal', text: 'The ring fills as you answer: 10 a day. Meet it on days in a row to build a streak.' },
-  { target: 'coins', title: 'Spend your coins', text: 'Coins buy outfits in the Closet and upgrades for your van.' },
+  { target: 'text', title: 'One card, one idea', text: 'Each card teaches one thing. Read it first.' },
+  { target: 'quiz', title: 'Answer the question', text: 'Right answers earn XP and coins. Misses come back later.' },
+  { target: 'card', title: 'Swipe for the next card', text: 'Swipe up to move on, down to go back.', swipe: true },
+  { target: 'mode', title: 'Discover, Review, Saved', text: 'New cards here. Tap to switch to Review or Saved.' },
+  { target: 'deck', title: 'What you study', text: 'Switch decks or import your own flashcards.' },
+  { target: 'goal', title: 'Daily goal', text: 'The ring fills as you answer: 10 a day builds a streak.' },
+  { target: 'coins', title: 'Your coins', text: 'Spend them on outfits and van upgrades.' },
 ]
 
-/** A one-time spotlight tour of Learn: dims everything except the part being explained. */
+/**
+ * A one-time spotlight tour of Learn. Everything but the explained part is dimmed, and the
+ * explanation is a small dark bubble with a pointer, so it never reads as part of a card.
+ */
 function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
   const [step, setStep] = useState(0)
-  const [rect, setRect] = useState<DOMRect | null>(null)
+  const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
   const s = TOUR[step]
   useLayoutEffect(() => {
     const measure = () => {
-      const el = s.target === 'card'
-        ? document.querySelector(`main section[data-index="${active}"] article`)
-        : document.querySelector(`main [data-tour="${s.target}"]`)
-      setRect(el ? el.getBoundingClientRect() : null)
+      const art = document.querySelector(`main section[data-index="${active}"] article`)
+      let r: DOMRect | null = null
+      if (s.target === 'card') r = art?.getBoundingClientRect() ?? null
+      else if (s.target === 'text') {
+        // the hook line, title and body: from the top of the hook row to the end of the text
+        const h2 = art?.querySelector('h2')
+        const body = h2?.nextElementSibling
+        const top = h2?.previousElementSibling ?? h2
+        if (top && body) {
+          const a = top.getBoundingClientRect()
+          const b = body.getBoundingClientRect()
+          r = new DOMRect(Math.min(a.left, b.left), a.top, Math.max(a.right, b.right) - Math.min(a.left, b.left), b.bottom - a.top)
+        }
+      } else r = document.querySelector(`main [data-tour="${s.target}"]`)?.getBoundingClientRect() ?? null
+      setRect(r && { top: r.top, left: r.left, width: r.width, height: r.height })
     }
     measure()
     window.addEventListener('resize', measure)
@@ -521,15 +535,23 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
   const next = () => (last ? onDone() : setStep(step + 1))
   const pad = 6
   const box = rect && { top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 }
-  // the explanation goes below the highlight if there's room, else above, else (tall targets like the card) low over it
-  const room = 210
-  const place: 'below' | 'above' | 'inside' = !box ? 'inside' : innerHeight - (box.top + box.height) >= room ? 'below' : box.top >= room ? 'above' : 'inside'
-  const below = place !== 'above'
+
+  // Bubble: 300px wide at most, under the highlight if there's room, else above, else low on screen.
+  const vw = innerWidth
+  const vh = innerHeight
+  const w = Math.min(300, vw - 32)
+  const h = 130
+  const place: 'below' | 'above' | 'inside' = !box ? 'inside' : vh - (box.top + box.height) >= h + 24 ? 'below' : box.top >= h + 24 ? 'above' : 'inside'
+  const cx = box ? box.left + box.width / 2 : vw / 2
+  const left = Math.max(16, Math.min(vw - 16 - w, cx - w / 2))
+  const pos = place === 'below' ? { top: box!.top + box!.height + 12 } : place === 'above' ? { bottom: vh - box!.top + 12 } : { bottom: 110 }
+  const arrowX = Math.max(18, Math.min(w - 18, cx - left))
+
   return (
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Learn tour">
       {box ? (
         <motion.div
-          className="pointer-events-none absolute rounded-[26px] ring-2 ring-gold"
+          className="pointer-events-none absolute rounded-[22px] ring-2 ring-gold"
           style={{ boxShadow: '0 0 0 9999px rgba(18, 12, 30, .74)' }}
           initial={false}
           animate={box}
@@ -540,27 +562,36 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
       )}
       {s.swipe && box && (
         <motion.span
-          className="pointer-events-none absolute left-1/2 grid size-14 -translate-x-1/2 place-items-center rounded-full bg-cream/90 text-ink shadow-lg"
-          style={{ top: box.top + box.height * 0.55 }}
+          className="pointer-events-none absolute left-1/2 grid size-12 -translate-x-1/2 place-items-center rounded-full bg-gold text-ink shadow-lg"
+          style={{ top: box.top + box.height * 0.42 }}
           animate={{ y: [30, -40], opacity: [0, 1, 0] }}
           transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
           aria-hidden="true"
         >
-          <Icon name="down" size={22} strokeWidth={3} className="rotate-180" />
+          <Icon name="down" size={20} strokeWidth={3} className="rotate-180" />
         </motion.span>
       )}
       <motion.div
         key={step}
-        initial={{ opacity: 0, y: below ? -6 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-        className="absolute inset-x-4 rounded-3xl bg-paper p-4 text-ink shadow-2xl"
-        style={place === 'below' ? { top: box!.top + box!.height + 12 } : place === 'above' ? { bottom: innerHeight - box!.top + 12 } : { bottom: 110 }}
+        initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.18 }}
+        className="absolute rounded-2xl bg-ink-2 p-3 text-cream shadow-[0_14px_34px_-10px_rgba(0,0,0,.7)] ring-2 ring-gold/80"
+        style={{ left, width: w, ...pos }}
       >
-        <p className="text-[11px] font-extrabold text-ink/45">{step + 1} of {TOUR.length}</p>
-        <p className="mt-0.5 font-display text-lg font-bold leading-tight">{s.title}</p>
-        <p className="mt-1 text-[14px] leading-snug text-ink/75">{s.text}</p>
-        <div className="mt-3 flex items-center gap-2">
-          {!last && <button onClick={onDone} className="min-h-11 rounded-xl px-3 text-sm font-extrabold text-ink/50 hover:text-ink">Skip</button>}
-          <button onClick={next} autoFocus className="clay-btn clay-ink ml-auto min-h-11 px-5 text-sm">{last ? 'Start learning' : 'Next'}</button>
+        {place !== 'inside' && (
+          <span
+            className={`absolute size-3 rotate-45 bg-ink-2 ${place === 'below' ? '-top-[7px] border-l-2 border-t-2' : '-bottom-[7px] border-b-2 border-r-2'} border-gold/80`}
+            style={{ left: arrowX - 6 }}
+            aria-hidden="true"
+          />
+        )}
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-full bg-gold px-1.5 py-px text-[10px] font-extrabold text-ink">Tour {step + 1}/{TOUR.length}</span>
+          <p className="min-w-0 truncate font-display text-[15px] font-bold leading-tight">{s.title}</p>
+        </div>
+        <p className="mt-1 text-[13px] leading-snug text-cream/80">{s.text}</p>
+        <div className="mt-2 flex items-center gap-2">
+          {!last && <button onClick={onDone} className="min-h-9 rounded-lg px-2 text-xs font-extrabold text-cream/55 hover:text-cream">Skip tour</button>}
+          <button onClick={next} autoFocus className="clay-btn clay-butter ml-auto min-h-9 px-4 text-xs">{last ? 'Start learning' : 'Next'}</button>
         </div>
       </motion.div>
     </div>
