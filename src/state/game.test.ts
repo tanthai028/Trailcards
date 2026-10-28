@@ -160,3 +160,38 @@ describe('decks', () => {
     expect(performance.now() - t0).toBeLessThan(500)
   })
 })
+
+describe('recall cards', () => {
+  const recallDeck = (): UserDeck => ({
+    id: 'r', name: 'Behavioral', scene: 'meadow', createdAt: 0,
+    cards: [{ id: 'q1', term: 'Tell me about a conflict.', definition: 'Use STAR: situation, task, action, result.', kind: 'recall' }],
+  })
+  const base = (): GameState => ({ ...initialState(), decks: [recallDeck()], activeDeck: 'r' })
+
+  it('Got it counts as right and climbs the schedule', () => {
+    at(new Date(2026, 9, 1, 12).getTime())
+    const { state, result } = answerCard(base(), 'q1', 2)
+    expect(result).toMatchObject({ correct: true, partial: false, to: 'familiar', xp: 20, coins: 10 })
+    expect(state.cards.q1.due).toBe(Date.now() + INTERVALS[0])
+  })
+
+  it('Missed it counts as wrong and comes back in 10 minutes', () => {
+    const t = new Date(2026, 9, 1, 12).getTime()
+    at(t)
+    const { state, result } = answerCard(base(), 'q1', 0)
+    expect(result).toMatchObject({ correct: false, partial: false, to: 'learning', coins: 0 })
+    expect(state.cards.q1.due).toBe(t + 10 * 60_000)
+  })
+
+  it('Partly pays half, comes back tomorrow and does not step up', () => {
+    let t = new Date(2026, 9, 1, 12).getTime()
+    at(t)
+    let s = answerCard(base(), 'q1', 2).state // familiar, step 0
+    t += DAY + 1; at(t)
+    s = answerCard(s, 'q1', 2).state // step 1 (3 days)
+    t += 3 * DAY + 1; at(t)
+    const { state, result } = answerCard(s, 'q1', 1)
+    expect(result).toMatchObject({ correct: false, partial: true, xp: 8, coins: 4 })
+    expect(state.cards.q1).toMatchObject({ status: 'familiar', step: 1, due: t + INTERVALS[0] })
+  })
+})

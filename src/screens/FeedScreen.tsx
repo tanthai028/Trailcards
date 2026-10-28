@@ -10,7 +10,7 @@ import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
 import { burst, flyCoins } from '../fx/FxLayer'
-import { playCorrect, playSwipe, playWrong } from '../fx/sound'
+import { playCoin, playCorrect, playSwipe, playWrong } from '../fx/sound'
 import type { Tab } from '../components/NavBar'
 
 export type FeedMode = 'discover' | 'review' | 'saved'
@@ -50,9 +50,10 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   useEffect(() => setAnswers({}), [ids])
   const pickFor = (id: string, choice: number) => {
     const card = findCard(state, id)
-    if (!card || answers[id] || choice >= card.choices.length) return
+    // recall cards have no choices: choice is the self-rating (0-2)
+    if (!card || answers[id] || choice >= (card.q.kind === 'recall' ? 3 : card.choices.length)) return
     const result = answer(id, choice)
-    const run = result.correct ? streak + 1 : 0
+    const run = result.correct ? streak + 1 : result.partial ? streak : 0
     setStreak(run)
     setAnswers((a) => ({ ...a, [id]: { choice, result, streak: run } }))
     // celebrate from the button that was picked (tap or keyboard)
@@ -64,7 +65,8 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
         burst(r.left + r.width / 2, r.top + r.height / 2)
         if (result.coins > 0) flyCoins(r, Math.ceil(result.coins / 2))
       }
-    } else playWrong()
+    } else if (result.partial) playCoin(0)
+    else playWrong()
   }
 
   // Jump back to the first card once a new stack has rendered. Scrolling before that lands
@@ -296,6 +298,8 @@ function FeedCard({
   const pick = (i: number) => {
     if (!result) onPick(i)
   }
+  const recall = card.q.kind === 'recall'
+  const [revealed, setRevealed] = useState(false)
 
   // One scroll = one card: the card never scrolls inside. If its content is taller
   // than the screen allows, text scales down a little (to a floor) instead.
@@ -315,7 +319,7 @@ function FeedCard({
     const ro = new ResizeObserver(fit)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [result])
+  }, [result, revealed])
 
   const visibleChoices = card.choices
     .map((c, i) => ({ c, i }))
@@ -372,8 +376,8 @@ function FeedCard({
               <div className="min-w-0">
                 {/* keep a reminder of what the card said, so the explanation has context */}
                 {card.body && <p className="mb-[0.35em] line-clamp-2 text-[0.8em] italic leading-snug text-ink/50">{firstSentence(card.body)}</p>}
-                <p className="text-[0.95em] font-extrabold">{result.correct ? pickLine(card.id, RIGHT) : 'Not quite — here’s the idea'}</p>
-                <p className="mt-[0.25em] text-[0.88em] leading-[1.45] text-ink/75">{card.explain}</p>
+                <p className="text-[0.95em] font-extrabold">{result.correct ? pickLine(card.id, RIGHT) : result.partial ? 'Nearly there. It’s back tomorrow.' : recall ? 'It’ll come back soon for another go.' : 'Not quite — here’s the idea'}</p>
+                {card.explain && <p className="mt-[0.25em] text-[0.88em] leading-[1.45] text-ink/75">{card.explain}</p>}
               </div>
             </motion.div>
           )}
@@ -391,6 +395,9 @@ function FeedCard({
               </motion.span>
             )}
             <p className="px-1 pb-[0.5em] text-[0.92em] font-extrabold leading-snug">{card.prompt}</p>
+            {recall ? (
+              <Recall answer={card.q.kind === 'recall' ? card.q.answer : ''} shown={revealed || !!result} onReveal={() => setRevealed(true)} grade={result ? choice : null} onGrade={pick} />
+            ) : (
             <div className={`grid gap-[0.45em] ${card.choices.length === 2 && !result ? 'grid-cols-2' : ''}`}>
               <AnimatePresence initial={false}>
                 {visibleChoices.map(({ c, i }) => {
@@ -423,11 +430,48 @@ function FeedCard({
                 })}
               </AnimatePresence>
             </div>
+            )}
           </div>
 
         </div>
       </div>
     </article>
+  )
+}
+
+const GRADES = [
+  { label: 'Missed it', cls: 'bg-coral/20 ring-coral/60' },
+  { label: 'Partly', cls: 'bg-gold/30 ring-[#c99a34]/60' },
+  { label: 'Got it', cls: 'bg-sage/35 ring-[#4f9a6a]/70' },
+]
+
+/** Recall: think of your answer, reveal the model answer, then rate yourself honestly. */
+function Recall({ answer, shown, onReveal, grade, onGrade }: {
+  answer: string; shown: boolean; onReveal: () => void; grade: number | null; onGrade: (g: number) => void
+}) {
+  if (!shown) {
+    return <button onClick={onReveal} className="clay-btn clay-ink min-h-12 w-full text-[0.9em]">Reveal answer</button>
+  }
+  return (
+    <div>
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-2xl bg-paper px-3 py-[0.6em] text-[0.88em] leading-[1.45] text-ink/85 ring-1 ring-ink/10">
+        {answer}
+      </motion.div>
+      {grade == null ? (
+        <>
+          <p className="mt-[0.55em] px-1 text-[0.78em] font-extrabold text-ink/55">How did you do?</p>
+          <div className="mt-[0.35em] grid grid-cols-3 gap-[0.4em]">
+            {GRADES.map((g, i) => (
+              <button key={g.label} data-choice={i} onClick={() => onGrade(i)} className={`min-h-11 rounded-2xl px-1 text-[0.82em] font-extrabold ring-1 transition active:scale-95 ${g.cls}`}>
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mt-[0.45em] px-1 text-[0.78em] font-extrabold text-ink/55">You said: {GRADES[grade].label}</p>
+      )}
+    </div>
   )
 }
 

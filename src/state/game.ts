@@ -181,6 +181,8 @@ export function nextDueAt(s: GameState, cards: Card[] = sourceCards(s)): number 
 
 export interface AnswerResult {
   correct: boolean
+  /** Recall cards rated "Partly": half rewards, back tomorrow, no step up. */
+  partial: boolean
   xp: number
   coins: number
   from: Mastery
@@ -196,18 +198,27 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
   const card = findCard(s, cardId)!
   const prev = s.cards[cardId]
   const from = prev?.status ?? 'new'
-  const correct = choice === card.answerIndex
+  // Recall cards are answered by rating yourself: 0 missed it, 1 partly, 2 got it.
+  const grade = card.q.kind === 'recall' ? Math.max(0, Math.min(2, choice)) : choice === card.answerIndex ? 2 : 0
+  const correct = grade === 2
+  const partial = grade === 1
   const now = Date.now()
   const sched = schedule(prev)
   // Answering a card before it's due (e.g. from Saved) is practice: a little XP, no coins,
   // and the schedule doesn't move, so reviews can't be rushed or farmed.
   const early = !!prev && from !== 'new' && from !== 'learning' && sched.due > now
-  let [xp, coins, to] = correct ? RULES[from].right : RULES[from].wrong
+  let [xp, coins, to] = correct || partial ? RULES[from].right : RULES[from].wrong
   let step = 0
   let due = now + RETRY
   if (early) {
     ;[xp, coins, to] = [correct ? 2 : 1, 0, from]
     ;({ step, due } = sched)
+  } else if (partial) {
+    // half the reward, back tomorrow at the same step
+    ;[xp, coins] = [Math.round(xp / 2), Math.round(coins / 2)]
+    step = from === 'new' || from === 'learning' ? 0 : sched.step
+    due = now + INTERVALS[0]
+    to = from === 'new' ? 'learning' : from === 'mastered' ? 'familiar' : from
   } else if (correct) {
     step = from === 'new' || from === 'learning' ? 0 : Math.min(sched.step + 1, INTERVALS.length - 1)
     due = now + INTERVALS[step]
@@ -245,7 +256,7 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
   return {
     state: next,
     result: {
-      correct, xp, coins, from, to,
+      correct, partial, xp, coins, from, to,
       levelUp: afterLevel > beforeLevel ? afterLevel : null,
       plantUp: afterPlant > beforePlant ? afterPlant : null,
       goalStreak: daily.goalStreak,
