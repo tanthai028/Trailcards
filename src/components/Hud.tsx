@@ -1,13 +1,52 @@
-import { motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { levelInfo } from '../state/game'
 import { Avatar } from '../scene/Figurine'
 import { Coin } from './Icon'
 
+/** Each increase of `value` since mount, kept for a moment so it can float up next to the counter. */
+function useGains(value: number) {
+  const prev = useRef(value)
+  const [gains, setGains] = useState<{ id: number; amount: number }[]>([])
+  useEffect(() => {
+    const amount = value - prev.current
+    prev.current = value
+    if (amount <= 0) return
+    const id = performance.now()
+    setGains((g) => [...g, { id, amount }])
+    const t = setTimeout(() => setGains((g) => g.filter((x) => x.id !== id)), 1100)
+    return () => clearTimeout(t)
+  }, [value])
+  return gains
+}
+
+/** "+10" chips that pop in under a counter and drift down as they fade. */
+function GainFloats({ gains, className, children }: { gains: { id: number; amount: number }[]; className: string; children: (amount: number) => React.ReactNode }) {
+  return (
+    <AnimatePresence>
+      {gains.map((g) => (
+        <motion.span
+          key={g.id}
+          initial={{ opacity: 0, y: -6, scale: 0.7 }}
+          animate={{ opacity: 1, y: 4, scale: 1 }}
+          exit={{ opacity: 0, y: 12, transition: { duration: 0.3 } }}
+          transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+          className={`pointer-events-none absolute left-1/2 top-full z-30 -ml-6 flex w-12 justify-center ${className}`}
+          aria-hidden="true"
+        >
+          <span className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-extrabold shadow-md">{children(g.amount)}</span>
+        </motion.span>
+      ))}
+    </AnimatePresence>
+  )
+}
+
 /** Avatar wrapped in a level-progress ring, with the level number as a badge. */
 export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?: number }) {
   const { state } = useGame()
   const lv = levelInfo(state.xp)
+  const gains = useGains(state.xp)
   const r = size / 2 + 2.5
   const c = 2 * Math.PI * r
   return (
@@ -21,16 +60,21 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
       </svg>
       <Avatar look={state.look} className="absolute inset-1 rounded-full bg-gradient-to-b from-[#fff3e2] to-[#d9c7d0]" />
       <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-ink ring-2 ring-ink">{lv.level}</span>
+      <GainFloats gains={gains} className="[&>span]:bg-lav [&>span]:text-[#22183a]">{(n) => `+${n} XP`}</GainFloats>
     </button>
   )
 }
 
 export function CoinsPill() {
   const { state } = useGame()
+  const gains = useGains(state.coins)
   return (
-    <motion.div key={state.coins} initial={{ scale: 1.18 }} animate={{ scale: 1 }} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full clay pl-1.5 pr-3" aria-label={`${state.coins} coins`}>
-      <Coin />
-      <span className="text-sm font-extrabold tabular-nums">{state.coins}</span>
-    </motion.div>
+    <div className="relative shrink-0">
+      <motion.div key={state.coins} initial={{ scale: 1.18 }} animate={{ scale: 1 }} className="flex h-9 items-center gap-1.5 rounded-full clay pl-1.5 pr-3" aria-label={`${state.coins} coins`}>
+        <Coin />
+        <span className="text-sm font-extrabold tabular-nums">{state.coins}</span>
+      </motion.div>
+      <GainFloats gains={gains} className="[&>span]:bg-gold [&>span]:text-[#3a2a12]">{(n) => <><Coin size={12} />+{n}</>}</GainFloats>
+    </div>
   )
 }

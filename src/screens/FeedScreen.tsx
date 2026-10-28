@@ -8,7 +8,7 @@ import { AvatarLevel, CoinsPill } from '../components/Hud'
 import { cardScene, findCard, reviewQueue, sourceCards, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
-import { Coin, Icon } from '../components/Icon'
+import { Icon } from '../components/Icon'
 import type { Tab } from '../components/NavBar'
 
 export type FeedMode = 'discover' | 'review' | 'saved'
@@ -190,7 +190,6 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
               total={ids.length}
               registerAnswer={(fn) => (answerFns.current[i] = fn)}
               onAnswer={(choice) => answer(id, choice)}
-              onNext={() => scrollTo(i + 1)}
             />
           </section>
           )
@@ -204,14 +203,13 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
 }
 
 function FeedCard({
-  card, mode, index, total, onAnswer, onNext, registerAnswer,
+  card, mode, index, total, onAnswer, registerAnswer,
 }: {
   card: Card
   mode: FeedMode
   index: number
   total: number
   onAnswer: (choice: number) => AnswerResult
-  onNext: () => void
   registerAnswer: (fn: (i: number) => void) => void
 }) {
   const { state, toggleBookmark } = useGame()
@@ -345,24 +343,6 @@ function FeedCard({
             </div>
           </div>
 
-          {/* no hint before answering; the reward row slides in once you answer */}
-          {result && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-            <div className="flex min-h-6 flex-wrap items-center justify-center gap-1.5 pt-[0.55em] text-[11px] font-extrabold">
-              <>
-                {/* the one place rewards show: pops in once, never over the question */}
-                <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 18 }} className="flex items-center gap-1.5">
-                  <span className="rounded-full bg-lav/20 px-2 py-0.5 text-[#6a55c2]">+{result.xp} XP</span>
-                  {result.coins > 0 && <span className="flex items-center gap-1 rounded-full bg-gold/30 px-2 py-0.5 text-[#8a5e0c]"><Coin size={12} />+{result.coins}</span>}
-                </motion.span>
-                {progressNote(result) && <span className="font-bold text-ink/55">{progressNote(result)}</span>}
-                <button onClick={onNext} className="flex items-center gap-1 px-1.5 py-0.5 text-ink/45 hover:text-ink/70" aria-label="Next card">
-                  Scroll for next <Icon name="down" size={12} strokeWidth={3} />
-                </button>
-              </>
-            </div>
-            </motion.div>
-          )}
         </div>
       </div>
     </article>
@@ -370,15 +350,6 @@ function FeedCard({
 }
 
 const firstSentence = (text: string) => (text.match(/^.*?[.!?](\s|$)/)?.[0] ?? text).trim()
-
-/** Mastery change in plain words for a newcomer. */
-function progressNote(r: AnswerResult) {
-  if (r.from === r.to) return r.to === 'mastered' ? 'Still mastered' : null
-  if (r.to === 'mastered') return 'Mastered!'
-  if (r.to === 'learning') return 'It’ll come back in Review'
-  if (r.from === 'new') return 'Review it later to master it'
-  return r.from === 'learning' ? 'Getting there' : 'Needs a refresh'
-}
 
 const MODE_LABEL: Record<FeedMode, string> = { discover: 'Discover', review: 'Review', saved: 'Saved' }
 
