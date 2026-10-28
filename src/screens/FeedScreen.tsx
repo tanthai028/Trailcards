@@ -31,10 +31,19 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   const scroller = useRef<HTMLDivElement>(null)
   const answerFns = useRef<Record<number, (i: number) => void>>({})
 
+  // Jump back to the first card once a new stack has rendered. Scrolling before that lands
+  // on the old layout, and the browser then keeps the end card in view as cards are added.
+  const toTop = useRef(false)
+  useLayoutEffect(() => {
+    if (!toTop.current) return
+    toTop.current = false
+    scroller.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [ids])
+
   useEffect(() => {
     setIds(idsFor(state, mode))
     setActive(0)
-    scroller.current?.scrollTo({ top: 0 })
+    toTop.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
@@ -42,7 +51,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   useEffect(() => {
     setIds(idsFor(state, mode))
     setActive(0)
-    scroller.current?.scrollTo({ top: 0 })
+    toTop.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeDeck, state.decks.length])
 
@@ -95,7 +104,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
             </header>
       </div>
 
-      <div ref={scroller} className="no-scrollbar min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto scroll-smooth">
+      <div ref={scroller} className="no-scrollbar min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto scroll-smooth [overflow-anchor:none]">
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
           const card = findCard(state, id)
