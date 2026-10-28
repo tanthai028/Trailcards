@@ -3,8 +3,8 @@ import { motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { TOPICS, TOPIC_ORDER } from '../data/cards'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
-import { ITEMS, RARITY_STYLE, type Slot } from '../data/items'
-import { levelInfo, masteryCounts, stats, type GameState, type Mastery } from '../state/game'
+import { RARITY_STYLE, type Slot } from '../data/items'
+import { collectionItems, levelInfo, masteryCounts, stats, type GameState, type Mastery } from '../state/game'
 import { backupText, lastBackupAt, markBackedUp, parseSave } from '../state/storage'
 import { Figurine } from '../scene/Figurine'
 import { SceneSvg, DESTINATION_SCENE } from '../art/Landscape'
@@ -114,8 +114,8 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       {/* Collection */}
       <Section title="Collection" action={{ label: 'Open closet', onClick: () => go('closet') }}>
         <div className="grid grid-cols-2 gap-2">
-          {([['outfit', 'Outfits'], ['hair', 'Hairstyles'], ['accessory', 'Extras'], ['van', 'Van upgrades']] as [Slot, string][]).map(([slot, label]) => {
-            const all = ITEMS.filter((i) => i.slot === slot && i.id !== 'acc-none')
+          {([['outfit', 'Outfits'], ['hair', 'Hairstyles'], ['accessory', 'Extras'], ['card', 'Card backgrounds'], ['van', 'Van upgrades']] as [Slot, string][]).map(([slot, label]) => {
+            const all = collectionItems(state, slot)
             const own = all.filter((i) => state.owned.includes(i.id))
             return (
               <div key={slot} className="rounded-2xl clay p-3">

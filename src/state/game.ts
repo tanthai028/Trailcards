@@ -312,8 +312,13 @@ export const vanTier = (s: GameState) => {
   return t
 }
 
-/** Tabs that hold something the player can buy right now (for nav dots). */
+/** Items that count toward a collection: "Bare" (no extra) is not an item, and hairstyles count only for your body type. */
+export const collectionItems = (s: GameState, slot: Slot) =>
+  ITEMS.filter((i) => i.slot === slot && i.id !== 'acc-none' && (!i.body || i.body === s.look.body))
+
+/** Tabs that hold something the player can buy right now (for nav dots). Quiet until a few cards are answered, so new players start with Learn. */
 export function affordable(s: GameState) {
+  if (Object.keys(s.cards).length < 3) return { closet: false, van: false }
   const closet = ITEMS.some(
     (i) => i.slot !== 'van' && !s.owned.includes(i.id) && (!i.body || i.body === s.look.body) && i.cost <= s.coins,
   )

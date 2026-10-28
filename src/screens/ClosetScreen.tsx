@@ -5,6 +5,7 @@ import { HAIR_COLORS, ITEMS, ITEM_BY_ID, RARITY_STYLE, type Body, type Item, typ
 import { Avatar, Figurine } from '../scene/Figurine'
 import { Coin, Icon } from '../components/Icon'
 import { CoinsPill } from '../components/Hud'
+import { collectionItems } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { sparkle } from '../fx/FxLayer'
 import { playUnlock } from '../fx/sound'
@@ -83,7 +84,7 @@ export function ClosetScreen() {
       {/* Tabs */}
       <div role="tablist" className="mt-3 flex gap-1 rounded-2xl clay p-1">
         {TABS.map((t) => {
-          const n = ITEMS.filter((i) => i.slot === t.id && (!i.body || i.body === state.look.body))
+          const n = collectionItems(state, t.id)
           return (
             <button
               key={t.id}
