@@ -57,7 +57,7 @@ export function JoinSheet({ onClose }: { onClose: () => void }) {
     body = (
       <form onSubmit={run(() => verifyCode(email, code))}>
         <h2 className="font-display text-2xl font-bold">Check your email</h2>
-        <p className="mt-1 text-sm text-cream/65">Enter the code we sent to {email}.</p>
+        <p className="mt-1 text-sm text-cream/65">We sent a sign-in email to {email}. Tap the link in it on this device, or type the code if the email shows one.</p>
         <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="123456" inputMode="numeric" autoComplete="one-time-code" aria-label="Sign-in code" className={`${FIELD} text-center tracking-[0.4em]`} />
         <button disabled={busy || code.length < 6} className="clay-btn clay-butter mt-3 min-h-12 w-full text-[15px] disabled:opacity-50">{busy ? 'Checking…' : 'Sign in'}</button>
         <button type="button" onClick={() => { setSent(false); setCode('') }} className="mt-3 w-full text-xs font-bold text-cream/50">Use a different email</button>
