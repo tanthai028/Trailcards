@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { TOPICS, type Card } from '../data/cards'
@@ -29,7 +29,15 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   const [active, setActive] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
-  const answerFns = useRef<Record<number, (i: number) => void>>({})
+  // Answers for this stack, kept here (not in each card) because cards far from view are unmounted.
+  const [answers, setAnswers] = useState<Record<string, Answered>>({})
+  useEffect(() => setAnswers({}), [ids])
+  const pickFor = (id: string, choice: number) => {
+    const card = findCard(state, id)
+    if (!card || answers[id] || choice >= card.choices.length) return
+    const result = answer(id, choice)
+    setAnswers((a) => ({ ...a, [id]: { choice, result } }))
+  }
 
   // Jump back to the first card once a new stack has rendered. Scrolling before that lands
   // on the old layout, and the browser then keeps the end card in view as cards are added.
@@ -75,7 +83,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
     if (!el) return
     cancelAnimationFrame(anim.current)
     const to = i * el.clientHeight
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.scrollTop = to; return }
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-reduce-motion')) { el.scrollTop = to; return }
     const from = el.scrollTop
     const start = performance.now()
     const step = (now: number) => {
@@ -149,15 +157,19 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return
-      if (/^[1-4]$/.test(e.key)) answerFns.current[active]?.(Number(e.key) - 1)
+      if (/^[1-4]$/.test(e.key)) { if (ids[active]) pickFor(ids[active], Number(e.key) - 1) }
       else if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); scrollTo(Math.min(active + 1, ids.length)) }
       else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); scrollTo(Math.max(active - 1, 0)) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [active, ids.length, scrollTo])
+  })
 
-  const counts = { discover: idsFor(state, 'discover').length, review: reviewQueue(state).length, saved: state.bookmarks.length }
+  // Recount only when the game state changes, not on every swipe.
+  const counts = useMemo(
+    () => ({ discover: idsFor(state, 'discover').length, review: reviewQueue(state).length, saved: state.bookmarks.length }),
+    [state],
+  )
 
   return (
     <div className="relative h-full">
@@ -181,16 +193,20 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
           const card = findCard(state, id)
+          // Only the current card and two on each side are drawn; the rest are empty pages that keep the scroll length.
+          const near = Math.abs(i - active) <= 2
           return card && (
           <section key={`${mode}-${id}`} data-index={i} className="h-full px-4 pb-2" aria-label={`Card ${i + 1} of ${ids.length}`}>
-            <FeedCard
-              card={card}
-              mode={mode}
-              index={i}
-              total={ids.length}
-              registerAnswer={(fn) => (answerFns.current[i] = fn)}
-              onAnswer={(choice) => answer(id, choice)}
-            />
+            {near && (
+              <FeedCard
+                card={card}
+                mode={mode}
+                index={i}
+                total={ids.length}
+                answered={answers[id]}
+                onPick={(choice) => pickFor(id, choice)}
+              />
+            )}
           </section>
           )
         })}
@@ -202,31 +218,30 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   )
 }
 
+interface Answered { choice: number; result: AnswerResult }
+
 function FeedCard({
-  card, mode, index, total, onAnswer, registerAnswer,
+  card, mode, index, total, answered, onPick,
 }: {
   card: Card
   mode: FeedMode
   index: number
   total: number
-  onAnswer: (choice: number) => AnswerResult
-  registerAnswer: (fn: (i: number) => void) => void
+  answered?: Answered
+  onPick: (choice: number) => void
 }) {
   const { state, toggleBookmark } = useGame()
   const deck = (card as DeckFeedCard).deck
   const topic = deck ? { name: deck.name, accent: '#b9a7f2', scene: deck.scene } : TOPICS[card.topic]
-  const [choice, setChoice] = useState<number | null>(null)
-  const [result, setResult] = useState<AnswerResult | null>(null)
+  const choice = answered?.choice ?? null
+  const result = answered?.result ?? null
   const status = statusOf(state, card.id)
   const saved = state.bookmarks.includes(card.id)
   const isReview = mode !== 'discover' && (result?.from ?? status) !== 'new'
 
   const pick = (i: number) => {
-    if (result || i >= card.choices.length) return
-    setChoice(i)
-    setResult(onAnswer(i))
+    if (!result) onPick(i)
   }
-  registerAnswer(pick)
 
   // One scroll = one card: the card never scrolls inside. If its content is taller
   // than the screen allows, text scales down a little (to a floor) instead.
@@ -259,7 +274,7 @@ function FeedCard({
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
         <div className="absolute inset-x-3 top-[68px] flex items-start gap-2">
           {isReview && (
-            <span className="rounded-full bg-ink/70 px-2.5 py-1 text-[11px] font-extrabold text-gold backdrop-blur">
+            <span className="rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-extrabold text-gold">
               Review · {MASTERY_LABEL[result?.from ?? status]}
             </span>
           )}
@@ -267,7 +282,7 @@ function FeedCard({
             onClick={() => toggleBookmark(card.id)}
             aria-pressed={saved}
             aria-label={saved ? 'Remove from saved' : 'Save for later'}
-            className={`ml-auto grid size-9 place-items-center rounded-full backdrop-blur transition active:scale-90 ${saved ? 'bg-gold text-ink' : 'bg-white/70 text-ink/70 hover:bg-white'}`}
+            className={`ml-auto grid size-9 place-items-center rounded-full transition active:scale-90 ${saved ? 'bg-gold text-ink' : 'bg-white/85 text-ink/70 hover:bg-white'}`}
           >
             <Icon name="bookmark" size={17} filled={saved} />
           </button>

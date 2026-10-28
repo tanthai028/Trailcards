@@ -72,9 +72,9 @@ export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
           <motion.div
             key={view === 'interior' ? `room-${tier}` : `ext-${state.destination}`}
             className="absolute inset-0"
-            initial={{ opacity: 0, scale: 1.06, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, scale: 0.96, filter: 'blur(6px)' }}
+            initial={{ opacity: 0, scale: 1.06 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.4, ease: [0.3, 0.7, 0.2, 1] }}
           >
             {view === 'interior' ? <Room tier={tier} /> : <VanExterior destination={state.destination} />}
@@ -87,7 +87,7 @@ export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
           <Figurine look={state.look} className="relative w-full" />
         </button>
 
-        <div className="pointer-events-none absolute left-3 top-3 rounded-2xl bg-ink/60 px-3 py-1.5 text-cream backdrop-blur">
+        <div className="pointer-events-none absolute left-3 top-3 rounded-2xl bg-ink/75 px-3 py-1.5 text-cream">
           <p className="text-xs font-extrabold text-gold">{view === 'interior' ? VAN_TIER_NAMES[tier] : 'Parked at'}</p>
           <p className="font-display text-lg font-bold leading-tight">{view === 'interior' ? `${state.name}’s van` : dest.name}</p>
         </div>

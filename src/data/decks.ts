@@ -165,9 +165,18 @@ const built = new WeakMap<UserDeck, DeckFeedCard[]>()
 export function deckFeedCards(deck: UserDeck): DeckFeedCard[] {
   const hit = built.get(deck)
   if (hit) return hit
+  // Draw wrong answers at random from the deck's distinct definitions. Scanning the whole
+  // deck for every card took about 1s at 3,000 cards; this stays instant at any size.
+  const defs = [...new Set(deck.cards.map((c) => c.definition))]
   const out = deck.cards.map((c) => {
-    const others = [...new Set(deck.cards.filter((o) => o.id !== c.id && o.definition !== c.definition).map((o) => o.definition))]
-    const wrong = shuffle(others, c.id).slice(0, 3)
+    const rand = seeded(`${c.id}-wrong`)
+    const want = Math.min(3, defs.length - 1)
+    const picked = new Set<string>()
+    for (let tries = 0; picked.size < want && tries < 60; tries++) {
+      const d = defs[Math.floor(rand() * defs.length)]
+      if (d !== c.definition) picked.add(d)
+    }
+    const wrong = [...picked]
     const choices = shuffle([c.definition, ...wrong], `${c.id}-order`)
     const prompt = c.term.trim().endsWith('?') ? 'Pick the right answer' : 'Pick the matching definition'
     return {

@@ -34,6 +34,8 @@ export interface GameState {
   look: Look
   /** Learn cards cycle through every background you own instead of one. */
   cardShuffle: boolean
+  /** Turn off non-essential animation, on top of the phone's own setting. */
+  reduceMotion: boolean
   destination: string
   achievements: Record<string, number>
   createdAt: number
@@ -54,6 +56,7 @@ export const initialState = (): GameState => ({
   owned: ITEMS.filter((i) => i.starter).map((i) => i.id),
   look: { ...DEFAULT_LOOK },
   cardShuffle: false,
+  reduceMotion: false,
   destination: 'lake',
   achievements: {},
   createdAt: Date.now(),
@@ -133,9 +136,20 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
 }
 
 // ── Card sources: built-in field notes + imported decks ─────────
-export const deckCards = (s: GameState) => s.decks.flatMap(deckFeedCards)
+// Decks only change by replacing s.decks, so the flattened list and its id index are cached per array.
+const deckIndex = new WeakMap<UserDeck[], { list: Card[]; byId: Map<string, Card> }>()
+function indexDecks(decks: UserDeck[]) {
+  let hit = deckIndex.get(decks)
+  if (!hit) {
+    const list = decks.flatMap(deckFeedCards)
+    hit = { list, byId: new Map(list.map((c) => [c.id, c])) }
+    deckIndex.set(decks, hit)
+  }
+  return hit
+}
+export const deckCards = (s: GameState) => indexDecks(s.decks).list
 export const allCards = (s: GameState): Card[] => [...CARDS, ...deckCards(s)]
-export const findCard = (s: GameState, id: string): Card | undefined => CARD_BY_ID[id] ?? deckCards(s).find((c) => c.id === id)
+export const findCard = (s: GameState, id: string): Card | undefined => CARD_BY_ID[id] ?? indexDecks(s.decks).byId.get(id)
 
 /** Cards for the active source (falls back to field notes if the deck was deleted). */
 export function sourceCards(s: GameState): Card[] {
