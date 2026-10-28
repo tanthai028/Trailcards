@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import * as G from './game'
 import { localSave } from './storage'
 import { ITEM_BY_ID, type Body, type HairColorId } from '../data/items'
-import { DECK_SCENES, MIN_DECK_CARDS, type DeckCard, type UserDeck } from '../data/decks'
+import { DECK_SCENES, minCards, type DeckCard, type UserDeck } from '../data/decks'
 
 export type GameEvent =
   | { id: number; kind: 'achievement'; achId: string }
@@ -27,7 +27,7 @@ interface Store {
   setSound: (on: boolean) => void
   buyFreeze: () => boolean
   setBody: (b: Body) => void
-  importDeck: (name: string, cards: DeckCard[]) => void
+  importDeck: (name: string, cards: DeckCard[], topic?: string) => void
   deleteDeck: (id: string) => void
   renameDeck: (id: string, name: string) => void
   /** Change a deck's cards or practice direction (rename has its own action). */
@@ -106,10 +106,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         commit(r.state)
         pushAch(r.achievements)
       },
-      importDeck: (name, cards) => {
+      importDeck: (name, cards, topic) => {
         const s = stateRef.current
         const id = `deck-${Date.now().toString(36)}`
-        const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards }
+        const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards, ...(topic?.trim() ? { topic: topic.trim() } : {}) }
         commit({ ...s, decks: [...s.decks, deck], activeDeck: id })
         push([{ kind: 'toast', text: `Imported ${cards.length} cards into “${deck.name}”` }])
       },
@@ -121,7 +121,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       updateDeck: (id, patch) => {
         const s = stateRef.current
-        if (patch.cards && patch.cards.length < MIN_DECK_CARDS) return
+        if (patch.cards && patch.cards.length < minCards(patch.cards)) return
         commit({ ...s, decks: s.decks.map((d) => (d.id === id ? { ...d, ...patch } : d)) })
       },
       deleteDeck: (id) => {

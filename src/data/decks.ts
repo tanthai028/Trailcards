@@ -27,6 +27,8 @@ export interface UserDeck {
   cards: DeckCard[]
   /** Practice definition → term instead of term → definition. */
   reverse?: boolean
+  /** What the AI prompt was about (a topic or job description), reused for "More cards". */
+  topic?: string
 }
 
 /** Term/definition cards borrow wrong answers from the deck, so they need a correct answer plus 3 others. */

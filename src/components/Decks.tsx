@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { CARDS } from '../data/cards'
-import { MIN_DECK_CARDS, cardId, detectOptions, parseDeck, type DeckCard, type ParseOptions, type RowSep, type TermSep, type UserDeck } from '../data/decks'
+import { buildPrompt, cardId, detectOptions, looksLikeAiFormat, minCards, parseAiDeck, parseDeck, type DeckCard, type ParseOptions, type ParseResult, type RowSep, type TermSep, type UserDeck } from '../data/decks'
 import { isDue, statusOf, type Mastery } from '../state/game'
 import { Icon } from './Icon'
 
@@ -130,6 +130,89 @@ function SourceRow({ label, detail, on, onClick, onEdit, onDelete, confirming }:
   )
 }
 
+/** Small label for a card's type in previews and the deck page. */
+function CardKind({ card }: { card: DeckCard }) {
+  const k = card.kind ?? 'pair'
+  if (k === 'pair') return null
+  return <span className="mb-1 inline-block rounded-full bg-lav/20 px-2 py-px text-[10px] font-extrabold text-lav">{k === 'mcq' ? 'Multiple choice' : 'Recall'}</span>
+}
+
+const TOPIC_IDEAS = ['System design', 'Behavioral (STAR)', 'SQL', 'JavaScript', 'Data structures']
+const COUNTS = [20, 40, 60]
+const MIXES = [['Mostly multiple choice', 0.25], ['Half and half', 0.5], ['Mostly recall', 0.75]] as const
+
+/**
+ * Step one of making cards with AI: describe the topic (or paste a job description), copy the
+ * prompt, run it in ChatGPT or Claude. The reply is pasted into the box below this.
+ */
+function AiPrompt({ topic, setTopic, avoid, more }: { topic: string; setTopic: (t: string) => void; avoid?: string[]; more?: boolean }) {
+  const [count, setCount] = useState(more ? 20 : 40)
+  const [mix, setMix] = useState(0.25)
+  const [copied, setCopied] = useState(false)
+  const [show, setShow] = useState(false)
+  const prompt = buildPrompt({ topic: topic || 'general interview questions', count, recall: mix, avoid })
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setShow(true) // clipboard blocked: show it so it can be copied by hand
+    }
+  }
+  return (
+    <div className="mt-3 space-y-3">
+      <div>
+        <label htmlFor="ai-topic" className="text-sm font-bold text-cream/80">{more ? 'Topic' : 'What are you studying?'}</label>
+        <textarea
+          id="ai-topic" value={topic} onChange={(e) => setTopic(e.target.value)} rows={topic.length > 60 ? 4 : 2}
+          placeholder="A topic like “system design”, or paste a job description"
+          className="mt-1.5 block w-full resize-none rounded-2xl bg-white/8 px-4 py-3 text-[14px] text-cream ring-1 ring-white/12 placeholder:text-cream/35 focus:outline-none focus:ring-2 focus:ring-gold"
+        />
+        {!more && !topic && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {TOPIC_IDEAS.map((t) => (
+              <button key={t} onClick={() => setTopic(t)} className="clay min-h-8 rounded-full px-3 text-xs font-bold text-cream/75 hover:text-cream">{t}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        <div>
+          <p className="text-xs font-bold text-cream/60">Cards</p>
+          <div className="mt-1 flex gap-1">
+            {COUNTS.map((n) => (
+              <button key={n} onClick={() => setCount(n)} aria-pressed={count === n} className={`min-h-8 rounded-full px-3 text-xs font-extrabold ${count === n ? 'bg-cream text-ink' : 'clay text-cream/70'}`}>{n}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-bold text-cream/60">Mix</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {MIXES.map(([label, v]) => (
+              <button key={label} onClick={() => setMix(v)} aria-pressed={mix === v} className={`min-h-8 rounded-full px-3 text-xs font-extrabold ${mix === v ? 'bg-cream text-ink' : 'clay text-cream/70'}`}>{label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
+        <ol className="space-y-1 text-[13px] leading-snug text-cream/75">
+          <li><span className="font-extrabold text-gold">1.</span> Copy the prompt.</li>
+          <li><span className="font-extrabold text-gold">2.</span> Paste it into <a href="https://chatgpt.com" target="_blank" rel="noreferrer" className="font-bold text-lav underline">ChatGPT</a> or <a href="https://claude.ai/new" target="_blank" rel="noreferrer" className="font-bold text-lav underline">Claude</a>.</li>
+          <li><span className="font-extrabold text-gold">3.</span> Copy its whole reply and paste it below.</li>
+        </ol>
+        <div className="mt-2.5 flex gap-2">
+          <button onClick={copy} disabled={!topic.trim()} className={`clay-btn min-h-10 flex-1 text-sm ${topic.trim() ? 'clay-butter' : 'bg-white/10 text-cream/40'}`}>
+            {copied ? 'Copied!' : 'Copy prompt'}
+          </button>
+          <button onClick={() => setShow(!show)} aria-expanded={show} className="min-h-10 rounded-xl bg-white/8 px-3 text-xs font-extrabold text-cream/70">{show ? 'Hide' : 'See prompt'}</button>
+        </div>
+        {show && <pre className="no-scrollbar mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-ink/60 p-2.5 text-[11px] leading-snug text-cream/70">{prompt}</pre>}
+      </div>
+    </div>
+  )
+}
+
 const STATUS_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Known', mastered: 'Mastered' }
 
 /** One imported deck: rename it, see progress, flip the practice direction, and view, edit, add or remove cards. */
@@ -148,7 +231,13 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
     counts[statusOf(state, c.id)]++
     if (isDue(state, c.id)) due++
   }
-  const atMin = deck.cards.length <= MIN_DECK_CARDS
+  const min = minCards(deck.cards)
+  const atMin = deck.cards.length <= min
+  const [more, setMore] = useState(false)
+  const [moreTopic, setMoreTopic] = useState(deck.topic ?? deck.name)
+  const [moreText, setMoreText] = useState('')
+  const moreResult = useMemo(() => (moreText.trim() ? parseAiDeck(moreText) : null), [moreText])
+  const fresh = moreResult ? moreResult.cards.filter((c) => !deck.cards.some((x) => x.id === c.id)) : []
   const save = (cards: DeckCard[]) => updateDeck(deck.id, { cards })
   const add = () => {
     const t = term.trim(), d = def.trim()
@@ -206,6 +295,29 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
             ))}
           </div>
 
+          {/* more cards from AI, without repeating what the deck already has */}
+          <button onClick={() => setMore(!more)} aria-expanded={more} className="clay mt-4 flex min-h-12 w-full items-center gap-2 rounded-2xl px-4 text-left">
+            <Icon name="spark" size={16} className="text-gold" />
+            <span className="flex-1 text-sm font-extrabold">More cards with AI</span>
+            <Icon name="chevron" size={14} className={`text-cream/40 transition-transform ${more ? 'rotate-180' : ''}`} />
+          </button>
+          {more && (
+            <div className="mt-1">
+              <AiPrompt topic={moreTopic} setTopic={setMoreTopic} avoid={deck.cards.map((c) => c.term)} more />
+              <textarea value={moreText} onChange={(e) => setMoreText(e.target.value)} rows={3} placeholder="Paste the AI's reply here" aria-label="AI reply" className={`mt-3 ${FIELD} resize-none py-2.5 font-normal`} />
+              {moreResult?.error && <p className="mt-2 text-xs font-bold text-coral">{moreResult.error}</p>}
+              {moreResult && !moreResult.error && (
+                <button
+                  disabled={!fresh.length}
+                  onClick={() => { updateDeck(deck.id, { cards: [...deck.cards, ...fresh] }); setMoreText(''); setMore(false) }}
+                  className={`clay-btn mt-2 min-h-11 w-full text-sm ${fresh.length ? 'clay-butter' : 'bg-white/10 text-cream/40'}`}
+                >
+                  {fresh.length ? `Add ${fresh.length} new card${fresh.length === 1 ? '' : 's'}` : 'No new cards in that reply'}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* add a card */}
           <p className="mt-4 text-sm font-bold text-cream/80">Add a card</p>
           <form onSubmit={(e) => { e.preventDefault(); add() }} className="mt-1.5 space-y-1.5">
@@ -221,7 +333,7 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
               <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search" aria-label="Search cards" className="min-h-9 w-36 rounded-full bg-white/8 px-3 text-xs font-bold text-cream ring-1 ring-white/12 placeholder:text-cream/35 focus:outline-none focus:ring-2 focus:ring-gold" />
             )}
           </div>
-          {atMin && <p className="mt-1 text-xs text-cream/50">A deck needs at least {MIN_DECK_CARDS} cards, so cards can't be removed right now.</p>}
+          {atMin && <p className="mt-1 text-xs text-cream/50">A deck needs at least {min} card{min === 1 ? '' : 's'}, so cards can't be removed right now.</p>}
           <ul className="mt-2 space-y-2">
             {shown.slice(0, 300).map((c) => (
               <li key={c.id} className="clay rounded-2xl px-3.5 py-2.5">
@@ -292,6 +404,8 @@ const HELP_STEPS = ['Put one card per line: the term, then the definition.', 'Sp
 /** Pick where the cards come from, paste, check the preview, import. */
 function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
   const { importDeck } = useGame()
+  const [mode, setMode] = useState<'ai' | 'paste'>('ai')
+  const [topic, setTopic] = useState('')
   const [help, setHelp] = useState(false)
   const [name, setName] = useState('')
   const [text, setText] = useState('')
@@ -303,9 +417,13 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
 
   // Until someone picks a separator themselves, follow whatever the pasted text looks like.
   const effective = touchedSep || !text ? opts : detectOptions(text)
-  const result = useMemo(() => parseDeck(text, effective), [text, effective])
+  // AI replies (JSON) and term/definition lines share the box; the format is detected
+  const ai = looksLikeAiFormat(text)
+  const aiResult = useMemo(() => (ai ? parseAiDeck(text) : null), [ai, text])
+  const result: ParseResult = useMemo(() => aiResult ?? parseDeck(text, effective), [aiResult, text, effective])
   const count = result.cards.length
-  const ok = count >= MIN_DECK_CARDS
+  const need = minCards(result.cards)
+  const ok = count >= need
   const pasted = text.trim().length > 0
   const setSep = (o: Partial<ParseOptions>) => { setTouchedSep(true); setOpts({ ...effective, ...o }) }
 
@@ -330,7 +448,7 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
           <button onClick={onClose} aria-label="Close import" className="grid size-10 place-items-center rounded-full text-cream/70 hover:text-cream">
             <Icon name="x" size={20} />
           </button>
-          <h1 id="import-title" className="font-display text-xl font-bold">Import a deck</h1>
+          <h1 id="import-title" className="font-display text-xl font-bold">New deck</h1>
           <button
             onClick={() => setHelp(!help)} aria-expanded={help} aria-label="How to copy your cards"
             className={`ml-auto grid size-9 place-items-center rounded-full font-display text-base font-bold transition-colors ${help ? 'bg-cream text-ink' : 'clay text-cream/75'}`}
@@ -340,7 +458,21 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
         </header>
 
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          <p className="text-[13px] text-cream/60">Paste cards from Quizlet, Anki, Knowt or your notes.</p>
+          <div role="tablist" aria-label="How to make cards" className="grid grid-cols-2 gap-1 rounded-full bg-white/6 p-1">
+            {([['ai', 'Create with AI'], ['paste', 'Paste flashcards']] as const).map(([id, label]) => (
+              <button
+                key={id} role="tab" aria-selected={mode === id} onClick={() => setMode(id)}
+                className={`min-h-9 rounded-full text-xs font-extrabold transition-colors ${mode === id ? 'bg-cream text-ink' : 'text-cream/65 hover:text-cream'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {mode === 'ai' ? (
+            <AiPrompt topic={topic} setTopic={setTopic} />
+          ) : (
+            <p className="mt-3 text-[13px] text-cream/60">Paste cards from Quizlet, Anki, Knowt or your notes.</p>
+          )}
           <AnimatePresence initial={false}>
           {help && (
           <motion.div
@@ -362,7 +494,7 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
           <div className="relative mt-4">
             <textarea
               id="deck-text" value={text} onChange={(e) => setText(e.target.value)} rows={pasted ? 4 : 6} spellCheck={false}
-              placeholder="Paste your cards here" aria-label="Your cards"
+              placeholder={mode === 'ai' ? "Paste the AI's reply here" : 'Paste your cards here'} aria-label="Your cards"
               className="no-scrollbar block w-full resize-none rounded-2xl bg-white/8 py-3 pl-4 pr-24 text-[13px] leading-relaxed text-cream ring-1 ring-white/12 placeholder:text-cream/35 focus:outline-none focus:ring-2 focus:ring-gold"
             />
             {pasted ? (
@@ -378,14 +510,25 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
 
           {pasted && (
             <section className="mt-4" aria-live="polite">
+              {aiResult?.error && <p className="mb-2 rounded-2xl bg-coral/15 p-3 text-sm font-bold ring-1 ring-coral/40">{aiResult.error}</p>}
               <div className="flex items-baseline justify-between gap-2">
                 <h2 className={`font-display text-lg font-bold ${ok ? 'text-gold' : 'text-cream'}`}>
                   {count} card{count === 1 ? '' : 's'} found
                 </h2>
-                <button onClick={() => setFixing(!fixing)} aria-expanded={fixing} className="min-h-9 text-xs font-bold text-lav underline-offset-2 hover:underline">
-                  Cards not splitting right?
-                </button>
+                {!ai && (
+                  <button onClick={() => setFixing(!fixing)} aria-expanded={fixing} className="min-h-9 text-xs font-bold text-lav underline-offset-2 hover:underline">
+                    Cards not splitting right?
+                  </button>
+                )}
               </div>
+              {ai && result.problems.length > 0 && (
+                <ul className="mt-1 space-y-1 text-xs">
+                  {result.problems.slice(0, 5).map((p) => (
+                    <li key={p.row} className="text-cream/70"><span className="font-extrabold text-coral">Card {p.row}:</span> {p.reason}. <span className="text-cream/45">“{p.text.slice(0, 40)}”</span></li>
+                  ))}
+                  {result.problems.length > 5 && <li className="text-cream/50">and {result.problems.length - 5} more skipped</li>}
+                </ul>
+              )}
               {(result.problems.length > 0 || result.duplicates > 0) && (
                 <p className="text-xs text-cream/50">
                   {result.problems.length > 0 && `${result.problems.length} line${result.problems.length === 1 ? '' : 's'} skipped`}
@@ -394,7 +537,7 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
                 </p>
               )}
 
-              {fixing && (
+              {fixing && !ai && (
                 <div className="mt-2 space-y-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
                   <SepPicker
                     label="Term and definition are split by" options={TERM_SEPS} value={effective.termSep} onChange={(termSep) => setSep({ termSep })}
@@ -421,6 +564,7 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
               <ul className="mt-3 space-y-2">
                 {result.cards.slice(0, showAll ? 200 : 3).map((c) => (
                   <li key={c.id} className="clay rounded-2xl px-3.5 py-2.5">
+                    <CardKind card={c} />
                     <p className="text-[14px] font-extrabold text-cream">{c.term}</p>
                     <p className="mt-0.5 text-[13px] leading-snug text-cream/65">{c.definition}</p>
                   </li>
@@ -434,7 +578,7 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
 
               <label htmlFor="deck-name" className="mt-3 block text-sm font-bold text-cream/80">Name this deck</label>
               <input
-                id="deck-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Bio 101 midterm"
+                id="deck-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder={aiResult?.name || (mode === 'ai' && topic.trim() && topic.length < 40 ? topic.trim() : 'Bio 101 midterm')}
                 className="mt-1.5 w-full rounded-2xl bg-white/8 px-4 py-3 font-bold text-cream ring-1 ring-white/12 placeholder:text-cream/30 focus:outline-none focus:ring-2 focus:ring-gold"
               />
             </section>
@@ -442,14 +586,19 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
         </div>
 
         <footer className="border-t border-white/8 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
-          {pasted && !ok && (
+          {pasted && !ok && !aiResult?.error && (
             <p className="mb-2 text-center text-xs font-semibold text-cream/55">
-              {MIN_DECK_CARDS - count} more card{MIN_DECK_CARDS - count === 1 ? '' : 's'} needed. A quiz needs at least {MIN_DECK_CARDS}.
+              {need - count} more card{need - count === 1 ? '' : 's'} needed{need > 1 ? `. A quiz needs at least ${need}.` : '.'}
             </p>
           )}
           <button
             disabled={!ok}
-            onClick={() => { importDeck(name || 'My deck', result.cards); onClose(); onImported() }}
+            onClick={() => {
+              const fallback = aiResult?.name || (topic.trim() && topic.length < 40 ? topic.trim() : '') || 'My deck'
+              importDeck(name || fallback, result.cards, ai ? topic : undefined)
+              onClose()
+              onImported()
+            }}
             className={`clay-btn min-h-12 w-full text-[15px] ${ok ? 'clay-butter' : 'bg-white/10 text-cream/40'}`}
           >
             {ok ? `Import ${count} cards` : 'Import'}

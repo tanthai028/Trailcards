@@ -58,6 +58,7 @@ function deck(v: unknown): UserDeck | null {
     createdAt: num(v.createdAt, 0, 0),
     cards,
     ...(typeof v.reverse === 'boolean' ? { reverse: v.reverse } : {}),
+    ...(typeof v.topic === 'string' && v.topic.trim() ? { topic: v.topic.slice(0, 4000) } : {}),
   }
 }
 
