@@ -5,18 +5,20 @@ import { HAIR_COLORS, ITEMS, ITEM_BY_ID, RARITY_STYLE, type Body, type Item, typ
 import { Avatar, Figurine } from '../scene/Figurine'
 import { Coin, Icon } from '../components/Icon'
 import { CoinsPill } from '../components/Hud'
+import { SceneSvg } from '../art/Landscape'
 
 type ClosetTab = Exclude<Slot, 'van'>
 const TABS: { id: ClosetTab; label: string }[] = [
   { id: 'outfit', label: 'Outfits' },
   { id: 'hair', label: 'Hair' },
   { id: 'accessory', label: 'Extras' },
+  { id: 'card', label: 'Cards' },
 ]
 
 const withItem = (look: Look, item: Item): Look => ({ ...look, [item.slot]: item.id })
 
 export function ClosetScreen() {
-  const { state, buy, equip, setHairColor, setBody } = useGame()
+  const { state, buy, equip, setHairColor, setBody, setCardShuffle } = useGame()
   const [tab, setTab] = useState<ClosetTab>('outfit')
   const [previewId, setPreviewId] = useState<string | null>(null)
   const preview = previewId ? ITEM_BY_ID[previewId] : null
@@ -24,12 +26,15 @@ export function ClosetScreen() {
   const items = ITEMS.filter((i) => i.slot === tab && (!i.body || i.body === state.look.body))
   const owned = (id: string) => state.owned.includes(id)
   const equipped = (it: Item) => state.look[it.slot as ClosetTab] === it.id
+  const ownedCards = ITEMS.filter((i) => i.slot === 'card' && owned(i.id)).length
+  const mixing = state.cardShuffle && ownedCards > 1
 
   // One tap: owned pieces are worn straight away; locked ones are previewed with an unlock button.
   const tapItem = (it: Item) => {
     if (owned(it.id)) {
       setPreviewId(null)
       if (!equipped(it)) equip(it.id)
+      if (it.slot === 'card') setCardShuffle(false)
     } else setPreviewId(previewId === it.id ? null : it.id)
   }
   const short = preview ? preview.cost - state.coins : 0
@@ -41,6 +46,7 @@ export function ClosetScreen() {
         className="relative h-[330px] overflow-hidden rounded-[30px]"
         style={{ background: 'radial-gradient(90% 70% at 50% 35%, #fff3e2 0%, #e9d9cf 45%, #b9a8bf 100%)' }}
       >
+        {tab === 'card' && <SceneSvg scene={ITEM_BY_ID[look.card]?.scene ?? 'meadow'} className="absolute inset-0 h-full w-full" />}
         <div className="absolute bottom-[26px] left-1/2 h-9 w-48 -translate-x-1/2 rounded-[50%] bg-[#6b4f6e]/30 blur-md" />
         <div className="absolute left-4 top-4 z-10"><CoinsPill /></div>
         <AnimatePresence mode="popLayout">
@@ -124,6 +130,24 @@ export function ClosetScreen() {
         </div>
       )}
 
+      {tab === 'card' && (
+        <button
+          onClick={() => setCardShuffle(!state.cardShuffle)}
+          disabled={ownedCards < 2}
+          role="switch"
+          aria-checked={mixing}
+          className="clay mt-4 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left disabled:opacity-60"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-extrabold">Mix it up</span>
+            <span className="block text-xs text-cream/55">{ownedCards < 2 ? 'Unlock a second background to mix them' : 'A different background on every card'}</span>
+          </span>
+          <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${mixing ? 'bg-gold' : 'bg-white/15'}`}>
+            <span className={`absolute top-1 size-5 rounded-full bg-cream shadow transition-transform ${mixing ? 'translate-x-6' : 'translate-x-1'}`} />
+          </span>
+        </button>
+      )}
+
       <ul className="mt-4 grid grid-cols-2 gap-3">
         {items.map((it) => (
           <li key={it.id}>
@@ -131,7 +155,8 @@ export function ClosetScreen() {
               item={it}
               look={withItem(state.look, it)}
               owned={owned(it.id)}
-              equipped={equipped(it)}
+              equipped={it.slot === 'card' && mixing ? false : equipped(it)}
+              mixed={it.slot === 'card' && mixing && owned(it.id)}
               selected={previewId === it.id}
               affordable={state.coins >= it.cost}
               onClick={() => tapItem(it)}
@@ -162,21 +187,25 @@ function BodySwitch({ body, onChange }: { body: Body; onChange: (b: Body) => voi
   )
 }
 
-function ItemCard({ item, look, owned, equipped, selected, affordable, onClick }: {
-  item: Item; look: Look; owned: boolean; equipped: boolean; selected: boolean; affordable: boolean; onClick: () => void
+function ItemCard({ item, look, owned, equipped, mixed, selected, affordable, onClick }: {
+  item: Item; look: Look; owned: boolean; equipped: boolean; mixed?: boolean; selected: boolean; affordable: boolean; onClick: () => void
 }) {
   const r = RARITY_STYLE[item.rarity]
+  const isCard = item.slot === 'card'
+  const using = isCard ? 'Using' : 'Wearing'
   return (
     <motion.button
       onClick={onClick}
       whileTap={{ scale: 0.96 }}
       aria-pressed={equipped || selected}
-      aria-label={`${item.name}: ${equipped ? 'wearing' : owned ? 'tap to wear' : `${item.cost} coins, tap to try on`}`}
+      aria-label={`${item.name}: ${equipped ? using.toLowerCase() : mixed ? 'in the mix' : owned ? (isCard ? 'tap to use' : 'tap to wear') : `${item.cost} coins, tap to try on`}`}
       className={`group relative w-full overflow-hidden rounded-3xl p-2 text-left transition ${selected ? 'bg-white/14' : 'clay hover:brightness-110'}`}
       style={{ boxShadow: selected || equipped ? `0 0 0 2px ${r.color}, 0 10px 30px -8px ${r.glow}` : `inset 0 0 0 1px ${r.color}33` }}
     >
       <div className="relative h-36 overflow-hidden rounded-2xl" style={{ background: `radial-gradient(circle at 50% 75%, ${r.glow}, transparent 70%), linear-gradient(180deg, #f3e6dc, #d9c7d0)` }}>
-        {item.slot === 'outfit' ? (
+        {isCard ? (
+          <SceneSvg scene={item.scene ?? 'meadow'} className={`absolute inset-0 h-full w-full ${owned ? '' : 'opacity-85 saturate-[.85]'}`} />
+        ) : item.slot === 'outfit' ? (
           <Figurine look={look} className={`absolute bottom-1.5 left-1/2 h-[132px] -translate-x-1/2 ${owned ? '' : 'opacity-85 saturate-[.85]'}`} />
         ) : (
           <Avatar look={look} className={`absolute inset-x-2 bottom-0 top-1 ${owned ? '' : 'opacity-85 saturate-[.85]'}`} />
@@ -185,7 +214,7 @@ function ItemCard({ item, look, owned, equipped, selected, affordable, onClick }
           <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-ink/70 text-cream/80 backdrop-blur"><Icon name="lock" size={14} /></span>
         )}
         {equipped && (
-          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-gold px-2 py-0.5 text-xs font-extrabold text-ink"><Icon name="check" size={11} strokeWidth={3.5} />Wearing</span>
+          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-gold px-2 py-0.5 text-xs font-extrabold text-ink"><Icon name="check" size={11} strokeWidth={3.5} />{using}</span>
         )}
       </div>
       <div className="px-1 pb-0.5 pt-2">
@@ -193,7 +222,7 @@ function ItemCard({ item, look, owned, equipped, selected, affordable, onClick }
         <div className="mt-0.5 flex items-center justify-between text-[11px] font-bold">
           <span style={{ color: r.color }}>{r.label}</span>
           {owned ? (
-            <span className="text-cream/50">{equipped ? 'Wearing' : 'Tap to wear'}</span>
+            <span className="text-cream/50">{equipped ? using : mixed ? 'In the mix' : isCard ? 'Tap to use' : 'Tap to wear'}</span>
           ) : (
             <span className={`flex items-center gap-1 ${affordable ? 'text-gold' : 'text-cream/40'}`}><Coin size={13} />{item.cost}</span>
           )}

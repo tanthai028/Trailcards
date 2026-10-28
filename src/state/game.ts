@@ -3,6 +3,7 @@ import { CARDS, CARD_BY_ID, TOPIC_ORDER, type Card, type TopicId } from '../data
 import { deckFeedCards, type UserDeck } from '../data/decks'
 import { ITEMS, ITEM_BY_ID, DEFAULT_LOOK, DEFAULT_HAIR, DESTINATIONS, VAN_TIERS, hairFits, type Body, type Look, type Slot } from '../data/items'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
+import type { SceneId } from '../art/Landscape'
 
 export type Mastery = 'new' | 'learning' | 'familiar' | 'mastered'
 
@@ -31,6 +32,8 @@ export interface GameState {
   bookmarks: string[]
   owned: string[]
   look: Look
+  /** Learn cards cycle through every background you own instead of one. */
+  cardShuffle: boolean
   destination: string
   achievements: Record<string, number>
   createdAt: number
@@ -50,6 +53,7 @@ export const initialState = (): GameState => ({
   bookmarks: [],
   owned: ITEMS.filter((i) => i.starter).map((i) => i.id),
   look: { ...DEFAULT_LOOK },
+  cardShuffle: false,
   destination: 'lake',
   achievements: {},
   createdAt: Date.now(),
@@ -196,7 +200,7 @@ export function buyItem(s: GameState, itemId: string): { state: GameState; ok: b
   return { state: ach.state, ok: true, achievements: ach.unlocked }
 }
 
-const SLOT_KEY: Partial<Record<Slot, keyof Look>> = { outfit: 'outfit', hair: 'hair', accessory: 'accessory' }
+const SLOT_KEY: Partial<Record<Slot, keyof Look>> = { outfit: 'outfit', hair: 'hair', accessory: 'accessory', card: 'card' }
 
 export function equipItem(s: GameState, itemId: string) {
   const item = ITEM_BY_ID[itemId]
@@ -205,6 +209,13 @@ export function equipItem(s: GameState, itemId: string) {
   if (item.slot === 'hair' && !hairFits(itemId, s.look.body)) return { state: s, achievements: [] as string[] }
   const ach = checkAchievements({ ...s, look: { ...s.look, [key]: itemId } })
   return { state: ach.state, achievements: ach.unlocked }
+}
+
+/** The scene behind the Learn card at a position: your chosen background, or, when mixing, your owned ones in turn so each swipe changes it. */
+export function cardScene(s: GameState, position: number): SceneId {
+  const own = ITEMS.filter((i) => i.slot === 'card' && s.owned.includes(i.id))
+  if (s.cardShuffle && own.length > 1) return own[position % own.length].scene!
+  return ITEM_BY_ID[s.look.card]?.scene ?? 'meadow'
 }
 
 /** Switch body type. Outfits and extras carry over; hair falls back to that body's free style. */

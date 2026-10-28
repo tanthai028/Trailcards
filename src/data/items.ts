@@ -2,7 +2,10 @@
 // is already mix-and-match: outfit + hair + hair color + accessory.
 // Adding a new slot (shoes, held item…) = add a Slot, items, and a render layer.
 
-export type Slot = 'outfit' | 'hair' | 'accessory' | 'van'
+import type { SceneId } from '../art/Landscape'
+
+/** 'card' = the scene behind your Learn cards. */
+export type Slot = 'outfit' | 'hair' | 'accessory' | 'card' | 'van'
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 export type Body = 'girl' | 'guy'
 
@@ -17,6 +20,8 @@ export interface Item {
   starter?: boolean
   /** Hairstyles belong to one body type; everything else fits both. */
   body?: Body
+  /** Card backgrounds: which scene they paint. */
+  scene?: SceneId
 }
 
 export const ITEMS: Item[] = [
@@ -40,6 +45,14 @@ export const ITEMS: Item[] = [
   { id: 'acc-glasses', slot: 'accessory', name: 'Round Specs', blurb: 'Studious, but make it cute.', cost: 45, rarity: 'common' },
   { id: 'acc-headphones', slot: 'accessory', name: 'Cat-Ear Phones', blurb: 'Lo-fi road trip playlist included.', cost: 90, rarity: 'rare' },
   { id: 'acc-hat', slot: 'accessory', name: 'Ranger Hat', blurb: 'Wide brim for sunny trails.', cost: 80, rarity: 'rare' },
+
+  // Card backgrounds — the scene at the top of every Learn card
+  { id: 'card-meadow', slot: 'card', scene: 'meadow', name: 'Lupine Meadow', blurb: 'Rolling hills and wildflowers under a soft sun.', cost: 0, rarity: 'common', starter: true },
+  { id: 'card-forest', slot: 'card', scene: 'forest', name: 'Pine Forest', blurb: 'Tall pines and light falling through the canopy.', cost: 30, rarity: 'common' },
+  { id: 'card-pasture', slot: 'card', scene: 'pasture', name: 'Green Pasture', blurb: 'Open fields, a fence line and drifting clouds.', cost: 40, rarity: 'common' },
+  { id: 'card-peaks', slot: 'card', scene: 'peaks', name: 'Snowy Peaks', blurb: 'Lavender mountains with snow on top.', cost: 60, rarity: 'rare' },
+  { id: 'card-coast', slot: 'card', scene: 'coast', name: 'Sunset Coast', blurb: 'Warm sky, calm sea, a long horizon.', cost: 80, rarity: 'rare' },
+  { id: 'card-night', slot: 'card', scene: 'night', name: 'Starry Night', blurb: 'A dark sky full of stars and a crescent moon.', cost: 120, rarity: 'epic' },
 
   // Van upgrades — each is a whole new room render, unlocked in order
   { id: 'van-cozy', slot: 'van', name: 'Cozy Nest', blurb: 'String lights, a woven rug, pastel pillows and bunting.', cost: 40, rarity: 'common' },
@@ -75,9 +88,11 @@ export interface Look {
   hair: string
   hairColor: HairColorId
   accessory: string
+  /** Card background item id. */
+  card: string
 }
 
-export const DEFAULT_LOOK: Look = { body: 'girl', outfit: 'outfit-trailhead', hair: 'hair-bob', hairColor: 'ink', accessory: 'acc-none' }
+export const DEFAULT_LOOK: Look = { body: 'girl', outfit: 'outfit-trailhead', hair: 'hair-bob', hairColor: 'ink', accessory: 'acc-none', card: 'card-meadow' }
 
 /** The free hairstyle each body type starts with. */
 export const DEFAULT_HAIR: Record<Body, string> = { girl: 'hair-bob', guy: 'hair-crop' }
