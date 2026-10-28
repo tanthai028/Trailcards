@@ -112,6 +112,7 @@ const TERM_SEPS: { id: TermSep; label: string }[] = [
   { id: 'tab', label: 'Tab' },
   { id: 'comma', label: 'Comma' },
   { id: 'dash', label: ' - ' },
+  { id: 'line', label: 'Own line' },
   { id: 'custom', label: 'Custom' },
 ]
 const ROW_SEPS: { id: RowSep; label: string }[] = [
@@ -120,22 +121,44 @@ const ROW_SEPS: { id: RowSep; label: string }[] = [
   { id: 'custom', label: 'Custom' },
 ]
 
-const EXAMPLE = 'mitosis\tcell division that makes two identical cells\nosmosis\twater moving across a membrane toward more solute\n…'
+type Source = 'quizlet' | 'anki' | 'knowt' | 'other'
+const SOURCES: { id: Source; label: string; steps: string[] }[] = [
+  { id: 'quizlet', label: 'Quizlet', steps: ['Open your set on quizlet.com.', 'Tap ⋯, then Export.', 'Tap Copy text and paste it below.'] },
+  { id: 'anki', label: 'Anki', steps: ['In Anki on a computer, choose File, then Export.', 'Pick Notes in Plain Text and save.', 'Open the file, copy everything and paste it below.'] },
+  { id: 'knowt', label: 'Knowt', steps: ['Open your set and select all the terms and definitions.', 'Copy and paste them below.', 'Terms and definitions on separate lines work fine.'] },
+  { id: 'other', label: 'Other', steps: ['Put one card per line: the term, then the definition.', 'Split them with a tab, a comma or " - ", or put each on its own line.', 'Paste it all below.'] },
+]
 
-/** Paste exported flashcards, pick separators, check the preview, import. */
+/** Pick where the cards come from, paste, check the preview, import. */
 function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
   const { importDeck } = useGame()
+  const [source, setSource] = useState<Source>('quizlet')
   const [name, setName] = useState('')
   const [text, setText] = useState('')
   const [opts, setOpts] = useState<ParseOptions>({ termSep: 'tab', rowSep: 'newline' })
   const [touchedSep, setTouchedSep] = useState(false)
+  const [fixing, setFixing] = useState(false)
+  const [showAll, setShowAll] = useState(false)
   useEscape(onClose)
 
   // Until someone picks a separator themselves, follow whatever the pasted text looks like.
   const effective = touchedSep || !text ? opts : detectOptions(text)
   const result = useMemo(() => parseDeck(text, effective), [text, effective])
-  const ok = result.cards.length >= MIN_DECK_CARDS
+  const count = result.cards.length
+  const ok = count >= MIN_DECK_CARDS
+  const pasted = text.trim().length > 0
   const setSep = (o: Partial<ParseOptions>) => { setTouchedSep(true); setOpts({ ...effective, ...o }) }
+  const steps = SOURCES.find((s) => s.id === source)!.steps
+
+  // Clipboard read can be refused (or prompt on iOS); then just focus the box for a manual paste.
+  const paste = async () => {
+    try {
+      const clip = await navigator.clipboard.readText()
+      if (clip) setText(clip)
+    } catch {
+      document.getElementById('deck-text')?.focus()
+    }
+  }
 
   return (
     <motion.div
@@ -152,68 +175,120 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
         </header>
 
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          <p className="text-[13px] leading-relaxed text-cream/60">
-            Export your set from Quizlet, Anki or a spreadsheet as text, then paste it here. One card per line: the term, a separator, then the definition.
-          </p>
+          <p className="text-sm font-bold text-cream/80">Where are your cards?</p>
+          <div role="tablist" aria-label="Import from" className="mt-2 grid grid-cols-4 gap-1 rounded-full bg-white/6 p-1">
+            {SOURCES.map((s) => (
+              <button
+                key={s.id} role="tab" aria-selected={source === s.id} onClick={() => setSource(s.id)}
+                className={`min-h-9 rounded-full text-xs font-extrabold transition-colors ${source === s.id ? 'bg-cream text-ink' : 'text-cream/65 hover:text-cream'}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <ol className="mt-3 space-y-1.5">
+            {steps.map((step, i) => (
+              <li key={step} className="flex gap-2.5 text-[13px] leading-snug text-cream/75">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-lav/20 text-[11px] font-extrabold text-lav">{i + 1}</span>
+                {step}
+              </li>
+            ))}
+          </ol>
 
-          <label htmlFor="deck-name" className="mt-4 block text-sm font-bold text-cream/80">Deck name</label>
-          <input
-            id="deck-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Bio 101 midterm"
-            className="mt-1.5 w-full rounded-2xl bg-white/8 px-4 py-3 font-bold text-cream ring-1 ring-white/12 placeholder:text-cream/30 focus:outline-none focus:ring-2 focus:ring-gold"
-          />
+          <div className="relative mt-4">
+            <textarea
+              id="deck-text" value={text} onChange={(e) => setText(e.target.value)} rows={pasted ? 4 : 6} spellCheck={false}
+              placeholder="Paste your cards here" aria-label="Your cards"
+              className="w-full resize-none rounded-2xl bg-white/8 px-4 py-3 text-[13px] leading-relaxed text-cream ring-1 ring-white/12 placeholder:text-cream/35 focus:outline-none focus:ring-2 focus:ring-gold"
+            />
+            {pasted ? (
+              <button onClick={() => { setText(''); setTouchedSep(false); setShowAll(false) }} className="absolute right-2 top-2 rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-extrabold text-cream/70 hover:text-cream">
+                Clear
+              </button>
+            ) : (
+              <button onClick={paste} className="clay-btn clay-lav absolute bottom-4 left-1/2 flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full px-5 text-sm">
+                <Icon name="edit" size={15} /> Paste
+              </button>
+            )}
+          </div>
 
-          <label htmlFor="deck-text" className="mt-4 block text-sm font-bold text-cream/80">Flashcards</label>
-          <textarea
-            id="deck-text" value={text} onChange={(e) => setText(e.target.value)} rows={7} placeholder={EXAMPLE} spellCheck={false}
-            className="mt-1.5 w-full resize-y rounded-2xl bg-white/8 px-4 py-3 font-mono text-[13px] leading-relaxed text-cream ring-1 ring-white/12 placeholder:text-cream/25 focus:outline-none focus:ring-2 focus:ring-gold"
-          />
-
-          <SepPicker
-            label="Between term and definition" options={TERM_SEPS} value={effective.termSep} onChange={(termSep) => setSep({ termSep })}
-            custom={effective.customTerm} onCustom={(customTerm) => setSep({ termSep: 'custom', customTerm })}
-          />
-          <SepPicker
-            label="Between cards" options={ROW_SEPS} value={effective.rowSep} onChange={(rowSep) => setSep({ rowSep })}
-            custom={effective.customRow} onCustom={(customRow) => setSep({ rowSep: 'custom', customRow })}
-          />
-
-          {text.trim() && (
-            <section className="mt-5" aria-live="polite">
-              <h2 className="text-sm font-bold text-cream/80">
-                Preview: {result.cards.length} card{result.cards.length === 1 ? '' : 's'}
-                {result.duplicates > 0 && <span className="font-semibold text-cream/50">, {result.duplicates} duplicate{result.duplicates === 1 ? '' : 's'} skipped</span>}
-              </h2>
-              {result.problems.length > 0 && (
-                <ul className="mt-2 space-y-1 rounded-2xl bg-coral/12 p-3 text-xs ring-1 ring-coral/30">
-                  {result.problems.slice(0, 5).map((p) => (
-                    <li key={p.row} className="text-cream/80">
-                      <span className="font-extrabold text-coral">Row {p.row}:</span> {p.reason}. <span className="text-cream/45">“{p.text.slice(0, 40)}”</span>
-                    </li>
-                  ))}
-                  {result.problems.length > 5 && <li className="text-cream/50">and {result.problems.length - 5} more rows skipped</li>}
-                </ul>
+          {pasted && (
+            <section className="mt-4" aria-live="polite">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className={`font-display text-lg font-bold ${ok ? 'text-gold' : 'text-cream'}`}>
+                  {count} card{count === 1 ? '' : 's'} found
+                </h2>
+                <button onClick={() => setFixing(!fixing)} aria-expanded={fixing} className="min-h-9 text-xs font-bold text-lav underline-offset-2 hover:underline">
+                  Cards not splitting right?
+                </button>
+              </div>
+              {(result.problems.length > 0 || result.duplicates > 0) && (
+                <p className="text-xs text-cream/50">
+                  {result.problems.length > 0 && `${result.problems.length} line${result.problems.length === 1 ? '' : 's'} skipped`}
+                  {result.problems.length > 0 && result.duplicates > 0 && ', '}
+                  {result.duplicates > 0 && `${result.duplicates} duplicate${result.duplicates === 1 ? '' : 's'} skipped`}
+                </p>
               )}
-              <ul className="mt-2 divide-y divide-white/8 overflow-hidden rounded-2xl clay">
-                {result.cards.slice(0, 30).map((c) => (
-                  <li key={c.id} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 px-3.5 py-2.5 text-[13px]">
-                    <span className="font-extrabold text-cream">{c.term}</span>
-                    <span className="text-cream/70">{c.definition}</span>
+
+              {fixing && (
+                <div className="mt-2 space-y-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
+                  <SepPicker
+                    label="Term and definition are split by" options={TERM_SEPS} value={effective.termSep} onChange={(termSep) => setSep({ termSep })}
+                    custom={effective.customTerm} onCustom={(customTerm) => setSep({ termSep: 'custom', customTerm })}
+                  />
+                  {effective.termSep !== 'line' && (
+                    <SepPicker
+                      label="Each card ends with" options={ROW_SEPS} value={effective.rowSep} onChange={(rowSep) => setSep({ rowSep })}
+                      custom={effective.customRow} onCustom={(customRow) => setSep({ rowSep: 'custom', customRow })}
+                    />
+                  )}
+                  {result.problems.length > 0 && (
+                    <ul className="space-y-1 text-xs">
+                      {result.problems.slice(0, 4).map((p) => (
+                        <li key={p.row} className="text-cream/70">
+                          <span className="font-extrabold text-coral">Line {p.row}:</span> {p.reason}. <span className="text-cream/45">“{p.text.slice(0, 36)}”</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              <ul className="mt-3 space-y-2">
+                {result.cards.slice(0, showAll ? 200 : 3).map((c) => (
+                  <li key={c.id} className="clay rounded-2xl px-3.5 py-2.5">
+                    <p className="text-[14px] font-extrabold text-cream">{c.term}</p>
+                    <p className="mt-0.5 text-[13px] leading-snug text-cream/65">{c.definition}</p>
                   </li>
                 ))}
-                {result.cards.length > 30 && <li className="px-3.5 py-2.5 text-xs text-cream/50">and {result.cards.length - 30} more</li>}
               </ul>
+              {count > 3 && (
+                <button onClick={() => setShowAll(!showAll)} className="mt-1 min-h-10 w-full text-xs font-bold text-cream/55 hover:text-cream">
+                  {showAll ? 'Show fewer' : `Show all ${count}`}
+                </button>
+              )}
+
+              <label htmlFor="deck-name" className="mt-3 block text-sm font-bold text-cream/80">Name this deck</label>
+              <input
+                id="deck-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Bio 101 midterm"
+                className="mt-1.5 w-full rounded-2xl bg-white/8 px-4 py-3 font-bold text-cream ring-1 ring-white/12 placeholder:text-cream/30 focus:outline-none focus:ring-2 focus:ring-gold"
+              />
             </section>
           )}
         </div>
 
         <footer className="border-t border-white/8 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
-          {!ok && text.trim() && <p className="mb-2 text-center text-xs font-semibold text-cream/55">A deck needs at least {MIN_DECK_CARDS} cards for multiple choice.</p>}
+          {pasted && !ok && (
+            <p className="mb-2 text-center text-xs font-semibold text-cream/55">
+              {MIN_DECK_CARDS - count} more card{MIN_DECK_CARDS - count === 1 ? '' : 's'} needed. A quiz needs at least {MIN_DECK_CARDS}.
+            </p>
+          )}
           <button
             disabled={!ok}
             onClick={() => { importDeck(name || 'My deck', result.cards); onClose(); onImported() }}
-            className="clay-btn clay-butter min-h-12 w-full text-[15px] disabled:bg-white/10 disabled:text-cream/40"
+            className={`clay-btn min-h-12 w-full text-[15px] ${ok ? 'clay-butter' : 'bg-white/10 text-cream/40'}`}
           >
-            {ok ? `Import ${result.cards.length} cards` : 'Import'}
+            {ok ? `Import ${count} cards` : 'Import'}
           </button>
         </footer>
       </div>
@@ -225,8 +300,8 @@ function SepPicker<T extends string>({ label, options, value, onChange, custom, 
   label: string; options: { id: T; label: string }[]; value: T; onChange: (v: T) => void; custom?: string; onCustom: (v: string) => void
 }) {
   return (
-    <fieldset className="mt-4">
-      <legend className="text-sm font-bold text-cream/80">{label}</legend>
+    <fieldset>
+      <legend className="text-xs font-bold text-cream/70">{label}</legend>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {options.map((o) => (
           <button
