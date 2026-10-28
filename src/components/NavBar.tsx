@@ -43,12 +43,18 @@ export function NavBar({ tab, onTab, dots = {} }: { tab: Tab; onTab: (t: Tab) =>
                 {active && (
                   <motion.span layoutId="nav-pill" className="clay-pill absolute inset-0 rounded-2xl" transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.8 }} />
                 )}
-                <span className="relative">
+                <motion.span
+                  key={active ? 'on' : 'off'}
+                  className="relative block"
+                  initial={active ? { scale: 0.6, y: 3 } : false}
+                  animate={{ scale: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 600, damping: 14 }}
+                >
                   <Icon name={it.icon} size={21} />
                   {dots[it.id] && !active && (
                     <span className="absolute -right-1.5 -top-1 size-2.5 rounded-full bg-gold ring-2 ring-ink" aria-hidden="true" />
                   )}
-                </span>
+                </motion.span>
                 <span className="relative">{it.label}</span>
                 {dots[it.id] && !active && <span className="sr-only">, something you can buy</span>}
               </button>
