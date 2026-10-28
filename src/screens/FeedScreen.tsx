@@ -42,6 +42,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   useEffect(() => {
     setIds(idsFor(state, mode))
     setActive(0)
+    scroller.current?.scrollTo({ top: 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeDeck, state.decks.length])
 
@@ -95,10 +96,13 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
       </div>
 
       <div ref={scroller} className="no-scrollbar min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto scroll-smooth">
-        {ids.map((id, i) => (
+        {ids.map((id, i) => {
+          // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
+          const card = findCard(state, id)
+          return card && (
           <section key={`${mode}-${id}`} data-index={i} className="h-full snap-start snap-always px-3 py-2" aria-label={`Card ${i + 1} of ${ids.length}`}>
             <FeedCard
-              card={findCard(state, id)!}
+              card={card}
               mode={mode}
               index={i}
               total={ids.length}
@@ -107,7 +111,8 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
               onNext={() => scrollTo(i + 1)}
             />
           </section>
-        ))}
+          )
+        })}
         <section data-index={ids.length} className="h-full snap-start px-3 py-2">
           <EndCard mode={mode} empty={ids.length === 0} counts={counts} setMode={setMode} go={go} />
         </section>
