@@ -545,11 +545,11 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
   const pad = 6
   const box = rect && { top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 }
 
-  // Bubble: 300px wide at most, under the highlight if there's room, else above, else low on screen.
+  // Bubble: 340px wide at most, under the highlight if there's room, else above, else low on screen.
   const vw = innerWidth
   const vh = innerHeight
-  const w = Math.min(300, vw - 32)
-  const h = 130
+  const w = Math.min(340, vw - 32)
+  const h = 150
   const place: 'below' | 'above' | 'inside' = !box ? 'inside' : vh - (box.top + box.height) >= h + 24 ? 'below' : box.top >= h + 24 ? 'above' : 'inside'
   const cx = box ? box.left + box.width / 2 : vw / 2
   const left = Math.max(16, Math.min(vw - 16 - w, cx - w / 2))
@@ -583,7 +583,7 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
       <motion.div
         key={step}
         initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.18 }}
-        className="absolute rounded-2xl bg-ink-2 p-3 text-cream shadow-[0_14px_34px_-10px_rgba(0,0,0,.7)] ring-2 ring-gold/80"
+        className="absolute rounded-2xl bg-ink-2 p-4 text-cream shadow-[0_14px_34px_-10px_rgba(0,0,0,.7)] ring-2 ring-gold/80"
         style={{ left, width: w, ...pos }}
       >
         {place !== 'inside' && (
@@ -594,13 +594,14 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
           />
         )}
         <div className="flex items-center gap-1.5">
-          <span className="rounded-full bg-gold px-1.5 py-px text-[10px] font-extrabold text-ink">Tour {step + 1}/{TOUR.length}</span>
-          <p className="min-w-0 truncate font-display text-[15px] font-bold leading-tight">{s.title}</p>
+          <span className="shrink-0 rounded-full bg-gold px-2 py-0.5 text-[11px] font-extrabold text-ink">Tour {step + 1}/{TOUR.length}</span>
+          <p className="min-w-0 truncate font-display text-[17px] font-bold leading-tight">{s.title}</p>
         </div>
-        <p className="mt-1 text-[13px] leading-snug text-cream/80">{s.text}</p>
-        <div className="mt-2 flex items-center gap-2">
-          {!last && <button onClick={onDone} className="min-h-9 rounded-lg px-2 text-xs font-extrabold text-cream/55 hover:text-cream">Skip tour</button>}
-          <button onClick={next} autoFocus className="clay-btn clay-butter ml-auto min-h-9 px-4 text-xs">{last ? 'Start learning' : 'Next'}</button>
+        <p className="mt-1.5 text-[14px] leading-snug text-cream/80">{s.text}</p>
+        <div className="mt-3 flex items-center gap-2">
+          {!last && <button onClick={onDone} className="min-h-10 rounded-lg px-2 text-sm font-extrabold text-cream/55 hover:text-cream">Skip tour</button>}
+          {step > 0 && <button onClick={() => setStep(step - 1)} className="ml-auto min-h-10 rounded-xl bg-white/10 px-4 text-sm font-extrabold text-cream/85 hover:bg-white/15">Back</button>}
+          <button onClick={next} autoFocus className={`clay-btn clay-butter min-h-10 px-5 text-sm ${step > 0 ? '' : 'ml-auto'}`}>{last ? 'Start learning' : 'Next'}</button>
         </div>
       </motion.div>
     </div>
