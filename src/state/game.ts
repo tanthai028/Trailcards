@@ -13,6 +13,9 @@ export interface CardProgress {
   correct: number
   lastChoice: number
   lastAt: number
+  /** Spaced review: how many spaced steps this card has passed, and when it's next due (ms). */
+  step?: number
+  due?: number
 }
 
 export interface GameState {
@@ -88,6 +91,40 @@ const RULES: Record<Mastery, { right: [number, number, Mastery]; wrong: [number,
 
 export const statusOf = (s: GameState, id: string): Mastery => s.cards[id]?.status ?? 'new'
 
+// ── Spaced review ───────────────────────────────────────────────
+// Each right answer on a due card pushes the next review further out; a miss starts over
+// and comes back in 10 minutes. A card counts as mastered from the 7-day step on.
+const DAY = 86_400_000
+export const INTERVALS = [1, 3, 7, 16, 35, 90].map((d) => d * DAY)
+const RETRY = 10 * 60_000
+const MASTERED_STEP = 2
+
+/** Step and due time, filling in saves made before spaced review existed. */
+export function schedule(p: CardProgress | undefined): { step: number; due: number } {
+  if (!p) return { step: 0, due: 0 }
+  if (p.due != null) return { step: p.step ?? 0, due: p.due }
+  if (p.status === 'mastered') return { step: MASTERED_STEP, due: p.lastAt + INTERVALS[MASTERED_STEP] }
+  if (p.status === 'familiar') return { step: 0, due: p.lastAt + INTERVALS[0] }
+  return { step: 0, due: p.lastAt }
+}
+
+export const isDue = (s: GameState, id: string, now = Date.now()) => {
+  const p = s.cards[id]
+  return !!p && p.status !== 'new' && schedule(p).due <= now
+}
+
+/** When the next card in this source comes due, or null if none are scheduled. */
+export function nextDueAt(s: GameState, cards: Card[] = sourceCards(s)): number | null {
+  let best: number | null = null
+  for (const c of cards) {
+    const p = s.cards[c.id]
+    if (!p || p.status === 'new') continue
+    const { due } = schedule(p)
+    if (best == null || due < best) best = due
+  }
+  return best
+}
+
 export interface AnswerResult {
   correct: boolean
   xp: number
@@ -104,7 +141,25 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
   const prev = s.cards[cardId]
   const from = prev?.status ?? 'new'
   const correct = choice === card.answerIndex
-  const [xp, coins, to] = correct ? RULES[from].right : RULES[from].wrong
+  const now = Date.now()
+  const sched = schedule(prev)
+  // Answering a card before it's due (e.g. from Saved) is practice: a little XP, no coins,
+  // and the schedule doesn't move, so reviews can't be rushed or farmed.
+  const early = !!prev && from !== 'new' && from !== 'learning' && sched.due > now
+  let [xp, coins, to] = correct ? RULES[from].right : RULES[from].wrong
+  let step = 0
+  let due = now + RETRY
+  if (early) {
+    ;[xp, coins, to] = [correct ? 2 : 1, 0, from]
+    ;({ step, due } = sched)
+  } else if (correct) {
+    step = from === 'new' || from === 'learning' ? 0 : Math.min(sched.step + 1, INTERVALS.length - 1)
+    due = now + INTERVALS[step]
+    to = step >= MASTERED_STEP ? 'mastered' : 'familiar'
+  } else {
+    // any miss starts the schedule over: back to learning, due again in 10 minutes
+    to = 'learning'
+  }
   const beforeLevel = levelInfo(s.xp).level
   const beforePlant = plantInfo(s).stage
 
@@ -119,7 +174,9 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
         attempts: (prev?.attempts ?? 0) + 1,
         correct: (prev?.correct ?? 0) + (correct ? 1 : 0),
         lastChoice: choice,
-        lastAt: Date.now(),
+        lastAt: now,
+        step,
+        due,
       },
     },
   }
@@ -181,10 +238,17 @@ export function stats(s: GameState) {
   }
 }
 
-export const reviewQueue = (s: GameState, cards: Card[] = sourceCards(s)) =>
-  cards.filter((c) => ['learning', 'familiar'].includes(statusOf(s, c.id)))
-    // shaky concepts first
-    .sort((a, b) => (statusOf(s, a.id) === 'learning' ? -1 : 0) - (statusOf(s, b.id) === 'learning' ? -1 : 0))
+/** Cards due for review now: misses first, then the most overdue. */
+export const reviewQueue = (s: GameState, cards: Card[] = sourceCards(s)) => {
+  const now = Date.now()
+  return cards
+    .filter((c) => isDue(s, c.id, now))
+    .sort((a, b) => {
+      const la = statusOf(s, a.id) === 'learning' ? 0 : 1
+      const lb = statusOf(s, b.id) === 'learning' ? 0 : 1
+      return la - lb || schedule(s.cards[a.id]).due - schedule(s.cards[b.id]).due
+    })
+}
 
 // ── Plant ───────────────────────────────────────────────────────
 export const PLANT_STAGES = [

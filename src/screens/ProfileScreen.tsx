@@ -106,7 +106,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
               <span key={k} className="flex items-center gap-1 capitalize"><span className="size-2.5 rounded-full" style={{ background: MASTERY_COLORS[k] }} />{k}</span>
             ))}
           </div>
-          <p className="text-[11px] leading-snug text-cream/45">Right once → familiar. Right again in Review → mastered. Misses come back for another try.</p>
+          <p className="text-[11px] leading-snug text-cream/45">Right once → familiar. Right again when it comes back in Review, spaced over days → mastered. Misses come back for another try.</p>
         </div>
       </Section>
 

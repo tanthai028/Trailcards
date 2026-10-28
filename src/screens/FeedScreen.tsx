@@ -5,7 +5,7 @@ import { TOPICS, type Card } from '../data/cards'
 import type { DeckFeedCard } from '../data/decks'
 import { DeckPicker } from '../components/Decks'
 import { AvatarLevel, CoinsPill } from '../components/Hud'
-import { cardScene, findCard, reviewQueue, sourceCards, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
+import { cardScene, findCard, nextDueAt, reviewQueue, sourceCards, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
@@ -467,14 +467,24 @@ function shade(hex: string) {
   return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`
 }
 
+function NextReview() {
+  const { state } = useGame()
+  const at = nextDueAt(state)
+  if (at == null) return null
+  const ms = at - Date.now()
+  const h = Math.round(ms / 3_600_000)
+  const when = ms <= 0 ? 'now' : ms < 3_600_000 ? `in ${Math.max(1, Math.round(ms / 60_000))} min` : h < 24 ? `in ${h} h` : `in ${Math.round(h / 24)} day${Math.round(h / 24) === 1 ? '' : 's'}`
+  return <p className="mt-3 rounded-full bg-white/8 px-3 py-1 text-xs font-bold text-cream/65">Next review {when}</p>
+}
+
 function EndCard({ mode, empty, counts, setMode, go }: { mode: FeedMode; empty: boolean; counts: Record<FeedMode, number>; setMode: (m: FeedMode) => void; go: (t: Tab, m?: FeedMode) => void }) {
   const copy = {
     discover: empty
       ? ['Every card explored', 'You’ve seen all the field notes for now. Review keeps them fresh — and grows your plant.']
       : ['You’re all caught up', 'That’s the end of this stack. Revisit shaky concepts in Review to master them.'],
     review: empty
-      ? ['Nothing to review yet', 'Answer cards in Discover. Ones you miss — or get right once — come back here for mastery.']
-      : ['Review done', 'Nice. Concepts you got right twice are now mastered. Check how your plant is doing.'],
+      ? ['Nothing due right now', 'Cards come back here on a schedule: a day after you learn them, then 3 days, a week and longer.']
+      : ['Review done', 'Nice. Each card you got right comes back later, spaced further out every time.'],
     saved: empty
       ? ['No saved cards', 'Tap the bookmark on any card to keep it here for later.']
       : ['End of your saved cards', 'Saved cards stay here until you unsave them.'],
@@ -484,6 +494,7 @@ function EndCard({ mode, empty, counts, setMode, go }: { mode: FeedMode; empty: 
       <Cat sleeping={mode !== 'review'} className="h-24 w-28" />
       <h2 className="mt-3 font-display text-3xl font-bold">{copy[0]}</h2>
       <p className="mt-2 max-w-xs text-[15px] leading-relaxed text-cream/70">{copy[1]}</p>
+      {counts.review === 0 && <NextReview />}
       <div className="mt-6 flex w-full max-w-xs flex-col gap-2">
         {mode !== 'review' && counts.review > 0 && (
           <button onClick={() => setMode('review')} className="rounded-2xl clay-btn clay-butter py-3 font-extrabold text-ink">
