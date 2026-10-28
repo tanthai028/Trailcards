@@ -4,13 +4,17 @@ import { MotionConfig } from 'framer-motion'
 import './index.css'
 import { GameProvider } from './state/store'
 import App from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MotionConfig reducedMotion="user">
-      <GameProvider>
-        <App />
-      </GameProvider>
-    </MotionConfig>
+    {/* outermost, so a crash while loading the save still shows the recovery screen */}
+    <ErrorBoundary>
+      <MotionConfig reducedMotion="user">
+        <GameProvider>
+          <App />
+        </GameProvider>
+      </MotionConfig>
+    </ErrorBoundary>
   </StrictMode>,
 )
