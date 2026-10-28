@@ -38,7 +38,7 @@ export function NavBar({ tab, onTab, dots = {} }: { tab: Tab; onTab: (t: Tab) =>
               <button
                 onClick={() => onTab(it.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`relative flex w-full flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-bold transition-colors duration-200 ${active ? 'text-ink' : 'text-cream/60 hover:text-cream'}`}
+                className={`relative flex w-full flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-bold leading-4 transition-colors duration-200 ${active ? 'text-ink' : 'text-cream/60 hover:text-cream'}`}
               >
                 {active && (
                   <motion.span layoutId="nav-pill" className="clay-pill absolute inset-0 rounded-2xl" transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.8 }} />
