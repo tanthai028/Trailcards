@@ -790,7 +790,7 @@ function Coach({ tips, answered, active, reviewDue, mode, dismiss, onReview }: {
   let tip: { id: string; text: string; action?: { label: string; run: () => void } } | null = null
   // the first-run basics are taught by the Learn tour; what's left is the first time reviews come due
   if (!seen('tour-learn')) tip = null
-  else if (reviewDue > 0 && mode !== 'review' && !seen('coach-review')) tip = { id: 'coach-review', text: `${reviewDue} card${reviewDue === 1 ? ' is' : 's are'} due for review. Cards come back after a day, then 3 days, a week and longer, so they stick.`, action: { label: 'Review now', run: onReview } }
+  else if (reviewDue > 0 && mode !== 'review' && !seen('coach-review')) tip = { id: 'coach-review', text: `${reviewDue} card${reviewDue === 1 ? '' : 's'} due for review.`, action: { label: 'Review now', run: onReview } }
 
   return (
     <AnimatePresence>
