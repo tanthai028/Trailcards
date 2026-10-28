@@ -35,6 +35,8 @@ interface Store {
   setDestination: (id: string) => void
   finishOnboarding: (name: string, body: Body) => void
   reset: () => void
+  /** Replace all progress with a restored backup. */
+  restore: (s: G.GameState) => void
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -134,6 +136,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       reset: () => {
         localSave.clear()
         commit(G.initialState())
+        setEvents([])
+      },
+      restore: (s) => {
+        commit(s)
         setEvents([])
       },
     }),

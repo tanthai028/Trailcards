@@ -32,15 +32,49 @@ function migrate(s: GameState): GameState {
   return { ...rest, coins, owned, look }
 }
 
+/** Read a saved game (from storage or a backup file). Merges onto defaults so saves from older builds pick up new fields. */
+export function parseSave(raw: string): GameState | null {
+  try {
+    const data = JSON.parse(raw) as Partial<GameState> & { app?: string; state?: Partial<GameState> }
+    // backup files wrap the state: { app: 'wayfarer', exportedAt, state }
+    const parsed = data.app === 'wayfarer' && data.state ? data.state : data
+    if (typeof parsed !== 'object' || parsed == null || typeof parsed.cards !== 'object' || typeof parsed.xp !== 'number') return null
+    const base = initialState()
+    return migrate({ ...base, ...parsed, look: { ...base.look, ...parsed.look } })
+  } catch {
+    return null
+  }
+}
+
+/** A backup file's contents. */
+export const backupText = (state: GameState) => JSON.stringify({ app: 'wayfarer', exportedAt: Date.now(), state })
+
+const BACKUP_KEY = 'wayfarer.lastBackup'
+export const lastBackupAt = (): number | null => {
+  try {
+    const v = Number(localStorage.getItem(BACKUP_KEY))
+    return v > 0 ? v : null
+  } catch {
+    return null
+  }
+}
+export const markBackedUp = () => {
+  try {
+    localStorage.setItem(BACKUP_KEY, String(Date.now()))
+  } catch {
+    /* ignore */
+  }
+}
+
+// Ask the browser to keep this site's storage; iOS Safari otherwise may clear it after a
+// week without visits. Granted automatically for apps added to the Home Screen.
+if (typeof navigator !== 'undefined') void navigator.storage?.persist?.().catch(() => {})
+
 export const localSave: SaveAdapter = {
   load() {
     try {
       const raw = localStorage.getItem(KEY)
-      if (!raw) return null
-      // Merge onto defaults so saves from older builds pick up new fields.
-      const base = initialState()
-      const parsed = JSON.parse(raw) as Partial<GameState>
-      return migrate({ ...base, ...parsed, look: { ...base.look, ...parsed.look } })
+      return raw ? parseSave(raw) : null
     } catch {
       return null
     }

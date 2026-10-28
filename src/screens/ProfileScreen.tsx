@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { TOPICS, TOPIC_ORDER } from '../data/cards'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
 import { ITEMS, RARITY_STYLE, type Slot } from '../data/items'
-import { levelInfo, masteryCounts, stats, type Mastery } from '../state/game'
+import { levelInfo, masteryCounts, stats, type GameState, type Mastery } from '../state/game'
+import { backupText, lastBackupAt, markBackedUp, parseSave } from '../state/storage'
 import { Figurine } from '../scene/Figurine'
 import { SceneSvg, DESTINATION_SCENE } from '../art/Landscape'
 import { Icon } from '../components/Icon'
@@ -16,7 +17,7 @@ import type { FeedMode } from './FeedScreen'
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
 export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, setName, setTitle, reset, setReduceMotion, setSound } = useGame()
+  const { state, setName, setTitle, reset, setReduceMotion, setSound, restore } = useGame()
   const lv = levelInfo(state.xp)
   const s = stats(state)
   const [editing, setEditing] = useState(false)
@@ -174,6 +175,8 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         </span>
       </button>
 
+      <Backup state={state} onRestore={restore} />
+
       <div className="mt-6 text-center">
         {confirmReset ? (
           <div className="rounded-2xl bg-coral/15 p-3 ring-1 ring-coral/40">
@@ -191,6 +194,69 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         <p className="mt-2 text-[11px] text-cream/30">Progress saves automatically on this device.</p>
       </div>
     </div>
+  )
+}
+
+/** Save progress to a file (Files on iPhone) and restore it, since progress otherwise lives only in this browser. */
+function Backup({ state, onRestore }: { state: GameState; onRestore: (s: GameState) => void }) {
+  const [last, setLast] = useState(lastBackupAt)
+  const [pending, setPending] = useState<GameState | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+  const file = useRef<HTMLInputElement>(null)
+
+  const save = async () => {
+    const name = `wayfarer-backup-${new Date().toISOString().slice(0, 10)}.json`
+    const blob = new Blob([backupText(state)], { type: 'application/json' })
+    const f = new File([blob], name, { type: 'application/json' })
+    try {
+      // iPhone: the share sheet offers "Save to Files"; elsewhere fall back to a download
+      if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: 'Wayfarer backup' })
+      else {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = name
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+      }
+      markBackedUp()
+      setLast(Date.now())
+      setMsg('Backup saved.')
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setMsg('Couldn’t save the backup. Try again.')
+    }
+  }
+
+  const pick = async (f: File | undefined) => {
+    if (!f) return
+    const s = parseSave(await f.text())
+    if (s) { setPending(s); setMsg(null) } else setMsg('That file isn’t a Wayfarer backup.')
+    if (file.current) file.current.value = ''
+  }
+
+  const days = last ? Math.floor((Date.now() - last) / 86_400_000) : null
+  return (
+    <section className="clay mt-2 rounded-2xl px-4 py-3">
+      <p className="text-sm font-extrabold">Backup</p>
+      <p className="text-xs text-cream/55">
+        Progress is saved only on this device. {last ? `Last backup ${days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} ago`}.` : 'No backup yet.'}
+      </p>
+      {pending ? (
+        <div className="mt-2 rounded-xl bg-coral/15 p-3 ring-1 ring-coral/40">
+          <p className="text-sm font-bold">Replace your current progress with this backup ({pending.name}, level {levelInfo(pending.xp).level})?</p>
+          <div className="mt-2 flex gap-2">
+            <button onClick={() => setPending(null)} className="flex-1 rounded-xl bg-white/10 py-2 text-sm font-extrabold">Keep current</button>
+            <button onClick={() => { onRestore(pending); setPending(null); setMsg('Backup restored.') }} className="flex-1 rounded-xl bg-coral py-2 text-sm font-extrabold text-ink">Restore</button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 flex gap-2">
+          <button onClick={save} className="clay-btn clay-butter min-h-11 flex-1 text-sm">Save backup</button>
+          <button onClick={() => file.current?.click()} className="clay-btn clay-plum min-h-11 flex-1 text-sm">Restore…</button>
+        </div>
+      )}
+      {msg && <p className="mt-2 text-xs font-bold text-cream/70" role="status">{msg}</p>}
+      <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+    </section>
   )
 }
 
