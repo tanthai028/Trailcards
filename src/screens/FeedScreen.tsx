@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
-import { CARDS, CARD_BY_ID, TOPICS, type Card } from '../data/cards'
-import { reviewQueue, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
+import { TOPICS, type Card } from '../data/cards'
+import type { DeckFeedCard } from '../data/decks'
+import { DeckPicker } from '../components/Decks'
+import { findCard, reviewQueue, sourceCards, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Coin, Icon } from '../components/Icon'
@@ -12,10 +14,10 @@ export type FeedMode = 'discover' | 'review' | 'saved'
 
 const idsFor = (s: GameState, mode: FeedMode) =>
   mode === 'discover'
-    ? CARDS.filter((c) => statusOf(s, c.id) === 'new').map((c) => c.id)
+    ? sourceCards(s).filter((c) => statusOf(s, c.id) === 'new').map((c) => c.id)
     : mode === 'review'
       ? reviewQueue(s).map((c) => c.id)
-      : s.bookmarks.filter((id) => CARD_BY_ID[id])
+      : s.bookmarks.filter((id) => findCard(s, id))
 
 export const MASTERY_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Familiar', mastered: 'Mastered' }
 
@@ -33,6 +35,13 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
     scroller.current?.scrollTo({ top: 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
+
+  // Switching or importing a deck re-snapshots the stack for the current mode.
+  useEffect(() => {
+    setIds(idsFor(state, mode))
+    setActive(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.activeDeck, state.decks.length])
 
   // Track which card is on screen.
   useEffect(() => {
@@ -54,7 +63,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   // Keyboard: 1–4 answers the visible card, J/K or arrows move between cards.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT') return
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return
       if (/^[1-4]$/.test(e.key)) answerFns.current[active]?.(Number(e.key) - 1)
       else if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); scrollTo(Math.min(active + 1, ids.length)) }
       else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); scrollTo(Math.max(active - 1, 0)) }
@@ -64,7 +73,6 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   }, [active, ids.length, scrollTo])
 
   const counts = { discover: idsFor(state, 'discover').length, review: reviewQueue(state).length, saved: state.bookmarks.length }
-  const explored = Object.keys(state.cards).length
 
   return (
     <div className="flex h-full flex-col">
@@ -82,9 +90,9 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
             </button>
           ))}
         </div>
-        <span className="ml-auto text-[11px] font-bold tabular-nums text-cream/50" aria-label="Concepts explored">
-          {explored}/{CARDS.length} explored
-        </span>
+        <div className="ml-auto">
+                    <DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} />
+        </div>
       </div>
 
       {/* thin progress through the current stack */}
@@ -96,7 +104,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
         {ids.map((id, i) => (
           <section key={`${mode}-${id}`} data-index={i} className="h-full snap-start snap-always px-3 py-2" aria-label={`Card ${i + 1} of ${ids.length}`}>
             <FeedCard
-              card={CARD_BY_ID[id]}
+              card={findCard(state, id)!}
               mode={mode}
               index={i}
               total={ids.length}
@@ -126,7 +134,8 @@ function FeedCard({
   registerAnswer: (fn: (i: number) => void) => void
 }) {
   const { state, toggleBookmark } = useGame()
-  const topic = TOPICS[card.topic]
+  const deck = (card as DeckFeedCard).deck
+  const topic = deck ? { name: deck.name, accent: '#b9a7f2', scene: deck.scene } : TOPICS[card.topic]
   const [choice, setChoice] = useState<number | null>(null)
   const [result, setResult] = useState<AnswerResult | null>(null)
   const status = statusOf(state, card.id)
@@ -215,7 +224,7 @@ function FeedCard({
               <Cat sleeping={!result.correct} className="h-[2.8em] w-[3.2em] shrink-0" />
               <div className="min-w-0">
                 {/* keep a reminder of what the card said, so the explanation has context */}
-                <p className="mb-[0.35em] line-clamp-2 text-[0.8em] italic leading-snug text-ink/50">{firstSentence(card.body)}</p>
+                {card.body && <p className="mb-[0.35em] line-clamp-2 text-[0.8em] italic leading-snug text-ink/50">{firstSentence(card.body)}</p>}
                 <p className="text-[0.95em] font-extrabold">{result.correct ? pickLine(card.id, RIGHT) : 'Not quite — here’s the idea'}</p>
                 <p className="mt-[0.25em] text-[0.88em] leading-[1.45] text-ink/75">{card.explain}</p>
               </div>

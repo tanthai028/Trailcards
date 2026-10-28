@@ -1,5 +1,6 @@
 // Pure game rules. No React, no storage — easy to test and to move server-side later.
-import { CARDS, CARD_BY_ID, TOPIC_ORDER, type TopicId } from '../data/cards'
+import { CARDS, CARD_BY_ID, TOPIC_ORDER, type Card, type TopicId } from '../data/cards'
+import { deckFeedCards, type UserDeck } from '../data/decks'
 import { ITEMS, ITEM_BY_ID, DEFAULT_LOOK, DEFAULT_HAIR, DESTINATIONS, VAN_TIERS, hairFits, type Body, type Look, type Slot } from '../data/items'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
 
@@ -20,6 +21,10 @@ export interface GameState {
   onboarded: boolean
   /** One-time hints already shown. */
   tips: string[]
+  /** Imported study decks. */
+  decks: UserDeck[]
+  /** What Learn shows: null = the built-in field notes, otherwise a deck id. */
+  activeDeck: string | null
   xp: number
   coins: number
   cards: Record<string, CardProgress>
@@ -37,6 +42,8 @@ export const initialState = (): GameState => ({
   title: null,
   onboarded: false,
   tips: [],
+  decks: [],
+  activeDeck: null,
   xp: 0,
   coins: 40,
   cards: {},
@@ -83,7 +90,7 @@ export interface AnswerResult {
 }
 
 export function answerCard(s: GameState, cardId: string, choice: number): { state: GameState; result: AnswerResult } {
-  const card = CARD_BY_ID[cardId]
+  const card = findCard(s, cardId)!
   const prev = s.cards[cardId]
   const from = prev?.status ?? 'new'
   const correct = choice === card.answerIndex
@@ -121,10 +128,22 @@ export function answerCard(s: GameState, cardId: string, choice: number): { stat
   }
 }
 
+// ── Card sources: built-in field notes + imported decks ─────────
+export const deckCards = (s: GameState) => s.decks.flatMap(deckFeedCards)
+export const allCards = (s: GameState): Card[] => [...CARDS, ...deckCards(s)]
+export const findCard = (s: GameState, id: string): Card | undefined => CARD_BY_ID[id] ?? deckCards(s).find((c) => c.id === id)
+
+/** Cards for the active source (falls back to field notes if the deck was deleted). */
+export function sourceCards(s: GameState): Card[] {
+  const deck = s.activeDeck ? s.decks.find((d) => d.id === s.activeDeck) : undefined
+  return deck ? deckFeedCards(deck) : CARDS
+}
+
 // ── Mastery stats ───────────────────────────────────────────────
+/** Per topic: built-in cards only. Overall: every card, so studying your own decks grows the plant too. */
 export function masteryCounts(s: GameState, topic?: TopicId) {
   const counts: Record<Mastery, number> = { new: 0, learning: 0, familiar: 0, mastered: 0 }
-  for (const c of CARDS) if (!topic || c.topic === topic) counts[statusOf(s, c.id)]++
+  for (const c of topic ? CARDS : allCards(s)) if (!topic || c.topic === topic) counts[statusOf(s, c.id)]++
   return counts
 }
 
@@ -133,15 +152,16 @@ export function stats(s: GameState) {
   const attempts = entries.reduce((a, c) => a + c.attempts, 0)
   const correct = entries.reduce((a, c) => a + c.correct, 0)
   return {
-    explored: entries.length,
+    explored: allCards(s).filter((c) => s.cards[c.id]).length,
+    total: allCards(s).length,
     attempts,
     accuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
     ...masteryCounts(s),
   }
 }
 
-export const reviewQueue = (s: GameState) =>
-  CARDS.filter((c) => ['learning', 'familiar'].includes(statusOf(s, c.id)))
+export const reviewQueue = (s: GameState, cards: Card[] = sourceCards(s)) =>
+  cards.filter((c) => ['learning', 'familiar'].includes(statusOf(s, c.id)))
     // shaky concepts first
     .sort((a, b) => (statusOf(s, a.id) === 'learning' ? -1 : 0) - (statusOf(s, b.id) === 'learning' ? -1 : 0))
 

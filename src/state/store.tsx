@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import * as G from './game'
 import { localSave } from './storage'
 import { ITEM_BY_ID, type Body, type HairColorId } from '../data/items'
+import { DECK_SCENES, type DeckCard, type UserDeck } from '../data/decks'
 
 export type GameEvent =
   | { id: number; kind: 'achievement'; achId: string }
@@ -21,6 +22,9 @@ interface Store {
   equip: (itemId: string) => void
   setHairColor: (c: HairColorId) => void
   setBody: (b: Body) => void
+  importDeck: (name: string, cards: DeckCard[]) => void
+  deleteDeck: (id: string) => void
+  setActiveDeck: (id: string | null) => void
   setName: (name: string) => void
   setTitle: (title: string | null) => void
   setDestination: (id: string) => void
@@ -90,6 +94,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
         commit(r.state)
         pushAch(r.achievements)
       },
+      importDeck: (name, cards) => {
+        const s = stateRef.current
+        const id = `deck-${Date.now().toString(36)}`
+        const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards }
+        commit({ ...s, decks: [...s.decks, deck], activeDeck: id })
+        push([{ kind: 'toast', text: `Imported ${cards.length} cards into “${deck.name}”` }])
+      },
+      deleteDeck: (id) => {
+        const s = stateRef.current
+        commit({ ...s, decks: s.decks.filter((d) => d.id !== id), activeDeck: s.activeDeck === id ? null : s.activeDeck })
+      },
+      setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id }),
       setBody: (b) => commit(G.setBody(stateRef.current, b)),
       setHairColor: (c) => commit({ ...stateRef.current, look: { ...stateRef.current.look, hairColor: c } }),
       setName: (name) => commit({ ...stateRef.current, name: name.trim().slice(0, 20) || 'Wanderer' }),

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { useGame } from '../state/store'
-import { TOPICS, TOPIC_ORDER, CARDS } from '../data/cards'
+import { TOPICS, TOPIC_ORDER } from '../data/cards'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
 import { ITEMS, RARITY_STYLE, type Slot } from '../data/items'
 import { levelInfo, masteryCounts, stats, type Mastery } from '../state/game'
@@ -69,7 +69,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       {/* Stats */}
       <div className="mt-4 grid grid-cols-4 gap-2">
         {[
-          ['Explored', `${s.explored}/${CARDS.length}`],
+          ['Explored', `${s.explored}/${s.total}`],
           ['Accuracy', s.attempts ? `${s.accuracy}%` : '—'],
           ['Mastered', s.mastered],
           ['Answers', s.attempts],
