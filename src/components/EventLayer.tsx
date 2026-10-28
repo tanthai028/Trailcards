@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame, type GameEvent } from '../state/store'
 import { ACH_BY_ID } from '../data/achievements'
-import { Figurine } from '../scene/Figurine'
 import { ProfilePic } from './ProfilePic'
 import { Icon } from './Icon'
 import { celebrate } from '../fx/FxLayer'
@@ -45,11 +44,7 @@ export function EventLayer() {
               <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_50%_70%,rgba(255,210,122,.8),transparent_65%)]" />
               {/* a happy double hop once the card lands */}
               <motion.div className="relative" animate={{ y: [0, 0, -22, 0, -10, 0] }} transition={{ duration: 1.1, times: [0, 0.25, 0.45, 0.65, 0.8, 1], ease: 'easeOut' }}>
-                {state.photo ? (
-                  <ProfilePic look={state.look} photo={state.photo} className="mx-auto mb-3 size-32 ring-4 ring-white shadow-xl" />
-                ) : (
-                  <Figurine look={state.look} className="mx-auto -mb-1 h-48 drop-shadow-[0_10px_14px_rgba(0,0,0,.25)]" />
-                )}
+                <ProfilePic avatar={state.avatar} frame={state.frame} photo={state.photo} className="mx-auto mb-3 size-32 drop-shadow-xl" />
               </motion.div>
               <p className="relative text-xs font-black text-coral">Level up</p>
               <h2 className="relative font-display text-5xl font-bold">Level {levelUp.level}</h2>

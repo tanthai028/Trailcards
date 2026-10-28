@@ -10,6 +10,8 @@ import { Cat } from '../art/Companions'
 import { art } from '../scene/assets'
 import { ProfilePic } from '../components/ProfilePic'
 import { PictureSheet } from '../components/PictureSheet'
+import { JoinSheet } from '../components/JoinSheet'
+import { useAccount } from '../net/account'
 import { Icon } from '../components/Icon'
 import { Trophy } from '../components/Trophy'
 import { TitlePicker } from '../components/TitleSheet'
@@ -44,7 +46,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
         <div className="relative flex items-end gap-4 px-4 pb-4 pt-20">
           <button onClick={() => setPicture(true)} aria-label="Change your picture" className="relative shrink-0">
-            <ProfilePic look={state.look} photo={state.photo} className="size-24 shadow-xl ring-4 ring-cream" />
+            <ProfilePic avatar={state.avatar} frame={state.frame} photo={state.photo} className="size-28 drop-shadow-xl" />
             <span className="absolute -bottom-0.5 -right-0.5 grid size-8 place-items-center rounded-full bg-gold text-ink ring-2 ring-ink"><Icon name="edit" size={14} /></span>
           </button>
           <div className="min-w-0 flex-1 pb-2">
@@ -166,8 +168,10 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
 
       <AnimatePresence>{picture && <PictureSheet onClose={() => setPicture(false)} />}</AnimatePresence>
 
+      <AccountRow />
+
       {/* Settings */}
-      <button onClick={() => { tourReplay.on = true; go('feed') }} className="clay mt-8 flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 text-left">
+      <button onClick={() => { tourReplay.on = true; go('feed') }} className="clay mt-2 flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 text-left">
         <Icon name="spark" size={16} className="text-gold" />
         <span className="flex-1 text-sm font-extrabold">Replay the Learn tour</span>
         <Icon name="chevron" size={14} className="-rotate-90 text-cream/40" />
@@ -270,6 +274,28 @@ function Backup({ state, onRestore }: { state: GameState; onRestore: (s: GameSta
       {msg && <p className="mt-2 text-xs font-bold text-cream/70" role="status">{msg}</p>}
       <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
     </section>
+  )
+}
+
+/** Signed in or not: sign in to sync and join the board, or sign out. */
+function AccountRow() {
+  const { status, email, signOut } = useAccount()
+  const [joining, setJoining] = useState(false)
+  if (status === 'offline' || status === 'loading') return null
+  return (
+    <div className="clay mt-8 flex min-h-12 items-center gap-3 rounded-2xl px-4 py-3">
+      <Icon name="profile" size={16} className="shrink-0 text-gold" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-extrabold">{status === 'member' ? 'Synced with your group' : status === 'needsInvite' ? 'Waiting for an invite code' : 'Not signed in'}</span>
+        <span className="block truncate text-xs text-cream/55">{email ?? 'Your progress is only on this device.'}</span>
+      </span>
+      {status === 'signedOut' || status === 'needsInvite' ? (
+        <button onClick={() => setJoining(true)} className="clay-btn clay-butter min-h-10 shrink-0 px-3 text-xs">{status === 'signedOut' ? 'Sign in' : 'Enter code'}</button>
+      ) : (
+        <button onClick={() => void signOut()} className="clay-btn clay-plum min-h-10 shrink-0 px-3 text-xs">Sign out</button>
+      )}
+      <AnimatePresence>{joining && <JoinSheet onClose={() => setJoining(false)} />}</AnimatePresence>
+    </div>
   )
 }
 

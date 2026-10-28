@@ -1,12 +1,44 @@
 // Study decks: a picker for what Learn shows, and a Quizlet-style paste import.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { CARDS } from '../data/cards'
-import { buildPrompt, cardId, detectOptions, looksLikeAiFormat, minCards, parseAiDeck, parseDeck, type DeckCard, type ParseOptions, type ParseResult, type RowSep, type TermSep, type UserDeck } from '../data/decks'
+import { DECK_SCENES, buildPrompt, cardId, detectOptions, looksLikeAiFormat, minCards, parseAiDeck, parseDeck, type DeckCard, type ParseOptions, type ParseResult, type RowSep, type TermSep, type UserDeck } from '../data/decks'
 import { isDue, statusOf, type Mastery } from '../state/game'
 import { Icon } from './Icon'
+import { SceneSvg } from '../art/Landscape'
+import { cleanDeck } from '../state/sanitize'
+import { useAccount } from '../net/account'
+import { errorText } from '../net/client'
+import { JoinSheet } from './JoinSheet'
+
+/** A deck file: what Export writes and Import reads back (on any device, signed in or not). */
+const DECK_FILE = 'wayfarer-deck'
+function deckFile(d: UserDeck) {
+  const body = JSON.stringify({ app: DECK_FILE, version: 1, deck: { name: d.name, topic: d.topic, scene: d.scene, reverse: d.reverse, cards: d.cards } }, null, 1)
+  return new File([body], `${d.name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'deck'}.wayfarer.json`, { type: 'application/json' })
+}
+/** Read a deck file; null when the text is something else (cards to paste, say). */
+function readDeckFile(text: string): UserDeck | null {
+  try {
+    const data = JSON.parse(text)
+    return data?.app === DECK_FILE ? cleanDeck({ ...data.deck, id: 'file', createdAt: 0 }) : null
+  } catch {
+    return null
+  }
+}
+/** Share sheet on phones (so it can go to Files, AirDrop or a chat), a download elsewhere. */
+async function saveFile(file: File) {
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return } catch (e) { if ((e as Error).name === 'AbortError') return }
+  }
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(file)
+  a.download = file.name
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+}
 
 function useEscape(onClose: () => void) {
   useEffect(() => {
@@ -217,6 +249,61 @@ function AiPrompt({ topic, setTopic, avoid, more }: { topic: string; setTopic: (
 
 const STATUS_LABEL: Record<Mastery, string> = { new: 'New', learning: 'Learning', familiar: 'Known', mastered: 'Mastered' }
 
+/** Share a deck with your group (or update / stop sharing it). */
+function ShareDeck({ deck }: { deck: UserDeck }) {
+  const { status, client, me } = useAccount()
+  const { updateDeck } = useGame()
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  const [joining, setJoining] = useState(false)
+  if (status === 'offline') return null
+
+  const run = async (fn: () => Promise<string>) => {
+    setBusy(true)
+    setNote(null)
+    try { setNote(await fn()) } catch (e) { setNote(errorText(e)) } finally { setBusy(false) }
+  }
+  const row = { name: deck.name, topic: deck.topic ?? null, scene: deck.scene, reverse: !!deck.reverse, cards: deck.cards }
+  const share = () => run(async () => {
+    if (deck.sharedId) {
+      const { data, error } = await client!.from('shared_decks').update(row).eq('id', deck.sharedId).select('id')
+      if (error) throw error
+      if (data.length) return 'Shared copy updated.'
+    }
+    const { data, error } = await client!.from('shared_decks').insert({ ...row, owner: me!.id }).select('id').single()
+    if (error) throw error
+    updateDeck(deck.id, { sharedId: data.id })
+    return 'Shared. Your group can find it in Explore.'
+  })
+  const unshare = () => run(async () => {
+    const { error } = await client!.from('shared_decks').delete().eq('id', deck.sharedId!)
+    if (error) throw error
+    updateDeck(deck.id, { sharedId: undefined })
+    return 'No longer shared. Copies friends already added stay theirs.'
+  })
+
+  return (
+    <div className="clay mt-4 rounded-2xl p-3">
+      <p className="text-sm font-extrabold">{deck.sharedId ? 'Shared with your group' : 'Share with your group'}</p>
+      <p className="mt-0.5 text-xs text-cream/55">
+        {deck.sharedId ? 'Friends see it in Explore. Changes you make here go out when you update it.' : 'Friends can find it in Explore and add their own copy. Your progress stays private.'}
+      </p>
+      {status !== 'member' ? (
+        <button onClick={() => setJoining(true)} className="clay-btn clay-cream mt-2.5 min-h-11 w-full text-sm">Join your group to share</button>
+      ) : deck.sharedId ? (
+        <div className="mt-2.5 grid grid-cols-2 gap-2">
+          <button onClick={share} disabled={busy} className="clay-btn clay-butter min-h-11 text-sm disabled:opacity-50">Update shared copy</button>
+          <button onClick={unshare} disabled={busy} className="clay-btn clay-plum min-h-11 text-sm disabled:opacity-50">Stop sharing</button>
+        </div>
+      ) : (
+        <button onClick={share} disabled={busy} className="clay-btn clay-butter mt-2.5 min-h-11 w-full text-sm disabled:opacity-50">{busy ? 'Sharing…' : 'Share'}</button>
+      )}
+      {note && <p role="status" className="mt-2 text-xs font-bold text-cream/70">{note}</p>}
+      <AnimatePresence>{joining && <JoinSheet onClose={() => setJoining(false)} />}</AnimatePresence>
+    </div>
+  )
+}
+
 /** One imported deck: rename it, see progress, flip the practice direction, and view, edit, add or remove cards. */
 function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
   const { state, renameDeck, updateDeck } = useGame()
@@ -298,6 +385,25 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
             ))}
           </div>
           </>)}
+
+          <p className="mt-4 text-sm font-bold text-cream/80">Card scene</p>
+          <div role="radiogroup" aria-label="Card scene" className="mt-1.5 grid grid-cols-6 gap-1.5">
+            {DECK_SCENES.map((sc) => (
+              <button key={sc} role="radio" aria-checked={deck.scene === sc} aria-label={sc} onClick={() => updateDeck(deck.id, { scene: sc })}
+                className={`aspect-square overflow-hidden rounded-xl ring-2 ${deck.scene === sc ? 'ring-gold' : 'ring-transparent'}`}>
+                <SceneSvg scene={sc} still className="h-full w-full" />
+              </button>
+            ))}
+          </div>
+
+          <ShareDeck deck={deck} />
+          <button onClick={() => void saveFile(deckFile(deck))} className="clay mt-2 flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 py-3 text-left">
+            <Icon name="down" size={16} className="text-gold" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-extrabold">Export deck file</span>
+              <span className="block text-xs text-cream/55">Back it up, or send it to anyone. Import it from “Import a deck”.</span>
+            </span>
+          </button>
 
           {/* more cards from AI, without repeating what the deck already has */}
           <button onClick={() => setMore(!more)} aria-expanded={more} className="clay mt-4 flex min-h-12 w-full items-center gap-2 rounded-2xl px-4 text-left">
@@ -464,6 +570,22 @@ export function DeckImport({ onClose, onImported, initialMode = 'ai' }: { onClos
   const pasted = text.trim().length > 0
   const setSep = (o: Partial<ParseOptions>) => { setTouchedSep(true); setOpts({ ...effective, ...o }) }
 
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [fileNote, setFileNote] = useState<string | null>(null)
+  // A Wayfarer deck file imports straight away; any other text file goes in the box to check first.
+  const openFile = async (f: File | undefined) => {
+    if (!f) return
+    setFileNote(null)
+    const body = await f.text().catch(() => '')
+    const d = readDeckFile(body)
+    if (d) {
+      importDeck(d.name, d.cards, { topic: d.topic, scene: d.scene, reverse: d.reverse })
+      onImported()
+      onClose()
+    } else if (body.trim()) setText(body)
+    else setFileNote("That file couldn't be read.")
+  }
+
   // Clipboard read can be refused (or prompt on iOS); then just focus the box for a manual paste.
   const paste = async () => {
     try {
@@ -544,6 +666,13 @@ export function DeckImport({ onClose, onImported, initialMode = 'ai' }: { onClos
               </button>
             )}
           </div>
+          {!pasted && (
+            <button onClick={() => fileInput.current?.click()} className="mt-2 flex min-h-10 items-center gap-1.5 text-xs font-extrabold text-cream/60 hover:text-cream">
+              <Icon name="book" size={13} /> Or open a deck file
+            </button>
+          )}
+          {fileNote && <p role="alert" className="mt-1 text-xs font-bold text-coral">{fileNote}</p>}
+          <input ref={fileInput} type="file" accept=".json,.txt,.csv,.tsv,application/json,text/plain,text/csv" className="hidden" onChange={(e) => { void openFile(e.target.files?.[0]); e.target.value = '' }} />
 
           {pasted && (
             <section className="mt-4" aria-live="polite">
@@ -632,7 +761,7 @@ export function DeckImport({ onClose, onImported, initialMode = 'ai' }: { onClos
             disabled={!ok}
             onClick={() => {
               const fallback = aiResult?.name || (topic.trim() && topic.length < 40 ? topic.trim() : '') || 'My deck'
-              importDeck(name || fallback, result.cards, ai ? topic : undefined)
+              importDeck(name || fallback, result.cards, ai ? { topic } : undefined)
               onClose()
               onImported()
             }}

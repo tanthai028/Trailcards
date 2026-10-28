@@ -2,20 +2,26 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { useGame } from './state/store'
 import { NavBar, type Tab } from './components/NavBar'
+import { reviewQueue } from './state/game'
 import { EventLayer } from './components/EventLayer'
 import { InstallHint, shouldShowInstallHint } from './components/InstallHint'
 import { FxLayer } from './fx/FxLayer'
 import { setSoundEnabled } from './fx/sound'
 import { FeedScreen, type FeedMode } from './screens/FeedScreen'
+import { JoinSheet } from './components/JoinSheet'
 
 // Learn ships in the main bundle; the other tabs and onboarding load on demand, and are
 // fetched in the background right after the first paint so switching tabs never waits.
 const loadProfile = () => import('./screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen }))
+const loadExplore = () => import('./screens/ExploreScreen').then((m) => ({ default: m.ExploreScreen }))
+const loadRanks = () => import('./screens/RanksScreen').then((m) => ({ default: m.RanksScreen }))
 const loadOnboarding = () => import('./components/Onboarding').then((m) => ({ default: m.Onboarding }))
 const ProfileScreen = lazy(loadProfile)
+const ExploreScreen = lazy(loadExplore)
+const RanksScreen = lazy(loadRanks)
 const Onboarding = lazy(loadOnboarding)
 
-const TABS: Tab[] = ['feed', 'profile']
+const TABS: Tab[] = ['feed', 'review', 'explore', 'ranks', 'profile']
 const readHash = (): Tab => {
   const h = location.hash.replace('#', '') as Tab
   return TABS.includes(h) ? h : 'feed'
@@ -25,9 +31,11 @@ export default function App() {
   const { state } = useGame()
   const [tab, setTab] = useState<Tab>(readHash)
   const [feedMode, setFeedMode] = useState<FeedMode>('discover')
+  // sign-in chosen during onboarding
+  const [joining, setJoining] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => { loadProfile() }, 1200)
+    const t = setTimeout(() => { loadExplore(); loadRanks(); loadProfile() }, 1200)
     return () => clearTimeout(t)
   }, [])
 
@@ -43,11 +51,14 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
+  // Review has its own tab; Learn shows Study, or your Saved cards when you open them from Profile
   const go = (t: Tab, mode?: FeedMode) => {
-    if (mode) setFeedMode(mode)
+    if (mode === 'review') t = 'review'
+    else if (mode) setFeedMode(mode)
     history.replaceState(null, '', `#${t}`)
     setTab(t)
   }
+  const setMode = (m: FeedMode) => go(m === 'review' ? 'review' : 'feed', m)
 
   return (
     <MotionConfig reducedMotion={state.reduceMotion ? 'always' : 'user'}>
@@ -64,18 +75,22 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.18 }}
             >
-              {tab === 'feed' && <FeedScreen mode={feedMode} setMode={setFeedMode} go={go} />}
+              {tab === 'feed' && <FeedScreen mode={feedMode} setMode={setMode} go={go} />}
+              {tab === 'review' && <FeedScreen mode="review" setMode={setMode} go={go} />}
               <Suspense fallback={null}>
+                {tab === 'explore' && <ExploreScreen go={go} />}
+                {tab === 'ranks' && <RanksScreen />}
                 {tab === 'profile' && <ProfileScreen go={go} />}
               </Suspense>
             </motion.div>
         </main>
-        <NavBar tab={tab} onTab={(t) => go(t)} />
+        <NavBar tab={tab} onTab={(t) => go(t, t === 'feed' ? 'discover' : undefined)} due={reviewQueue(state).length} />
         <AnimatePresence>{state.onboarded && shouldShowInstallHint(state.tips) && <InstallHint />}</AnimatePresence>
         <EventLayer />
         <FxLayer />
         <Suspense fallback={null}>
-          <AnimatePresence>{!state.onboarded && <Onboarding />}</AnimatePresence>
+          <AnimatePresence>{!state.onboarded && <Onboarding onSignIn={() => setJoining(true)} />}</AnimatePresence>
+          <AnimatePresence>{joining && <JoinSheet onClose={() => setJoining(false)} />}</AnimatePresence>
         </Suspense>
       </div>
     </div>

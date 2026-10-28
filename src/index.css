@@ -80,9 +80,6 @@ body {
     inset 0 -3px 0 rgba(0, 0, 0, 0.18),
     0 6px 14px -8px rgba(10, 4, 24, 0.7);
 }
-.clay-hi {
-  background: #3c3159;
-}
 
 /* Pressable clay button: sits on a 4px lip and presses down into it. */
 .clay-btn {
@@ -142,10 +139,6 @@ body {
 }
 
 /* ── Ambient art animations ─────────────────────────────────── */
-.cq-idle {
-  animation: cq-bob 3.6s ease-in-out infinite;
-  transform-origin: 50% 100%;
-}
 .cq-blink {
   animation: cq-blink 5s infinite;
   transform-box: fill-box;
@@ -189,20 +182,15 @@ body {
   50% { opacity: 0.9; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cq-drift, .cq-firefly, .cq-glint, .cq-twinkle, .cq-idle { animation: none; }
+  .cq-drift, .cq-firefly, .cq-glint, .cq-twinkle { animation: none; }
 }
 [data-reduce-motion] .cq-drift,
 [data-reduce-motion] .cq-firefly,
 [data-reduce-motion] .cq-glint,
-[data-reduce-motion] .cq-twinkle,
-[data-reduce-motion] .cq-idle {
+[data-reduce-motion] .cq-twinkle {
   animation: none !important;
 }
 
-@keyframes cq-bob {
-  0%, 100% { transform: translateY(0) scaleY(1); }
-  50% { transform: translateY(-2px) scaleY(1.01); }
-}
 @keyframes cq-blink {
   0%, 92%, 100% { transform: scaleY(1); }
   95% { transform: scaleY(0.08); }
@@ -217,7 +205,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cq-idle, .cq-blink, .cq-tail, .cq-twinkle {
+  .cq-blink, .cq-tail, .cq-twinkle {
     animation: none !important;
   }
   .clay-btn {

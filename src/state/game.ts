@@ -1,7 +1,7 @@
 // Pure game rules. No React, no storage — easy to test and to move server-side later.
 import { CARDS, CARD_BY_ID, TOPIC_ORDER, type Card, type TopicId } from '../data/cards'
 import { deckFeedCards, type UserDeck } from '../data/decks'
-import { DEFAULT_LOOK, type Look } from '../data/look'
+import { DEFAULT_AVATAR, FRAME_BY_ID, isColorFrame, type Frame } from '../data/avatars'
 import { ACHIEVEMENTS } from '../data/achievements'
 
 export type Mastery = 'new' | 'learning' | 'familiar' | 'mastered'
@@ -33,8 +33,10 @@ export interface GameState {
   xp: number
   cards: Record<string, CardProgress>
   bookmarks: string[]
-  /** The character shown as your picture, unless you uploaded a photo. */
-  look: Look
+  /** The icon shown as your picture, unless you uploaded a photo. */
+  avatar: string
+  /** The frame around your picture: 'none', a custom ring or an unlocked special one. */
+  frame: Frame
   /** Your uploaded picture: a small square image as a data URL, or null. */
   photo: string | null
   /** Turn off non-essential animation, on top of the phone's own setting. */
@@ -61,7 +63,8 @@ export const initialState = (): GameState => ({
   xp: 0,
   cards: {},
   bookmarks: [],
-  look: { ...DEFAULT_LOOK },
+  avatar: DEFAULT_AVATAR,
+  frame: 'none',
   photo: null,
   reduceMotion: false,
   sound: true,
@@ -338,6 +341,8 @@ const RULES_ACH: Record<string, (s: GameState) => boolean> = {
   'first-card': (s) => Object.keys(s.cards).length >= 1,
   'ten-cards': (s) => Object.keys(s.cards).length >= 10,
   'mastery-10': (s) => masteryCounts(s).mastered >= 10,
+  'streak-7': (s) => (s.streak?.days ?? 0) >= 7,
+  'streak-30': (s) => (s.streak?.days ?? 0) >= 30,
   ...Object.fromEntries(
     TOPIC_ORDER.map((t) => [
       `topic-${t}`,
@@ -360,4 +365,12 @@ export function checkAchievements(s: GameState) {
       achievements: { ...s.achievements, ...Object.fromEntries(unlocked.map((id) => [id, now])) },
     },
   }
+}
+
+/** Custom rings are always yours; special frames unlock with a level or a trophy. */
+export function frameUnlocked(s: GameState, frame: Frame) {
+  if (frame === 'none' || isColorFrame(frame)) return true
+  const f = FRAME_BY_ID[frame]
+  if (!f) return false
+  return 'level' in f.unlock ? levelInfo(s.xp).level >= f.unlock.level : !!s.achievements[f.unlock.trophy]
 }

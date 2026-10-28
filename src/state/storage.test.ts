@@ -55,7 +55,8 @@ describe('parseSave', () => {
     expect(s.activeDeck).toBeNull()
     expect(s.cards).toEqual({})
     expect(s.bookmarks).toEqual([])
-    expect(s.look).toEqual(base.look)
+    expect(s.avatar).toBe(base.avatar)
+    expect(s.frame).toBe('none')
     expect(s.photo).toBeNull()
     expect(s.daily).toEqual({ day: '', count: 0 })
     expect(s.streak).toEqual({ days: 0, lastDay: null })
@@ -74,7 +75,7 @@ describe('parseSave', () => {
         { id: 'd2', name: 'Empty', cards: [] },
       ],
       activeDeck: 'd2',
-      look: { body: 'girl', outfit: 'outfit-ballgown', hair: 'hair-crop', hairColor: 'neon', accessory: 'acc-hat', card: 'card-night' },
+      avatar: 'dragon', frame: 'color:red',
       photo: 'javascript:alert(1)',
       streak: { days: 3, lastDay: '2026-10-01', freezes: 99 },
     }))!
@@ -82,8 +83,8 @@ describe('parseSave', () => {
     expect(s.decks).toHaveLength(1)
     expect(s.decks[0]).toMatchObject({ id: 'd1', name: 'My deck', cards: [{ id: 'a', term: 'perro', definition: 'dog' }] })
     expect(s.activeDeck).toBeNull() // pointed at a deck that was dropped
-    // unknown parts fall back; the body always follows the hairstyle
-    expect(s.look).toEqual({ body: 'guy', hair: 'hair-crop', outfit: 'outfit-trailhead', hairColor: 'ink', accessory: 'acc-hat' })
+    expect(s.avatar).toBe('paw') // unknown icon
+    expect(s.frame).toBe('none') // not a known frame
     expect(s.photo).toBeNull()
     expect(s.streak).toEqual({ days: 3, lastDay: '2026-10-01' })
     exercise(s)
@@ -101,6 +102,14 @@ describe('parseSave', () => {
     expect(s.achievements).toEqual({ 'first-card': 5 })
     expect(s.title).toBeNull() // that title came from a trophy that's gone
     expect(parseSave(JSON.stringify({ ...old, title: 'Fresh Wanderer' }))!.title).toBe('Fresh Wanderer')
+  })
+
+  it('keeps a known icon and frame; old character looks fall back to the default icon', () => {
+    expect(parseSave(JSON.stringify({ ...real(), avatar: 'moon', frame: 'color:#b9a7f2' }))).toMatchObject({ avatar: 'moon', frame: 'color:#b9a7f2' })
+    expect(parseSave(JSON.stringify({ ...real(), frame: 'gold' }))!.frame).toBe('gold')
+    const old = { ...real(), look: { body: 'girl', hair: 'hair-bob' } } as Record<string, unknown>
+    delete old.avatar
+    expect(parseSave(JSON.stringify(old))!.avatar).toBe('paw')
   })
 
   it('keeps an uploaded picture', () => {

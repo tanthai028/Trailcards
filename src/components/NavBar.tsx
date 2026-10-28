@@ -1,10 +1,13 @@
 import { motion } from 'framer-motion'
 import { Icon } from './Icon'
 
-export type Tab = 'feed' | 'profile'
+export type Tab = 'feed' | 'review' | 'explore' | 'ranks' | 'profile'
 
 const ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: 'feed', label: 'Learn', icon: 'feed' },
+  { id: 'review', label: 'Review', icon: 'refresh' },
+  { id: 'explore', label: 'Explore', icon: 'compass' },
+  { id: 'ranks', label: 'Ranks', icon: 'trophy' },
   { id: 'profile', label: 'Profile', icon: 'profile' },
 ]
 
@@ -25,16 +28,18 @@ function Road() {
   )
 }
 
-export function NavBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+/** `due`: cards waiting in Review, shown as a count on its tab. */
+export function NavBar({ tab, onTab, due = 0 }: { tab: Tab; onTab: (t: Tab) => void; due?: number }) {
   return (
     <nav className="relative z-20 touch-none border-t border-white/8 bg-ink px-3 pt-2" aria-label="Main">
-      <ul className="grid grid-cols-2 gap-1">
+      <ul className="grid grid-cols-5 gap-1">
         {ITEMS.map((it) => {
           const active = tab === it.id
           return (
             <li key={it.id}>
               <button
                 onClick={() => onTab(it.id)}
+                data-tour={it.id === 'review' ? 'review' : undefined}
                 aria-current={active ? 'page' : undefined}
                 className={`relative flex w-full flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-bold leading-4 transition-colors duration-200 ${active ? 'text-ink' : 'text-cream/60 hover:text-cream'}`}
               >
@@ -49,8 +54,12 @@ export function NavBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
                   transition={{ type: 'spring', stiffness: 600, damping: 14 }}
                 >
                   <Icon name={it.icon} size={21} />
+                  {it.id === 'review' && due > 0 && !active && (
+                    <span className="absolute -right-2.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-coral px-1 text-[9px] font-black text-ink ring-2 ring-ink">{due > 99 ? '99+' : due}</span>
+                  )}
                 </motion.span>
                 <span className="relative">{it.label}</span>
+                {it.id === 'review' && due > 0 && <span className="sr-only">, {due} due</span>}
               </button>
             </li>
           )

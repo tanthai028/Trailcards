@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as G from './game'
 import { localSave } from './storage'
-import { bodyOfHair, type Look } from '../data/look'
+import type { Frame } from '../data/avatars'
 import { DECK_SCENES, minCards, type DeckCard, type UserDeck } from '../data/decks'
 
 export type GameEvent =
@@ -18,22 +18,24 @@ interface Store {
   dismiss: (id: number) => void
   answer: (cardId: string, choice: number) => G.AnswerResult
   toggleBookmark: (cardId: string) => void
-  /** Your character picture. */
-  setLook: (look: Look) => void
-  /** Your uploaded picture (a small data URL), or null to use the character. */
+  /** Your icon picture. */
+  setAvatar: (id: string) => void
+  /** The frame around your picture. */
+  setFrame: (frame: Frame) => void
+  /** Your uploaded picture (a small data URL), or null to use the icon. */
   setPhoto: (photo: string | null) => void
   setReduceMotion: (on: boolean) => void
   setSound: (on: boolean) => void
-  importDeck: (name: string, cards: DeckCard[], topic?: string) => void
+  importDeck: (name: string, cards: DeckCard[], opts?: Partial<Pick<UserDeck, 'topic' | 'scene' | 'reverse'>>) => void
   deleteDeck: (id: string) => void
   renameDeck: (id: string, name: string) => void
-  /** Change a deck's cards or practice direction (rename has its own action). */
-  updateDeck: (id: string, patch: Partial<Pick<UserDeck, 'cards' | 'reverse'>>) => void
+  /** Change a deck's cards, practice direction, scene or shared id (rename has its own action). */
+  updateDeck: (id: string, patch: Partial<Pick<UserDeck, 'cards' | 'reverse' | 'scene' | 'sharedId'>>) => void
   setActiveDeck: (id: string | null) => void
   dismissTip: (id: string) => void
   setName: (name: string) => void
   setTitle: (title: string | null) => void
-  finishOnboarding: (name: string, look: Look) => void
+  finishOnboarding: (name: string, avatar: string) => void
   reset: () => void
   /** Replace all progress with a restored backup. */
   restore: (s: G.GameState) => void
@@ -82,12 +84,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         commit({ ...s, bookmarks: has ? s.bookmarks.filter((b) => b !== cardId) : [...s.bookmarks, cardId] })
         push([{ kind: 'toast', text: has ? 'Removed from saved' : 'Saved for later' }])
       },
-      setLook: (look) => commit({ ...stateRef.current, look: { ...look, body: bodyOfHair(look.hair) ?? look.body } }),
+      setAvatar: (avatar) => commit({ ...stateRef.current, avatar, photo: null }),
+      setFrame: (frame) => commit({ ...stateRef.current, frame }),
       setPhoto: (photo) => commit({ ...stateRef.current, photo }),
-      importDeck: (name, cards, topic) => {
+      importDeck: (name, cards, opts = {}) => {
         const s = stateRef.current
         const id = `deck-${Date.now().toString(36)}`
-        const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards, ...(topic?.trim() ? { topic: topic.trim() } : {}) }
+        const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: opts.scene ?? DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards, ...(opts.topic?.trim() ? { topic: opts.topic.trim() } : {}), ...(opts.reverse ? { reverse: true } : {}) }
         commit({ ...s, decks: [...s.decks, deck], activeDeck: id, deckChosen: true })
         push([{ kind: 'toast', text: `Imported ${cards.length} cards into “${deck.name}”` }])
       },
@@ -115,8 +118,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setSound: (on) => commit({ ...stateRef.current, sound: on }),
       setName: (name) => commit({ ...stateRef.current, name: name.trim().slice(0, 20) || 'Wanderer' }),
       setTitle: (title) => commit({ ...stateRef.current, title }),
-      finishOnboarding: (name, look) =>
-        commit({ ...stateRef.current, look, onboarded: true, name: name.trim().slice(0, 20) || 'Wanderer' }),
+      finishOnboarding: (name, avatar) =>
+        commit({ ...stateRef.current, avatar, onboarded: true, name: name.trim().slice(0, 20) || 'Wanderer' }),
       reset: () => {
         localSave.clear()
         commit(G.initialState())

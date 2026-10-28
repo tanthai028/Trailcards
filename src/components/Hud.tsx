@@ -68,7 +68,7 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
           strokeDasharray={c} initial={false} animate={{ strokeDashoffset: c * (1 - goal) }} transition={{ type: 'spring', stiffness: 120, damping: 20 }}
         />
       </svg>
-      <ProfilePic look={state.look} photo={state.photo} className="absolute inset-1" />
+      <ProfilePic avatar={state.avatar} frame={state.frame} photo={state.photo} className="absolute inset-1" />
       <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-ink ring-2 ring-ink">{lv.level}</span>
       {/* the ring is today's goal; a flame marks a live streak */}
       {streak > 0 && (

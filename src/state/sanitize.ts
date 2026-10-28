@@ -4,7 +4,7 @@
 import { ACH_BY_ID } from '../data/achievements'
 import { initialState, type CardProgress, type GameState, type Mastery } from './game'
 import { DECK_SCENES, type DeckCard, type UserDeck } from '../data/decks'
-import { ACCESSORIES, DEFAULT_LOOK, HAIR_COLORS, HAIRS, OUTFITS, bodyOfHair, type Look } from '../data/look'
+import { AVATAR_BY_ID, DEFAULT_AVATAR, isKnownFrame, type Frame } from '../data/avatars'
 import type { SceneId } from '../art/Landscape'
 
 type Raw = Record<string, unknown>
@@ -41,7 +41,8 @@ function deckCard(v: unknown): DeckCard | null {
   return card
 }
 
-function deck(v: unknown): UserDeck | null {
+/** A deck from a save, a backup or someone's shared deck: bad cards are dropped, and no cards means no deck. */
+export function cleanDeck(v: unknown): UserDeck | null {
   if (!isObj(v) || typeof v.id !== 'string' || !v.id) return null
   const seen = new Set<string>()
   const cards = (Array.isArray(v.cards) ? v.cards : [])
@@ -57,6 +58,7 @@ function deck(v: unknown): UserDeck | null {
     cards,
     ...(typeof v.reverse === 'boolean' ? { reverse: v.reverse } : {}),
     ...(typeof v.topic === 'string' && v.topic.trim() ? { topic: v.topic.slice(0, 4000) } : {}),
+    ...(typeof v.sharedId === 'string' && v.sharedId ? { sharedId: v.sharedId } : {}),
   }
 }
 
@@ -86,19 +88,10 @@ function record<T>(v: unknown, each: (x: unknown) => T | null): Record<string, T
   return out
 }
 
-/** A known character; anything unknown falls back to the default, and hair always fits the body. */
-function look(v: unknown): Look {
-  const r = isObj(v) ? v : {}
-  const known = (list: readonly { id: string }[], id: unknown, d: string) => (list.some((x) => x.id === id) ? (id as string) : d)
-  const hair = known(HAIRS, r.hair, DEFAULT_LOOK.hair)
-  return {
-    body: bodyOfHair(hair)!,
-    hair,
-    outfit: known(OUTFITS, r.outfit, DEFAULT_LOOK.outfit),
-    hairColor: known(HAIR_COLORS, r.hairColor, DEFAULT_LOOK.hairColor) as Look['hairColor'],
-    accessory: known(ACCESSORIES, r.accessory, DEFAULT_LOOK.accessory),
-  }
-}
+/** A known icon, or the default. */
+export const cleanAvatar = (v: unknown) => (typeof v === 'string' && AVATAR_BY_ID[v] ? v : DEFAULT_AVATAR)
+/** A known frame, or none. */
+export const cleanFrame = (v: unknown): Frame => (isKnownFrame(v) ? v : 'none')
 
 /** An uploaded picture: only a small image data URL is kept. */
 const photo = (v: unknown) => (typeof v === 'string' && /^data:image\/(webp|png|jpeg);base64,/.test(v) && v.length < 200_000 ? v : null)
@@ -106,7 +99,7 @@ const photo = (v: unknown) => (typeof v === 'string' && /^data:image\/(webp|png|
 /** Build a valid state from raw save data. Fields the app no longer has (coins, items, the van…) are dropped. */
 export function sanitize(raw: Raw): GameState {
   const base = initialState()
-  const decks = (Array.isArray(raw.decks) ? raw.decks : []).map(deck).filter((d): d is UserDeck => !!d)
+  const decks = (Array.isArray(raw.decks) ? raw.decks : []).map(cleanDeck).filter((d): d is UserDeck => !!d)
   const deckIds = new Set(decks.map((d) => d.id))
   const daily = isObj(raw.daily) ? raw.daily : {}
   const streak = isObj(raw.streak) ? raw.streak : {}
@@ -128,7 +121,9 @@ export function sanitize(raw: Raw): GameState {
     xp: Math.floor(num(raw.xp, base.xp, 0)),
     cards: record(raw.cards, progress),
     bookmarks: strArr(raw.bookmarks),
-    look: look(raw.look),
+    // saves from the character days had a `look` instead: they start with the default icon
+    avatar: cleanAvatar(raw.avatar),
+    frame: cleanFrame(raw.frame),
     photo: photo(raw.photo),
     reduceMotion: bool(raw.reduceMotion, base.reduceMotion),
     sound: bool(raw.sound, base.sound),

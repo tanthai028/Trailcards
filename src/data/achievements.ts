@@ -6,14 +6,16 @@ export interface Achievement {
   /** Title the player can wear on their profile once earned. */
   title: string
   desc: string
-  icon: 'spark' | 'book' | 'star' | 'leaf' | 'wave' | 'peak' | 'cloud' | 'paw' | 'crown'
+  icon: 'spark' | 'book' | 'star' | 'leaf' | 'wave' | 'peak' | 'cloud' | 'paw' | 'crown' | 'flame'
   topic?: TopicId
 }
 
 export const ACHIEVEMENTS: Achievement[] = [
   { id: 'first-card', name: 'First Steps', title: 'Fresh Wanderer', desc: 'Answer your first card.', icon: 'spark' },
   { id: 'ten-cards', name: 'Curious Mind', title: 'Curious Mind', desc: 'Answer 10 cards.', icon: 'book' },
-  { id: 'mastery-10', name: 'Deep Roots', title: 'Field Scholar', desc: 'Master 10 concepts through review.', icon: 'crown' },
+  { id: 'streak-7', name: 'On a Roll', title: 'Steady Learner', desc: 'Hit your daily goal 7 days in a row. Unlocks the Flame frame.', icon: 'flame' },
+  { id: 'streak-30', name: 'Unstoppable', title: 'Unstoppable', desc: 'Hit your daily goal 30 days in a row. Unlocks the Crown frame.', icon: 'crown' },
+  { id: 'mastery-10', name: 'Deep Roots', title: 'Field Scholar', desc: 'Master 10 concepts through review. Unlocks the Starry frame.', icon: 'crown' },
   { id: 'topic-sky', name: 'Cloud Reader', title: 'Cloud Reader', desc: 'Get every Sky & Weather card right.', icon: 'cloud', topic: 'sky' },
   { id: 'topic-night', name: 'Stargazer', title: 'Stargazer', desc: 'Get every Night Sky card right.', icon: 'star', topic: 'night' },
   { id: 'topic-earth', name: 'Rockhound', title: 'Rockhound', desc: 'Get every Rocks & Mountains card right.', icon: 'peak', topic: 'earth' },

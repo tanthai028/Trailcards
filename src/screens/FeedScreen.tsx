@@ -50,7 +50,6 @@ function Feed({ mode, setMode, go }: FeedProps) {
   // Snapshot the list when the mode opens, so answering a card doesn't yank it out from under you.
   const [ids, setIds] = useState(() => idsFor(state, mode))
   const [active, setActive] = useState(0)
-  const [menuOpen, setMenuOpen] = useState(false)
   // a replay requested from Profile shows the tour once more
   const [tour, setTour] = useState(() => tourReplay.on)
   useEffect(() => {
@@ -254,15 +253,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
       <header className="relative z-20 flex shrink-0 touch-none items-start gap-3 px-5 pb-2.5">
         <div className="min-w-0 flex-1">
           <div data-tour="deck"><DeckPicker onSourceChange={() => scroller.current?.scrollTo({ top: 0 })} /></div>
-          <div data-tour="mode" className="mt-1 flex">
-            <ModeMenu
-              mode={mode}
-              counts={counts}
-              open={menuOpen}
-              setOpen={setMenuOpen}
-              onPick={(m) => (m === mode ? (restack(m), scroller.current?.scrollTo({ top: 0 })) : setMode(m))}
-            />
-          </div>
+          <SubLine mode={mode} counts={counts} setMode={setMode} />
         </div>
         <div data-tour="goal" className="shrink-0"><AvatarLevel onClick={() => go('profile')} size={40} /></div>
       </header>
@@ -553,60 +544,20 @@ function Recall({ answer, shown, onReveal, grade, onGrade }: {
 
 const firstSentence = (text: string) => (text.match(/^.*?[.!?](\s|$)/)?.[0] ?? text).trim()
 
-const MODE_LABEL: Record<FeedMode, string> = { discover: 'Study', review: 'Review', saved: 'Saved' }
-
-/** Study / Review / Saved in one compact menu instead of a row of chips. */
-function ModeMenu({ mode, counts, open, setOpen, onPick }: {
-  mode: FeedMode; counts: Record<FeedMode, number>; open: boolean; setOpen: (v: boolean) => void; onPick: (m: FeedMode) => void
-}) {
-  useEffect(() => {
-    if (!open) return
-    const close = () => setOpen(false)
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
-    window.addEventListener('pointerdown', close)
-    window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', onKey) }
-  }, [open, setOpen])
-  return (
-    <div className="relative shrink-0" onPointerDown={(e) => e.stopPropagation()}>
-      <button
-        onClick={() => setOpen(!open)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="relative flex h-7 items-center gap-1.5 rounded-full bg-white/10 pl-2.5 pr-1.5 text-xs font-extrabold text-cream/85"
-      >
-        {MODE_LABEL[mode]} <span className="tabular-nums text-cream/50">{counts[mode]}</span>
-        {mode !== 'review' && counts.review > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-coral ring-2 ring-ink" aria-label={`${counts.review} due for review`} />
-        )}
-        <Icon name="chevron" size={12} strokeWidth={3} className={`opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.ul
-            role="menu"
-            initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
-            transition={{ duration: 0.14 }}
-            className="clay absolute left-0 top-[calc(100%+6px)] z-30 w-48 origin-top-left rounded-2xl p-1.5"
-          >
-            {(['discover', 'review', 'saved'] as FeedMode[]).map((m) => (
-              <li key={m}>
-                <button
-                  role="menuitemradio"
-                  aria-checked={mode === m}
-                  onClick={() => { onPick(m); setOpen(false) }}
-                  className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-bold ${mode === m ? 'bg-gold/15 text-gold' : 'text-cream/85 hover:bg-white/5'}`}
-                >
-                  <span className="flex-1">{MODE_LABEL[m]}</span>
-                  <span className="tabular-nums text-xs opacity-60">{counts[m]}</span>
-                </button>
-              </li>
-            ))}
-          </motion.ul>
-        )}
-      </AnimatePresence>
-    </div>
-  )
+/** Under the deck name: what this stack is, and a way back from Saved. */
+function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<FeedMode, number>; setMode: (m: FeedMode) => void }) {
+  const chip = 'flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold'
+  if (mode === 'saved') {
+    return (
+      <div className="mt-1 flex">
+        <button onClick={() => setMode('discover')} className={`${chip} bg-white/10 text-cream/85`} aria-label="Leave saved cards">
+          Saved cards <span className="tabular-nums text-cream/50">{counts.saved}</span><Icon name="x" size={11} strokeWidth={3} className="opacity-60" />
+        </button>
+      </div>
+    )
+  }
+  if (mode === 'review') return <p className="mt-1 text-xs font-extrabold text-cream/55">Review · {counts.review ? `${counts.review} due` : 'all caught up'}</p>
+  return null
 }
 
 const RIGHT = ['Nailed it!', 'Exactly right!', 'Sharp eyes!', 'You got it!', 'Mochi is impressed!']
@@ -624,7 +575,7 @@ const TOUR: { target: string; title: string; text: string; swipe?: boolean }[] =
   { target: 'quiz', title: 'Answer the question', text: 'Right answers earn XP. Misses come back later.' },
   { target: 'card', title: 'Swipe for the next card', text: 'Swipe up to move on, down to go back.', swipe: true },
   { target: 'deck', title: 'What you study', text: 'Tap the deck name to switch decks, or make a new one with AI or your flashcards.' },
-  { target: 'mode', title: 'Study never ends', text: 'New cards, then reviews when due, then practice. Tap for Review only or Saved.' },
+  { target: 'review', title: 'Review tab', text: 'Cards you learned come back here on a schedule. The number shows how many are due.' },
   { target: 'goal', title: 'Daily goal', text: 'The ring fills as you answer: 10 a day builds a streak.' },
 ]
 
@@ -651,7 +602,7 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
           const b = body.getBoundingClientRect()
           r = new DOMRect(Math.min(a.left, b.left), a.top, Math.max(a.right, b.right) - Math.min(a.left, b.left), b.bottom - a.top)
         }
-      } else r = document.querySelector(`main [data-tour="${s.target}"]`)?.getBoundingClientRect() ?? null
+      } else r = document.querySelector(`main [data-tour="${s.target}"], nav [data-tour="${s.target}"]`)?.getBoundingClientRect() ?? null
       setRect(r && { top: r.top, left: r.left, width: r.width, height: r.height })
     }
     measure()

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { MotionConfig } from 'framer-motion'
 import './index.css'
 import { GameProvider } from './state/store'
+import { AccountProvider } from './net/account'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
@@ -12,7 +13,9 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <MotionConfig reducedMotion="user">
         <GameProvider>
-          <App />
+          <AccountProvider>
+            <App />
+          </AccountProvider>
         </GameProvider>
       </MotionConfig>
     </ErrorBoundary>

@@ -29,6 +29,8 @@ export interface UserDeck {
   reverse?: boolean
   /** What the AI prompt was about (a topic or job description), reused for "More cards". */
   topic?: string
+  /** Set while this deck is shared with the group: its id on the server. */
+  sharedId?: string
 }
 
 /** Term/definition cards borrow wrong answers from the deck, so they need a correct answer plus 3 others. */

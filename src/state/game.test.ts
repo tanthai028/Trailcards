@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   answerCard, currentStreak, DAILY_GOAL, findCard, initialState, INTERVALS, isDue, levelInfo,
-  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, type GameState,
+  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, type GameState,
 } from './game'
 import { CARDS } from '../data/cards'
 import { deckFeedCards, parseDeck, type UserDeck } from '../data/decks'
@@ -209,3 +209,17 @@ describe('endless study feed', () => {
     expect(state.cards[card.id].due).toBe(s.cards[card.id].due)
   })
 })
+
+describe('frames', () => {
+  it('custom rings are always yours; special frames unlock by level or trophy', () => {
+    const s = initialState()
+    expect(frameUnlocked(s, 'color:#f5cd6a')).toBe(true)
+    expect(frameUnlocked(s, 'gold')).toBe(false)
+    expect(frameUnlocked({ ...s, xp: levelXp(3) }, 'gold')).toBe(true)
+    expect(frameUnlocked(s, 'flame')).toBe(false)
+    expect(frameUnlocked({ ...s, achievements: { 'streak-7': 1 } }, 'flame')).toBe(true)
+    expect(frameUnlocked(s, 'nope')).toBe(false)
+  })
+})
+
+const levelXp = (level: number) => 50 * level * (level - 1)
