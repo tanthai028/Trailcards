@@ -49,14 +49,32 @@ function recolor(src: string, maskSrc: string, colorId: string): Promise<string>
         ctx.drawImage(img, 0, 0)
         const out = ctx.getImageData(0, 0, c.width, c.height)
         const d = out.data
+        const lumAt = (i: number) => (0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) / 255
+        // Keep the render's shading: stretch this render's own hair lightness range (3rd to
+        // 97th percentile) over deep shadow -> shade -> base -> shine. A fixed range flattened
+        // light colours, so strands and shadows disappeared.
+        const ls: number[] = []
+        for (let i = 0; i < d.length; i += 4) if (m[i] > 128) ls.push(lumAt(i))
+        ls.sort((a, b) => a - b)
+        const lo = ls[Math.floor(ls.length * 0.03)] ?? 0.05
+        const hi = Math.max(lo + 0.05, ls[Math.floor(ls.length * 0.97)] ?? 0.5)
+        const stops: [number, number[]][] = [[0, shade.map((v) => v * 0.45)], [0.38, shade], [0.72, base], [1, shine]]
+        const ramp = (lum: number) => {
+          const t = Math.min(1, Math.max(0, (lum - lo) / (hi - lo)))
+          for (let j = 1; j < stops.length; j++) {
+            if (t > stops[j][0]) continue
+            const [t0, a] = stops[j - 1]
+            const [t1, b] = stops[j]
+            const u = (t - t0) / (t1 - t0)
+            return a.map((v, ch) => v + (b[ch] - v) * u)
+          }
+          return shine
+        }
         for (let i = 0; i < d.length; i += 4) {
           const k = m[i] / 255
           if (k < 0.02) continue
-          // keep the render's shading: map the original lightness onto the new palette
-          const lum = (0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) / 255
-          const t = Math.min(1, Math.max(0, (lum - 0.1) / 0.42))
-          const [a, b, u] = t < 0.5 ? [shade, base, t * 2] : [base, shine, (t - 0.5) * 2]
-          for (let ch = 0; ch < 3; ch++) d[i + ch] = d[i + ch] * (1 - k) + (a[ch] + (b[ch] - a[ch]) * u) * k
+          const col = ramp(lumAt(i))
+          for (let ch = 0; ch < 3; ch++) d[i + ch] = d[i + ch] * (1 - k) + col[ch] * k
         }
         ctx.putImageData(out, 0, 0)
         const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/webp', 0.9))

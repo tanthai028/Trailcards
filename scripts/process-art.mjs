@@ -287,18 +287,39 @@ async function analyseFigurine(name, data, w, h) {
 
   // Hair: dark indigo, connected to the top of the head. Stops a little below the chin
   // for long styles so navy collars further down aren't swept in.
-  const hairy = (i) => {
+  const hsv = (i) => {
     const [r, g, b, a] = rgb(i)
-    if (a < 120) return false
     const max = Math.max(r, g, b), min = Math.min(r, g, b)
-    const v = max / 255, sat = max ? (max - min) / max : 0
-    if (v > 0.74 || v < 0.06 || sat < 0.14) return false
-    let hue = 0
     const d = max - min
-    if (max === b) hue = 60 * ((r - g) / d) + 240
-    else if (max === g) hue = 60 * ((b - r) / d) + 120
-    else hue = (60 * ((g - b) / d) + 360) % 360
-    return hue >= 205 && hue <= 255 // stops short of lavender (headphone cups, cuffs)
+    let hue = 0
+    if (d) {
+      if (max === b) hue = 60 * ((r - g) / d) + 240
+      else if (max === g) hue = 60 * ((b - r) / d) + 120
+      else hue = (60 * ((g - b) / d) + 360) % 360
+    }
+    return { a, v: max / 255, sat: max ? d / max : 0, hue }
+  }
+  // Below just under the chin only the strict indigo test applies: near-black outlines there
+  // would bridge the hair into navy cloaks and collars.
+  const cleanBottom = Math.min(h - 1, Math.round(face.y1 + faceH * 0.15))
+  const hairy = (i) => {
+    const { a, v, sat, hue } = hsv(i)
+    if (a < 120 || v > 0.74) return false
+    if (v < 0.24 && ((i / w) | 0) > cleanBottom) return false
+    // Deep shadows (under the bangs, at the tips) are near-black and barely saturated, so
+    // the hue test alone missed them and they stayed navy after recolouring.
+    if (v < 0.24) return sat < 0.3 || (hue >= 200 && hue <= 290)
+    return sat >= 0.14 && hue >= 205 && hue <= 255 // stops short of lavender (headphone cups, cuffs)
+  }
+  // The eyes and brows are dark purple too: nothing below the forehead line, inside the face, is hair.
+  const fx0 = face.x0 + (face.x1 - face.x0) * 0.06, fx1 = face.x1 - (face.x1 - face.x0) * 0.06
+  const fyTop = face.y0 + faceH * 0.3
+  const inFace = (i) => { const x = i % w, y = (i / w) | 0; return x > fx0 && x < fx1 && y > fyTop && y < face.y1 }
+  // Pixels the hair can grow into in a clean-up pass: dark or indigo-ish, never skin or face.
+  const hairEdge = (i) => {
+    const { a, v, sat, hue } = hsv(i)
+    if (a < 60 || skin(i) || inFace(i)) return false
+    return v < 0.45 || (hue >= 195 && hue <= 290 && sat > 0.08 && v < 0.85)
   }
   // Hats and headphones split the hair into pieces, and ponytails hang well below the
   // chin, so keep every indigo region that *starts* above the chin. Navy collars and
@@ -309,10 +330,43 @@ async function analyseFigurine(name, data, w, h) {
   let hb = null
   for (const c of hairComps) {
     if (c.px.length < 200) continue
-    for (const i of c.px) mask[i] = 255
+    for (const i of c.px) if (!inFace(i)) mask[i] = 255
     hb = hb ? [Math.min(hb[0], c.x0), Math.min(hb[1], c.y0), Math.max(hb[2], c.x1), Math.max(hb[3], c.y1)] : [c.x0, c.y0, c.x1, c.y1]
   }
   if (!hb) return console.warn(`  ! ${name}: no hair found`)
+  // Clean-up: grow into neighbouring outline/shadow pixels (a few passes), then fill
+  // enclosed holes (highlight streaks, specks) so the recolour has no navy islands.
+  // Clean-up also stays above cleanBottom, so it never spreads into navy collars and cloaks.
+  const [bx0, by0, bx1, by1] = [Math.max(0, hb[0] - 3), Math.max(0, hb[1] - 3), Math.min(w - 1, hb[2] + 3), Math.min(cleanBottom, hb[3] + 3)]
+  for (let pass = 0; pass < 14; pass++) {
+    const grow = []
+    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) {
+      const i = y * w + x
+      if (mask[i] || !hairEdge(i)) continue
+      if ((x > 0 && mask[i - 1]) || (x < w - 1 && mask[i + 1]) || (y > 0 && mask[i - w]) || (y < h - 1 && mask[i + w])) grow.push(i)
+    }
+    for (const i of grow) mask[i] = 255
+  }
+  {
+    const outside = new Uint8Array(w * h)
+    const st = []
+    for (let x = bx0; x <= bx1; x++) st.push(by0 * w + x, by1 * w + x)
+    for (let y = by0; y <= by1; y++) st.push(y * w + bx0, y * w + bx1)
+    while (st.length) {
+      const i = st.pop()
+      if (outside[i] || mask[i]) continue
+      outside[i] = 1
+      const x = i % w, y = (i / w) | 0
+      if (x > bx0) st.push(i - 1)
+      if (x < bx1) st.push(i + 1)
+      if (y > by0) st.push(i - w)
+      if (y < by1) st.push(i + w)
+    }
+    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) {
+      const i = y * w + x
+      if (!mask[i] && !outside[i] && !skin(i) && !inFace(i) && rgb(i)[3] > 60) mask[i] = 255
+    }
+  }
   // soften the mask edge a touch so recoloured hair blends into its outline
   await sharp(mask, { raw: { width: w, height: h, channels: 1 } }).blur(0.8).webp({ quality: 80 }).toFile(path.join(OUT, `${name}-hair.webp`))
 
