@@ -108,7 +108,7 @@ export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         {/* Your figurine stands on the stage floor, like a collectible beside a dollhouse. */}
         <button onClick={() => go('closet')} aria-label="Change your look" className="absolute bottom-[3%] right-[4%] w-[17%]">
           <span className="absolute -bottom-[2%] left-1/2 w-[110%] -translate-x-1/2" style={{ aspectRatio: '3.4', background: 'radial-gradient(closest-side, rgba(40,30,50,.35), transparent)' }} />
-          <Figurine look={state.look} className="relative w-full" />
+          <Figurine look={state.look} className="cq-idle relative w-full" />
         </button>
 
         <div className="pointer-events-none absolute left-3 top-3 rounded-2xl bg-ink/75 px-3 py-1.5 text-cream">
@@ -190,7 +190,7 @@ export function HomeScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
                 aria-pressed={here}
                 className={`relative overflow-hidden rounded-2xl text-left ring-2 transition ${here ? 'ring-gold' : 'ring-transparent hover:ring-white/30'} disabled:cursor-not-allowed`}
               >
-                <SceneSvg scene={DESTINATION_SCENE[d.id]} className={`h-20 w-full ${open ? '' : 'blur-[1.5px] grayscale-[.6]'}`} />
+                <SceneSvg scene={DESTINATION_SCENE[d.id]} still className={`h-20 w-full ${open ? '' : 'blur-[1.5px] grayscale-[.6]'}`} />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/85 to-transparent" />
                 <div className="absolute inset-x-2 bottom-1.5">
                   <p className="truncate text-[12px] font-extrabold leading-tight">{d.name}</p>

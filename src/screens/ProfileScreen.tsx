@@ -31,7 +31,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         <SceneSvg scene={DESTINATION_SCENE[state.destination] ?? 'meadow'} className="absolute inset-0 h-full w-full" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
         <div className="relative flex items-end gap-3 px-4 pb-4 pt-24">
-          <Figurine look={state.look} className="-mb-1 h-44 shrink-0 drop-shadow-[0_10px_14px_rgba(0,0,0,.45)]" />
+          <Figurine look={state.look} className="cq-idle -mb-1 h-44 shrink-0 drop-shadow-[0_10px_14px_rgba(0,0,0,.45)]" />
           <div className="min-w-0 flex-1 pb-2">
             {editing ? (
               <form

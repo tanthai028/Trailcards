@@ -224,6 +224,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
                 card={card}
                 mode={mode}
                 index={i}
+                live={i === active}
                 total={ids.length}
                 answered={answers[id]}
                 onPick={(choice) => pickFor(id, choice)}
@@ -243,11 +244,13 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
 interface Answered { choice: number; result: AnswerResult; streak: number }
 
 function FeedCard({
-  card, mode, index, total, answered, onPick,
+  card, mode, index, live, total, answered, onPick,
 }: {
   card: Card
   mode: FeedMode
   index: number
+  /** The card on screen; only it runs ambient scene animation. */
+  live: boolean
   total: number
   answered?: Answered
   onPick: (choice: number) => void
@@ -294,7 +297,7 @@ function FeedCard({
       <div className="grain relative h-[23%] min-h-[116px] shrink-0 overflow-hidden">
         {/* drifts at a fraction of the card's speed while swiping, so the scene feels deeper than the card */}
         <div className="parallax absolute inset-0" style={{ transform: `translateY(calc((var(--p, ${index}) - ${index}) * 46px)) scale(1.25)` }}>
-          <SceneSvg scene={cardScene(state, index)} className="absolute inset-0 h-full w-full" />
+          <SceneSvg scene={cardScene(state, index)} still={!live} className="absolute inset-0 h-full w-full" />
         </div>
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
         <div className="absolute inset-x-3 top-[68px] flex items-start gap-2">

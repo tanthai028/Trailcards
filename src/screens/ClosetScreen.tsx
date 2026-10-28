@@ -71,7 +71,7 @@ export function ClosetScreen() {
             transition={{ type: 'spring', stiffness: 320, damping: 26 }}
             className="absolute inset-x-0 bottom-8 flex justify-center"
           >
-            <Figurine look={look} className="h-[255px]" />
+            <Figurine look={look} className="cq-idle h-[255px]" />
           </motion.div>
         </AnimatePresence>
         <div className="absolute right-4 top-4">
@@ -217,7 +217,7 @@ function ItemCard({ item, look, owned, equipped, mixed, selected, affordable, on
     >
       <div className="relative h-36 overflow-hidden rounded-2xl" style={{ background: `radial-gradient(circle at 50% 75%, ${r.glow}, transparent 70%), linear-gradient(180deg, #f3e6dc, #d9c7d0)` }}>
         {isCard ? (
-          <SceneSvg scene={item.scene ?? 'meadow'} className={`absolute inset-0 h-full w-full ${owned ? '' : 'opacity-85 saturate-[.85]'}`} />
+          <SceneSvg scene={item.scene ?? 'meadow'} still className={`absolute inset-0 h-full w-full ${owned ? '' : 'opacity-85 saturate-[.85]'}`} />
         ) : item.slot === 'outfit' ? (
           <Figurine look={look} className={`absolute bottom-1.5 left-1/2 h-[132px] -translate-x-1/2 ${owned ? '' : 'opacity-85 saturate-[.85]'}`} />
         ) : (

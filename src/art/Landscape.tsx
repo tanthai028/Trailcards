@@ -46,14 +46,22 @@ function Glow({ id, x, y, r, color }: { id: string; x: number; y: number; r: num
   )
 }
 
+// Clouds drift slowly side to side; each one at its own pace so they never move in step.
 const Cloud = ({ x, y, s = 1, o = 0.85, c = '#fff' }: { x: number; y: number; s?: number; o?: number; c?: string }) => (
-  <g transform={`translate(${x},${y}) scale(${s})`} opacity={o} fill={c}>
-    <ellipse cx="0" cy="0" rx="28" ry="9" />
-    <ellipse cx="-12" cy="-6" rx="13" ry="10" />
-    <ellipse cx="8" cy="-9" rx="15" ry="12" />
-    <ellipse cx="24" cy="-2" rx="10" ry="7" />
+  <g className="cq-drift" style={{ animationDuration: `${16 + ((x * 7) % 11)}s`, animationDelay: `-${(x % 9)}s` }}>
+    <g transform={`translate(${x},${y}) scale(${s})`} opacity={o} fill={c}>
+      <ellipse cx="0" cy="0" rx="28" ry="9" />
+      <ellipse cx="-12" cy="-6" rx="13" ry="10" />
+      <ellipse cx="8" cy="-9" rx="15" ry="12" />
+      <ellipse cx="24" cy="-2" rx="10" ry="7" />
+    </g>
   </g>
 )
+
+const FIREFLIES = (() => {
+  const r = rng(13)
+  return Array.from({ length: 12 }, () => ({ x: 20 + r() * 360, y: 150 + r() * 120, d: 3 + r() * 4, delay: r() * 4 }))
+})()
 
 function Pine({ x, y, h, c }: { x: number; y: number; h: number; c: string }) {
   const w = h * 0.42
@@ -81,7 +89,7 @@ export function Landscape({ scene, children }: { scene: SceneId; children?: Reac
           <Sky id={`s${u}`} stops={[[0, '#0b0f2e'], [0.5, '#272463'], [0.8, '#5b3f86'], [1, '#a2678f']]} />
           <ellipse cx="220" cy="90" rx="260" ry="26" fill="#c9b6ff" opacity="0.13" transform="rotate(-18 220 90)" />
           <ellipse cx="220" cy="90" rx="180" ry="12" fill="#fff" opacity="0.08" transform="rotate(-18 220 90)" />
-          {STARS.map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={s.s} fill="#fff" opacity={s.o} className={i % 9 === 0 ? 'cq-twinkle' : undefined} />)}
+          {STARS.map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={s.s} fill="#fff" opacity={s.o} className={i % 4 === 0 ? 'cq-twinkle' : undefined} style={i % 4 === 0 ? { animationDelay: `-${(i % 7) * 0.4}s` } : undefined} />)}
           <Glow id={`m${u}`} x={318} y={58} r={50} color="#fff6d8" />
           <circle cx="318" cy="58" r="14" fill="#fff6d8" />
           <circle cx="325" cy="53" r="12.5" fill="#1a1a4a" />
@@ -103,7 +111,7 @@ export function Landscape({ scene, children }: { scene: SceneId; children?: Reac
           <rect y="196" width="400" height="104" fill="#3f5f9e" />
           <rect y="196" width="400" height="30" fill="#5a6fae" opacity="0.6" />
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <rect key={i} x={250 - 30 + i * 3 - i * i} y={202 + i * 7} width={60 - i * 6 + i * i} height="2" rx="1" fill="#ffe2a0" opacity={0.8 - i * 0.1} />
+            <rect key={i} x={250 - 30 + i * 3 - i * i} y={202 + i * 7} width={60 - i * 6 + i * i} height="2" rx="1" fill="#ffe2a0" opacity={0.8 - i * 0.1} className="cq-glint" style={{ animationDelay: `-${i * 0.35}s` }} />
           ))}
           <path d="M0,150 L40,146 L70,162 L96,170 L120,200 L140,240 L0,240Z" fill="#43305e" />
           <path d="M0,176 L50,172 L88,190 L110,236 L0,236Z" fill="#35264d" />
@@ -138,6 +146,9 @@ export function Landscape({ scene, children }: { scene: SceneId; children?: Reac
           {pines(5, 12, 240, 80, 120, '#6fa286')}
           {pines(9, 9, 280, 110, 160, '#3f7560')}
           <path d="M0,270 Q100,258 200,268 T400,264 L400,300 L0,300Z" fill="#3b6a4f" />
+          {FIREFLIES.map((f, i) => (
+            <circle key={i} cx={f.x} cy={f.y} r="2.2" fill="#fff6b0" className="cq-firefly" style={{ animationDuration: `${f.d}s`, animationDelay: `-${f.delay}s` }} />
+          ))}
           {children}
         </g>
       )
@@ -191,10 +202,10 @@ export function Landscape({ scene, children }: { scene: SceneId; children?: Reac
   }
 }
 
-/** Standalone scene that fills its container. */
-export function SceneSvg({ scene, className, children }: { scene: SceneId; className?: string; children?: ReactNode }) {
+/** Standalone scene that fills its container. `still` pauses its ambient animation (off-screen cards, thumbnails). */
+export function SceneSvg({ scene, className = '', still = false, children }: { scene: SceneId; className?: string; still?: boolean; children?: ReactNode }) {
   return (
-    <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+    <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" className={`${className} ${still ? 'cq-still' : ''}`} aria-hidden="true">
       <Landscape scene={scene}>{children}</Landscape>
     </svg>
   )
