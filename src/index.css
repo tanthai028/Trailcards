@@ -38,6 +38,14 @@ body {
   overscroll-behavior: none;
 }
 
+/* Profile > Reduce motion: CSS transitions and keyframes stop too (Framer motion is handled by MotionConfig). */
+[data-reduce-motion] *,
+[data-reduce-motion] *::before,
+[data-reduce-motion] *::after {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+}
+
 body {
   margin: 0;
   background: #221a33;

@@ -16,7 +16,7 @@ import type { FeedMode } from './FeedScreen'
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
 export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, setName, setTitle, reset } = useGame()
+  const { state, setName, setTitle, reset, setReduceMotion } = useGame()
   const lv = levelInfo(state.xp)
   const s = stats(state)
   const [editing, setEditing] = useState(false)
@@ -158,7 +158,22 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       </Section>
 
       {/* Settings */}
-      <div className="mt-8 text-center">
+      <button
+        onClick={() => setReduceMotion(!state.reduceMotion)}
+        role="switch"
+        aria-checked={state.reduceMotion}
+        className="clay mt-8 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-extrabold">Reduce motion</span>
+          <span className="block text-xs text-cream/55">Fewer animations. Your phone's own setting is always followed too.</span>
+        </span>
+        <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${state.reduceMotion ? 'bg-gold' : 'bg-white/15'}`}>
+          <span className={`absolute top-1 size-5 rounded-full bg-cream shadow transition-transform ${state.reduceMotion ? 'translate-x-6' : 'translate-x-1'}`} />
+        </span>
+      </button>
+
+      <div className="mt-6 text-center">
         {confirmReset ? (
           <div className="rounded-2xl bg-coral/15 p-3 ring-1 ring-coral/40">
             <p className="text-sm font-bold">Erase all progress on this device? This can’t be undone.</p>
