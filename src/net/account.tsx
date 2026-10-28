@@ -5,7 +5,7 @@
 // seconds after it changes. On sign-in the copy with more XP wins, so a new phone picks up
 // where you left off and an old phone never overwrites newer progress.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { EmailOtpType, SupabaseClient } from '@supabase/supabase-js'
 import { useGame } from '../state/store'
 import { parseStoredSave } from '../state/storage'
 import type { GameState } from '../state/game'
@@ -184,8 +184,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       const { error } = await client!.auth.signInWithOtp({ email: address.trim(), options: { shouldCreateUser: true, emailRedirectTo: `${location.origin}/` } })
       if (error) throw new Error(errorText(error))
     },
+    // A code from the email, or the email's sign-in link pasted in: on an iPhone the link opens in
+    // Safari, which keeps its own sign-in, so pasting it is how the home-screen app signs in.
     verifyCode: async (address, code) => {
-      const { error } = await client!.auth.verifyOtp({ email: address.trim(), token: code.trim(), type: 'email' })
+      const input = code.trim()
+      let link: URL | null = null
+      try { link = /^https?:\/\//i.test(input) ? new URL(input) : null } catch { link = null }
+      const tokenHash = link?.searchParams.get('token_hash') ?? link?.searchParams.get('token')
+      if (link && !tokenHash) throw new Error("That link isn't a sign-in link. Copy the link from the sign-in email.")
+      const { error } = tokenHash
+        ? await client!.auth.verifyOtp({ token_hash: tokenHash, type: (link!.searchParams.get('type') ?? 'magiclink') as EmailOtpType })
+        : await client!.auth.verifyOtp({ email: address.trim(), token: input, type: 'email' })
       if (error) throw new Error(errorText(error))
     },
     join: async (invite) => {
