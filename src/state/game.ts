@@ -109,11 +109,13 @@ export const dayKey = (t = Date.now()) => {
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000)
 
 /** Answers so far today. */
-export const todayCount = (s: GameState) => (s.daily.day === dayKey() ? s.daily.count : 0)
+export const todayCount = (s: GameState) => (s.daily?.day === dayKey() ? s.daily.count : 0)
+// saves restored or hot-reloaded from before the daily goal may lack these fields
+const streakOf = (s: GameState): GameState['streak'] => s.streak ?? { days: 0, lastDay: null, freezes: 0 }
 
 /** The streak as it stands now: it's still alive if the goal was met yesterday or today, or freezes cover the gap. */
 export function currentStreak(s: GameState) {
-  const { days, lastDay, freezes } = s.streak
+  const { days, lastDay, freezes } = streakOf(s)
   if (!lastDay || !days) return 0
   const missed = daysBetween(lastDay, dayKey()) - 1 // full days skipped since the last goal
   return missed <= 0 || missed <= freezes ? days : 0
@@ -122,14 +124,14 @@ export function currentStreak(s: GameState) {
 /** Count one answer toward today; when it completes the goal, extend (or restart) the streak. */
 function countDaily(s: GameState): { state: GameState; goalStreak: number | null } {
   const today = dayKey()
-  const count = (s.daily.day === today ? s.daily.count : 0) + 1
+  const count = (s.daily?.day === today ? s.daily.count : 0) + 1
   let next: GameState = { ...s, daily: { day: today, count } }
   if (count !== DAILY_GOAL) return { state: next, goalStreak: null }
-  const { days, lastDay, freezes } = s.streak
+  const { days, lastDay, freezes } = streakOf(s)
   let streak: GameState['streak'] = { days: 1, lastDay: today, freezes }
   if (lastDay) {
     const missed = daysBetween(lastDay, today) - 1
-    if (missed < 0) streak = { ...s.streak } // already met today
+    if (missed < 0) streak = { ...streakOf(s) } // already met today
     else if (missed === 0) streak = { days: days + 1, lastDay: today, freezes }
     else if (missed <= freezes) streak = { days: days + 1, lastDay: today, freezes: freezes - missed } // freezes cover the gap
   }
@@ -138,8 +140,9 @@ function countDaily(s: GameState): { state: GameState; goalStreak: number | null
 }
 
 export function buyFreeze(s: GameState): GameState | null {
-  if (s.coins < FREEZE_COST || s.streak.freezes >= MAX_FREEZES) return null
-  return { ...s, coins: s.coins - FREEZE_COST, streak: { ...s.streak, freezes: s.streak.freezes + 1 } }
+  const st = streakOf(s)
+  if (s.coins < FREEZE_COST || st.freezes >= MAX_FREEZES) return null
+  return { ...s, coins: s.coins - FREEZE_COST, streak: { ...st, freezes: st.freezes + 1 } }
 }
 
 // ── Spaced review ───────────────────────────────────────────────

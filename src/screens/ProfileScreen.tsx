@@ -4,7 +4,7 @@ import { useGame } from '../state/store'
 import { TOPICS, TOPIC_ORDER } from '../data/cards'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
 import { RARITY_STYLE, type Slot } from '../data/items'
-import { collectionItems, currentStreak, DAILY_GOAL, FREEZE_COST, levelInfo, masteryCounts, MAX_FREEZES, stats, todayCount, type GameState, type Mastery } from '../state/game'
+import { collectionItems, currentStreak, findCard, statusOf, DAILY_GOAL, FREEZE_COST, levelInfo, masteryCounts, MAX_FREEZES, stats, todayCount, type GameState, type Mastery } from '../state/game'
 import { backupText, lastBackupAt, markBackedUp, parseSave } from '../state/storage'
 import { Figurine } from '../scene/Figurine'
 import { SceneSvg, DESTINATION_SCENE } from '../art/Landscape'
@@ -12,12 +12,12 @@ import { Icon } from '../components/Icon'
 import { Trophy } from '../components/Trophy'
 import { TitlePicker } from '../components/TitleSheet'
 import type { Tab } from '../components/NavBar'
-import type { FeedMode } from './FeedScreen'
+import { feedFocus, MASTERY_LABEL, type FeedMode } from './FeedScreen'
 
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
 export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, setName, setTitle, reset, setReduceMotion, setSound, restore, buyFreeze } = useGame()
+  const { state, setName, setTitle, reset, setReduceMotion, setSound, restore, buyFreeze, toggleBookmark } = useGame()
   const lv = levelInfo(state.xp)
   const s = stats(state)
   const [editing, setEditing] = useState(false)
@@ -112,6 +112,23 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
           <p className="text-[11px] leading-snug text-cream/45">Right once → familiar. Right again when it comes back in Review, spaced over days → mastered. Misses come back for another try.</p>
         </div>
       </Section>
+
+      {/* Saved cards: a list instead of swiping through them */}
+      {state.bookmarks.length > 0 && (
+        <Section title="Saved cards" action={{ label: 'Study all', onClick: () => go('feed', 'saved') }}>
+          <ul className="space-y-1.5">
+            {state.bookmarks.map((id) => findCard(state, id)).filter((c) => !!c).map((c) => (
+              <li key={c!.id} className="clay flex items-center gap-1 rounded-2xl">
+                <button onClick={() => { feedFocus.id = c!.id; go('feed', 'saved') }} className="min-h-12 min-w-0 flex-1 px-3.5 py-2 text-left">
+                  <span className="block truncate text-sm font-extrabold">{c!.title}</span>
+                  <span className="block text-[11px] text-cream/50">{MASTERY_LABEL[statusOf(state, c!.id)]}</span>
+                </button>
+                <button onClick={() => toggleBookmark(c!.id)} aria-label={`Unsave ${c!.title}`} className="mr-1.5 grid size-10 shrink-0 place-items-center rounded-xl text-cream/45 hover:text-cream"><Icon name="x" size={14} /></button>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       {/* Collection */}
       <Section title="Collection" action={{ label: 'Open closet', onClick: () => go('closet') }}>
@@ -266,7 +283,7 @@ function Backup({ state, onRestore }: { state: GameState; onRestore: (s: GameSta
 function Daily({ state, onBuyFreeze }: { state: GameState; onBuyFreeze: () => boolean }) {
   const today = Math.min(todayCount(state), DAILY_GOAL)
   const streak = currentStreak(state)
-  const { freezes } = state.streak
+  const { freezes } = state.streak ?? { freezes: 0 }
   const canBuy = freezes < MAX_FREEZES && state.coins >= FREEZE_COST
   return (
     <section className="clay mt-4 rounded-2xl p-3">

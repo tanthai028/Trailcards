@@ -15,6 +15,9 @@ import type { Tab } from '../components/NavBar'
 
 export type FeedMode = 'discover' | 'review' | 'saved'
 
+/** Set before opening Learn to land on a specific card (e.g. from the Saved list in Profile). */
+export const feedFocus: { id: string | null } = { id: null }
+
 const idsFor = (s: GameState, mode: FeedMode) =>
   mode === 'discover'
     ? sourceCards(s).filter((c) => statusOf(s, c.id) === 'new').map((c) => c.id)
@@ -61,7 +64,12 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   useLayoutEffect(() => {
     if (!toTop.current) return
     toTop.current = false
-    scroller.current?.scrollTo({ top: 0, behavior: 'instant' })
+    const at = feedFocus.id ? ids.indexOf(feedFocus.id) : -1
+    // cleared a moment later, not now: a remount right after (React Strict Mode) must still find it
+    if (feedFocus.id) setTimeout(() => (feedFocus.id = null), 400)
+    const el = scroller.current
+    if (el) el.scrollTo({ top: Math.max(0, at) * el.clientHeight, behavior: 'instant' })
+    if (at > 0) setActive(at)
   }, [ids])
 
   useEffect(() => {
