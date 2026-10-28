@@ -1,4 +1,5 @@
-import { initialState, type GameState } from './game'
+import type { GameState } from './game'
+import { looksLikeSave, sanitize } from './sanitize'
 import { ITEMS, DEFAULT_HAIR, RETIRED_DECOR, hairFits } from '../data/items'
 
 /** Swap this adapter for a Supabase-backed one later; the rest of the app won't change. */
@@ -32,15 +33,28 @@ function migrate(s: GameState): GameState {
   return { ...rest, coins, owned, look }
 }
 
-/** Read a saved game (from storage or a backup file). Merges onto defaults so saves from older builds pick up new fields. */
+/**
+ * Read a saved game (from storage or a backup file). Every field is checked and anything
+ * missing or malformed falls back to its default (see sanitize.ts), so older or damaged saves
+ * load instead of crashing. Returns null only for text that isn't a Wayfarer save at all.
+ */
 export function parseSave(raw: string): GameState | null {
   try {
-    const data = JSON.parse(raw) as Partial<GameState> & { app?: string; state?: Partial<GameState> }
+    const data: unknown = JSON.parse(raw)
     // backup files wrap the state: { app: 'wayfarer', exportedAt, state }
-    const parsed = data.app === 'wayfarer' && data.state ? data.state : data
-    if (typeof parsed !== 'object' || parsed == null || typeof parsed.cards !== 'object' || typeof parsed.xp !== 'number') return null
-    const base = initialState()
-    return migrate({ ...base, ...parsed, look: { ...base.look, ...parsed.look } })
+    const parsed = typeof data === 'object' && data !== null && (data as { app?: unknown }).app === 'wayfarer' ? (data as { state?: unknown }).state : data
+    if (!looksLikeSave(parsed)) return null
+    return migrate(sanitize(parsed))
+  } catch {
+    return null
+  }
+}
+
+/** The save already in storage is ours, so any object is repaired rather than rejected. */
+export function parseStoredSave(raw: string): GameState | null {
+  try {
+    const data: unknown = JSON.parse(raw)
+    return typeof data === 'object' && data !== null && !Array.isArray(data) ? migrate(sanitize(data as Record<string, unknown>)) : null
   } catch {
     return null
   }
@@ -74,7 +88,7 @@ export const localSave: SaveAdapter = {
   load() {
     try {
       const raw = localStorage.getItem(KEY)
-      return raw ? parseSave(raw) : null
+      return raw ? parseStoredSave(raw) : null
     } catch {
       return null
     }
