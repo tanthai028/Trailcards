@@ -5,7 +5,7 @@ import { TOPICS, type Card } from '../data/cards'
 import type { DeckFeedCard } from '../data/decks'
 import { DeckPicker } from '../components/Decks'
 import { AvatarLevel, CoinsPill } from '../components/Hud'
-import { findCard, reviewQueue, sourceCards, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
+import { cardScene, findCard, reviewQueue, sourceCards, statusOf, type AnswerResult, type GameState, type Mastery } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Coin, Icon } from '../components/Icon'
@@ -67,10 +67,83 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
     return () => io.disconnect()
   }, [ids])
 
+  // Paging: one swipe moves exactly one card and settles in about 0.2s. Native momentum
+  // plus snapping coasts for a while before you can tap an answer.
+  const anim = useRef(0)
   const scrollTo = useCallback((i: number) => {
-    const el = scroller.current?.querySelector<HTMLElement>(`[data-index="${i}"]`)
-    el?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+    const el = scroller.current
+    if (!el) return
+    cancelAnimationFrame(anim.current)
+    const to = i * el.clientHeight
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.scrollTop = to; return }
+    const from = el.scrollTop
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / 220)
+      el.scrollTop = from + (to - from) * (1 - (1 - t) ** 3)
+      if (t < 1) anim.current = requestAnimationFrame(step)
+    }
+    anim.current = requestAnimationFrame(step)
   }, [])
+
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    const last = () => el.querySelectorAll('[data-index]').length - 1
+    const at = () => Math.round(el.scrollTop / el.clientHeight)
+    const go = (i: number) => scrollTo(Math.max(0, Math.min(last(), i)))
+
+    // Touch: the card follows your finger, then a flick or a drag past 60px moves one card.
+    let y0 = 0
+    let top0 = 0
+    let from = 0
+    let samples: { y: number; t: number }[] = []
+    const onStart = (e: TouchEvent) => {
+      cancelAnimationFrame(anim.current)
+      y0 = e.touches[0].clientY
+      top0 = el.scrollTop
+      from = at()
+      samples = [{ y: y0, t: e.timeStamp }]
+    }
+    const onMove = (e: TouchEvent) => {
+      const y = e.touches[0].clientY
+      el.scrollTop = top0 - (y - y0)
+      samples.push({ y, t: e.timeStamp })
+      if (samples.length > 5) samples.shift()
+    }
+    const onEnd = () => {
+      const dragged = el.scrollTop - top0
+      const a = samples[0]
+      const b = samples[samples.length - 1]
+      const speed = b.t > a.t ? (a.y - b.y) / (b.t - a.t) : 0 // px per ms, positive = toward the next card
+      if (dragged > 60 || speed > 0.35) go(from + 1)
+      else if (dragged < -60 || speed < -0.35) go(from - 1)
+      else go(from)
+    }
+
+    // Wheel and trackpad: one card per gesture; trackpad inertia is ignored until it goes quiet.
+    let lock = 0
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      if (e.timeStamp < lock) { lock = e.timeStamp + 180; return }
+      if (Math.abs(e.deltaY) < 4) return
+      lock = e.timeStamp + 400
+      go(at() + Math.sign(e.deltaY))
+    }
+
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: true })
+    el.addEventListener('touchend', onEnd)
+    el.addEventListener('touchcancel', onEnd)
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onEnd)
+      el.removeEventListener('wheel', onWheel)
+    }
+  }, [scrollTo])
 
   // Keyboard: 1–4 answers the visible card, J/K or arrows move between cards.
   useEffect(() => {
@@ -104,12 +177,12 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
             </header>
       </div>
 
-      <div ref={scroller} className="no-scrollbar h-full overscroll-contain snap-y snap-mandatory overflow-y-auto scroll-smooth [overflow-anchor:none]">
+      <div ref={scroller} className="no-scrollbar h-full touch-none overflow-hidden overscroll-contain [overflow-anchor:none]">
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
           const card = findCard(state, id)
           return card && (
-          <section key={`${mode}-${id}`} data-index={i} className="h-full snap-start snap-always px-4 pb-2" aria-label={`Card ${i + 1} of ${ids.length}`}>
+          <section key={`${mode}-${id}`} data-index={i} className="h-full px-4 pb-2" aria-label={`Card ${i + 1} of ${ids.length}`}>
             <FeedCard
               card={card}
               mode={mode}
@@ -122,7 +195,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
           </section>
           )
         })}
-        <section data-index={ids.length} className="h-full snap-start px-4 pb-2">
+        <section data-index={ids.length} className="h-full px-4 pb-2">
           <EndCard mode={mode} empty={ids.length === 0} counts={counts} setMode={setMode} go={go} />
         </section>
       </div>
@@ -184,13 +257,9 @@ function FeedCard({
   return (
     <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-paper text-ink shadow-[0_20px_50px_-20px_rgba(0,0,0,.6)]">
       <div className="grain relative h-[23%] min-h-[116px] shrink-0 overflow-hidden">
-        <SceneSvg scene={topic.scene} className="absolute inset-0 h-full w-full" />
+        <SceneSvg scene={cardScene(state, index)} className="absolute inset-0 h-full w-full" />
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
         <div className="absolute inset-x-3 top-[68px] flex items-start gap-2">
-          <span className="flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-ink backdrop-blur">
-            <span className="size-2 rounded-full" style={{ background: topic.accent }} />
-            {topic.name}
-          </span>
           {isReview && (
             <span className="rounded-full bg-ink/70 px-2.5 py-1 text-[11px] font-extrabold text-gold backdrop-blur">
               Review · {MASTERY_LABEL[result?.from ?? status]}
@@ -240,7 +309,7 @@ function FeedCard({
           )}
         </AnimatePresence>
 
-        <div className="mt-auto pt-[0.75em]">
+        <div className="pt-[0.75em]">
           <div className="rounded-3xl bg-white/70 p-[0.6em] ring-1 ring-ink/5">
             <p className="px-1 pb-[0.5em] text-[0.92em] font-extrabold leading-snug">{card.prompt}</p>
             <div className={`grid gap-[0.45em] ${card.choices.length === 2 && !result ? 'grid-cols-2' : ''}`}>
