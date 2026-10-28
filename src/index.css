@@ -219,3 +219,158 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Cosmetic effects: picture backgrounds, animated frames, card themes, title effects ──
+   Transform, opacity and background-position only, so they stay on the compositor.
+   Every .fx-* animation stops with Reduce motion (rules at the end). */
+
+/* picture backgrounds */
+.fx-bg-aurora {
+  background: linear-gradient(125deg, #6ee7b7, #60a5fa, #a78bfa, #f472b6, #6ee7b7);
+  background-size: 300% 300%;
+  animation: fx-pan 7s ease-in-out infinite alternate;
+}
+.fx-bg-galaxy {
+  background: radial-gradient(circle at 30% 30%, #6d4bd1 0%, #2a1f5c 45%, #0d0a24 100%);
+}
+.fx-bg-galaxy::before {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background: conic-gradient(from 0deg, transparent 0 20%, rgba(244, 114, 182, 0.35) 30%, transparent 45%, rgba(96, 165, 250, 0.35) 70%, transparent 85%);
+  animation: fx-spin 14s linear infinite;
+}
+.fx-bg-ember {
+  background: radial-gradient(circle at 50% 70%, #ffd27a 0%, #f7934c 35%, #c2342b 75%, #5a1414 100%);
+  animation: fx-ember 2.4s ease-in-out infinite;
+}
+.fx-bg-ocean {
+  background: linear-gradient(180deg, #a5f3fc, #22d3ee 40%, #0e7490 75%, #164e63);
+  background-size: 100% 220%;
+  animation: fx-tide 5s ease-in-out infinite alternate;
+}
+.fx-bg-holo {
+  background: #c4b5fd;
+}
+.fx-bg-holo::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(#f9a8d4, #fde68a, #a7f3d0, #93c5fd, #c4b5fd, #f9a8d4);
+  animation: fx-spin 6s linear infinite;
+}
+
+/* animated frames (inside the frame's own box) */
+.fx-frame-neon {
+  border-radius: 9999px;
+  border: 3px solid #7df9ff;
+  box-shadow: 0 0 6px #7df9ff, 0 0 14px #36c5ff, inset 0 0 6px #7df9ff;
+  animation: fx-neon 2.2s ease-in-out infinite;
+}
+.fx-frame-prism {
+  border-radius: 9999px;
+  background: conic-gradient(#f472b6, #fbbf24, #34d399, #60a5fa, #a78bfa, #f472b6);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7%), #000 calc(100% - 6.5%));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 7%), #000 calc(100% - 6.5%));
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+  animation: fx-spin 4s linear infinite;
+}
+.fx-orbit {
+  animation: fx-spin 5s linear infinite;
+  transform-origin: 50% 50%;
+}
+.fx-flicker {
+  animation: fx-flicker 0.9s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.fx-glow-pulse {
+  animation: fx-glow 1.8s ease-in-out infinite;
+}
+
+/* card themes: particles over the card's scene */
+.fx-particle {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+.fx-fall {
+  animation: fx-fall linear infinite;
+}
+.fx-drift {
+  animation: fx-drift ease-in-out infinite alternate;
+}
+.fx-shoot {
+  animation: fx-shoot 3.6s ease-in infinite;
+}
+.fx-ribbon {
+  position: absolute;
+  inset: -20% -30%;
+  filter: blur(14px);
+  mix-blend-mode: screen;
+  animation: fx-ribbon 9s ease-in-out infinite alternate;
+}
+
+/* title effects */
+.fx-title-glow {
+  color: #ffe08a;
+  text-shadow: 0 0 6px rgba(255, 210, 122, 0.9), 0 0 14px rgba(245, 185, 66, 0.6);
+  animation: fx-glow 2.4s ease-in-out infinite;
+}
+.fx-title-frost {
+  background: linear-gradient(90deg, #e0f2fe, #7dd3fc, #ffffff, #7dd3fc, #e0f2fe);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 4px rgba(125, 211, 252, 0.7));
+  animation: fx-pan 3s linear infinite;
+}
+.fx-title-neon {
+  color: #ff9ff3;
+  text-shadow: 0 0 4px #ff6bd6, 0 0 10px #ff2fb4, 0 0 18px #9d4bff;
+  animation: fx-neon-text 3s steps(1) infinite;
+}
+.fx-title-rainbow {
+  background: linear-gradient(90deg, #f472b6, #fbbf24, #34d399, #60a5fa, #a78bfa, #f472b6);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.35));
+  animation: fx-pan 4s linear infinite;
+}
+
+@keyframes fx-pan { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@keyframes fx-tide { from { background-position: 50% 0%; } to { background-position: 50% 100%; } }
+@keyframes fx-spin { to { transform: rotate(360deg); } }
+@keyframes fx-ember { 0%, 100% { filter: brightness(1) saturate(1); } 50% { filter: brightness(1.18) saturate(1.2); } }
+@keyframes fx-neon { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } 52% { opacity: 1; } 54% { opacity: 0.75; } }
+@keyframes fx-flicker { from { transform: scale(1, 1); } to { transform: scale(0.9, 1.15); } }
+@keyframes fx-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.72; } }
+@keyframes fx-fall {
+  from { transform: translate(0, -12px) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  to { transform: translate(18px, 150px) rotate(220deg); opacity: 0; }
+}
+@keyframes fx-drift {
+  0% { transform: translate(0, 0); opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { transform: translate(14px, -18px); opacity: 0.3; }
+}
+@keyframes fx-shoot {
+  0%, 70% { transform: translate(0, 0) rotate(-30deg); opacity: 0; }
+  72% { opacity: 1; }
+  100% { transform: translate(-160px, 90px) rotate(-30deg); opacity: 0; }
+}
+@keyframes fx-ribbon { from { transform: translateX(-12%) skewX(-8deg); } to { transform: translateX(12%) skewX(8deg); } }
+@keyframes fx-neon-text { 0%, 100% { opacity: 1; } 47% { opacity: 1; } 48% { opacity: 0.55; } 50% { opacity: 1; } 52% { opacity: 0.7; } 53% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*='fx-'], [class*='fx-']::before { animation: none !important; }
+}
+[data-reduce-motion] [class*='fx-'],
+[data-reduce-motion] [class*='fx-']::before {
+  animation: none !important;
+}

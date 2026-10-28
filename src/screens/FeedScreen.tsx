@@ -7,6 +7,7 @@ import { DeckImport, DeckPicker } from '../components/Decks'
 import { createPortal } from 'react-dom'
 import { AvatarLevel } from '../components/Hud'
 import { MochiPeek } from '../components/MochiPeek'
+import { CardFx } from '../components/CardFx'
 import { DAILY_GOAL, feedCards, findCard, isDue, isRecall, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyPrefs, studyQueue, todayCount, type AnswerResult, type GameState, type KindFilter, type Mastery, type StudyPrefs } from '../state/game'
 import { SceneSvg } from '../art/Landscape'
 import { Cat } from '../art/Companions'
@@ -295,7 +296,9 @@ function Feed({ mode, setMode, go }: FeedProps) {
         dismiss={dismissTip}
         onReview={() => setMode('review')}
       />
-      <div ref={scroller} className="no-scrollbar h-full touch-none overflow-hidden overscroll-contain [overflow-anchor:none]">
+      {/* layoutScroll: the answers animate when a card is answered, and Framer has to know this
+          box is scrolled to measure them, or they fly in from another card's position */}
+      <motion.div ref={scroller} layoutScroll className="no-scrollbar h-full touch-none overflow-hidden overscroll-contain [overflow-anchor:none]">
         {ids.map((id, i) => {
           // Deleting the deck you're on leaves stale ids for one render, until the effect above re-snapshots.
           const card = findCard(state, id)
@@ -321,7 +324,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
         <section data-index={ids.length} className="h-full px-4 pb-2">
           <EndCard mode={mode} empty={ids.length === 0} counts={counts} setMode={setMode} go={go} />
         </section>
-      </div>
+      </motion.div>
       <MochiPeek cheer={cheer} off={reduced || mode === 'saved'} />
       {/* bottom-left of the card, clear of the save button on the right */}
       <AnimatePresence>
@@ -402,6 +405,8 @@ function FeedCard({
         <div className="parallax absolute inset-0" style={{ transform: `translateY(calc((var(--p, ${index}) - ${index}) * 46px)) scale(1.25)` }}>
           <SceneSvg scene={topic.scene} still={!live} className="absolute inset-0 h-full w-full" />
         </div>
+        {/* your card theme, only on the card in view */}
+        {live && <CardFx fx={state.cosmetics?.card ?? 'none'} />}
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
         {/* keeps the deck name and your picture readable on light skies */}
         <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-ink/65 via-ink/25 to-transparent" />
@@ -480,7 +485,7 @@ function FeedCard({
                   return (
                     <motion.button
                       key={i}
-                      layout
+                      layout="position"
                       onClick={() => pick(i)}
                       data-choice={i}
                       disabled={!!result}
@@ -495,7 +500,7 @@ function FeedCard({
                         : 'bg-coral/20 ring-2 ring-coral'
                       }`}
                     >
-                      <span className={`grid size-6 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${st === 'right' ? 'bg-[#4f9a6a] text-white' : st === 'wrong' ? 'bg-coral text-white' : 'bg-ink/8 text-ink/60'}`}>
+                      <span className={`grid size-6 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${st === 'right' ? 'bg-[#4f9a6a] text-white' : st === 'wrong' ? 'bg-coral text-white' : BADGE[i % BADGE.length]}`}>
                         {st === 'right' ? <Icon name="check" size={14} strokeWidth={3} /> : st === 'wrong' ? <Icon name="x" size={13} strokeWidth={3} /> : i + 1}
                       </span>
                       <span>{c}</span>
@@ -654,6 +659,9 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
   )
 }
 
+/** Each answer's number gets its own colour, so options are easy to tell apart at a glance. */
+const BADGE = ['bg-sky/45 text-[#2f5f8f]', 'bg-peach/55 text-[#8a4a1e]', 'bg-sage/50 text-[#2f6b45]', 'bg-lav/50 text-[#4b3a8f]']
+
 const RIGHT = ['Nailed it!', 'Exactly right!', 'Sharp eyes!', 'You got it!', 'Mochi is impressed!']
 const pickLine = (id: string, lines: string[]) => lines[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % lines.length]
 
@@ -808,10 +816,10 @@ function Coach({ tips, answered, active, reviewDue, mode, dismiss, onReview }: {
             </motion.span>
           )}
           <p className="min-w-0 flex-1 text-[13px] leading-snug">{tip.text}</p>
+          <button onClick={() => dismiss(tip!.id)} className="min-h-10 shrink-0 rounded-xl px-2 text-xs font-extrabold text-cream/60 hover:text-cream">Got it</button>
           {tip.action ? (
             <button onClick={() => { dismiss(tip!.id); tip!.action!.run() }} className="clay-btn clay-butter min-h-10 shrink-0 px-3 text-xs">{tip.action.label}</button>
           ) : null}
-          <button onClick={() => dismiss(tip!.id)} className="min-h-10 shrink-0 rounded-xl px-2 text-xs font-extrabold text-cream/60 hover:text-cream">Got it</button>
         </motion.div>
       )}
     </AnimatePresence>

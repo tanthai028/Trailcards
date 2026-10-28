@@ -5,6 +5,7 @@ import { ACH_BY_ID } from '../data/achievements'
 import { initialState, type CardProgress, type GameState, type Mastery } from './game'
 import { DECK_SCENES, type DeckCard, type UserDeck } from '../data/decks'
 import { AVATAR_BY_ID, DEFAULT_AVATAR, isKnownFrame, type Frame } from '../data/avatars'
+import { CARD_FX, PIC_BGS, TITLE_FX, known } from '../data/cosmetics'
 import type { SceneId } from '../art/Landscape'
 
 type Raw = Record<string, unknown>
@@ -91,6 +92,13 @@ function record<T>(v: unknown, each: (x: unknown) => T | null): Record<string, T
 
 /** A known icon, or the default. */
 export const cleanAvatar = (v: unknown) => (typeof v === 'string' && AVATAR_BY_ID[v] ? v : DEFAULT_AVATAR)
+/** Known looks only; anything else is plain. */
+export function cleanCosmetics(v: unknown): GameState['cosmetics'] {
+  const r = isObj(v) ? v : {}
+  const pick = (list: typeof PIC_BGS, id: unknown) => (known(list, id) ? (id as string) : 'none')
+  return { bg: pick(PIC_BGS, r.bg), card: pick(CARD_FX, r.card), title: pick(TITLE_FX, r.title) }
+}
+
 /** A known frame, or none. */
 export const cleanFrame = (v: unknown): Frame => (isKnownFrame(v) ? v : 'none')
 
@@ -129,6 +137,7 @@ export function sanitize(raw: Raw): GameState {
     }),
     avatar: cleanAvatar(raw.avatar),
     frame: cleanFrame(raw.frame),
+    cosmetics: cleanCosmetics(raw.cosmetics),
     photo: photo(raw.photo),
     reduceMotion: bool(raw.reduceMotion, base.reduceMotion),
     sound: bool(raw.sound, base.sound),

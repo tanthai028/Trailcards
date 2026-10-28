@@ -18,7 +18,7 @@ export interface Member {
   name: string
   title: string | null
   /** { icon, frame } */
-  avatar: { icon?: string; frame?: string } | null
+  avatar: { icon?: string; frame?: string; bg?: string; titleFx?: string } | null
   photo_url: string | null
 }
 
@@ -121,7 +121,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
       if (photo_url !== undefined) memo.set(id, 'photo', pic)
     }
-    const patch: Partial<Member> = { name: s.name, title: s.title, avatar: { icon: s.avatar, frame: s.frame }, ...(photo_url !== undefined ? { photo_url } : {}) }
+    const patch: Partial<Member> = { name: s.name, title: s.title, avatar: { icon: s.avatar, frame: s.frame, bg: s.cosmetics.bg, titleFx: s.cosmetics.title }, ...(photo_url !== undefined ? { photo_url } : {}) }
     const { data } = await sb.from('profiles').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id).select('id, name, title, avatar, photo_url').maybeSingle()
     if (data) setMe(data as Member)
   }, [client, uid])

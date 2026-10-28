@@ -22,6 +22,8 @@ interface Store {
   setAvatar: (id: string) => void
   /** The frame around your picture. */
   setFrame: (frame: Frame) => void
+  /** Picture background, card theme or title effect. */
+  setCosmetics: (patch: Partial<G.Cosmetics>) => void
   /** Your uploaded picture (a small data URL), or null to use the icon. */
   setPhoto: (photo: string | null) => void
   setReduceMotion: (on: boolean) => void
@@ -91,6 +93,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       setAvatar: (avatar) => commit({ ...stateRef.current, avatar, photo: null }),
       setFrame: (frame) => commit({ ...stateRef.current, frame }),
+      setCosmetics: (patch) => commit({ ...stateRef.current, cosmetics: { ...stateRef.current.cosmetics, ...patch } }),
       setPhoto: (photo) => commit({ ...stateRef.current, photo }),
       importDeck: (name, cards, opts = {}) => {
         const s = stateRef.current

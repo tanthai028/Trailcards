@@ -46,7 +46,7 @@ export function EventLayer() {
               <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_50%_70%,rgba(255,210,122,.8),transparent_65%)]" />
               {/* a happy double hop once the card lands */}
               <motion.div className="relative" animate={{ y: [0, 0, -22, 0, -10, 0] }} transition={{ duration: 1.1, times: [0, 0.25, 0.45, 0.65, 0.8, 1], ease: 'easeOut' }}>
-                <ProfilePic avatar={state.avatar} frame={state.frame} photo={state.photo} className="mx-auto mb-3 size-32 drop-shadow-xl" />
+                <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="mx-auto mb-3 size-32 drop-shadow-xl" />
               </motion.div>
               <p className="relative text-xs font-black text-coral">Level up</p>
               <h2 className="relative font-display text-5xl font-bold">Level {levelUp.level}</h2>

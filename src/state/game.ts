@@ -2,6 +2,7 @@
 import { CARDS, CARD_BY_ID, type Card } from '../data/cards'
 import { deckFeedCards, shuffle, type UserDeck } from '../data/decks'
 import { DEFAULT_AVATAR, FRAME_BY_ID, isColorFrame, type Frame } from '../data/avatars'
+import type { Unlock } from '../data/cosmetics'
 import { ACHIEVEMENTS } from '../data/achievements'
 
 export type Mastery = 'new' | 'learning' | 'familiar' | 'mastered'
@@ -39,6 +40,8 @@ export interface GameState {
   avatar: string
   /** The frame around your picture: 'none', a custom ring or an unlocked special one. */
   frame: Frame
+  /** Unlockable looks: the background behind your icon, the effect on Learn cards, and your title's effect. */
+  cosmetics: Cosmetics
   /** Your uploaded picture: a small square image as a data URL, or null. */
   photo: string | null
   /** Turn off non-essential animation, on top of the phone's own setting. */
@@ -72,6 +75,7 @@ export const initialState = (): GameState => ({
   studyPrefs: {},
   avatar: DEFAULT_AVATAR,
   frame: 'none',
+  cosmetics: { bg: 'none', card: 'none', title: 'none' },
   photo: null,
   reduceMotion: false,
   sound: true,
@@ -82,6 +86,12 @@ export const initialState = (): GameState => ({
   achievements: {},
   createdAt: Date.now(),
 })
+
+export interface Cosmetics {
+  bg: string
+  card: string
+  title: string
+}
 
 // ── Levels ──────────────────────────────────────────────────────
 /** Total XP needed to reach a level: 0, 100, 300, 600, 1000… */
@@ -416,8 +426,13 @@ export function checkAchievements(s: GameState) {
 export function frameUnlocked(s: GameState, frame: Frame) {
   if (frame === 'none' || isColorFrame(frame)) return true
   const f = FRAME_BY_ID[frame]
-  if (!f) return false
-  return 'level' in f.unlock ? levelInfo(s.xp).level >= f.unlock.level : !!s.achievements[f.unlock.trophy]
+  return !!f && isUnlocked(s, f.unlock)
+}
+
+/** A level reached, a trophy earned, or free (null). */
+export function isUnlocked(s: GameState, u: Unlock) {
+  if (!u) return true
+  return 'level' in u ? levelInfo(s.xp).level >= u.level : !!s.achievements[u.trophy]
 }
 
 /**

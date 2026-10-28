@@ -5,7 +5,8 @@ import { useId } from 'react'
 import { AVATAR_BY_ID, DEFAULT_AVATAR, FRAME_BY_ID, isColorFrame, type Frame } from '../data/avatars'
 import { Icon } from './Icon'
 
-export function ProfilePic({ avatar, photo, frame = 'none', className = '' }: { avatar: string; photo: string | null; frame?: Frame; className?: string }) {
+/** `bg`: an unlockable background behind the icon ('none' = the icon's own colour). */
+export function ProfilePic({ avatar, photo, frame = 'none', bg = 'none', className = '' }: { avatar: string; photo: string | null; frame?: Frame; bg?: string; className?: string }) {
   const framed = frame !== 'none' && (isColorFrame(frame) || frame in FRAME_BY_ID)
   const icon = AVATAR_BY_ID[avatar] ?? AVATAR_BY_ID[DEFAULT_AVATAR]
   const positioned = /\b(absolute|fixed)\b/.test(className)
@@ -16,8 +17,11 @@ export function ProfilePic({ avatar, photo, frame = 'none', className = '' }: { 
         {photo ? (
           <img src={photo} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
         ) : (
-          <span className="absolute inset-0 grid place-items-center" style={{ background: `linear-gradient(145deg, ${icon.from}, ${icon.to})` }}>
-            <Icon name={icon.glyph} className="h-[54%] w-[54%] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,.25)]" strokeWidth={2.2} />
+          <span className={`absolute inset-0 grid place-items-center overflow-hidden ${bg !== 'none' ? `fx-bg-${bg}` : ''}`} style={bg === 'none' ? { background: `linear-gradient(145deg, ${icon.from}, ${icon.to})` } : undefined}>
+            {bg === 'galaxy' && [[22, 30, 0], [70, 22, 0.6], [30, 72, 1.1], [78, 64, 0.3], [52, 48, 1.6]].map(([x, y, d]) => (
+              <span key={`${x}${y}`} className="cq-twinkle absolute size-[5%] rounded-full bg-white" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${d}s` }} />
+            ))}
+            <Icon name={icon.glyph} className="relative h-[54%] w-[54%] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]" strokeWidth={2.2} />
           </span>
         )}
       </span>
@@ -81,6 +85,36 @@ export function FrameRing({ frame }: { frame: Frame }) {
         {ring('#f5b942', 6)}
         <path d="M34,12 L38,0 L44,8 L50,-2 L56,8 L62,0 L66,12 Z" fill="#f5cd6a" stroke="#b97a1c" strokeWidth="1.5" strokeLinejoin="round" transform="translate(0 2)" />
         <circle cx="50" cy="1" r="2" fill="#f08a80" />
+      </>
+    )
+  } else if (frame === 'neon') {
+    return <span className="fx-frame-neon pointer-events-none absolute inset-[3%]" />
+  } else if (frame === 'prism') {
+    return <span className="fx-frame-prism pointer-events-none absolute inset-0" />
+  } else if (frame === 'sparkle') {
+    const star = 'M0,-6 C1,-1 1,-1 6,0 C1,1 1,1 0,6 C-1,1 -1,1 -6,0 C-1,-1 -1,-1 0,-6Z'
+    art = (
+      <>
+        <circle cx="50" cy="50" r="47" fill="none" stroke="#fff3c4" strokeWidth="2.5" opacity=".9" />
+        <circle cx="50" cy="50" r="47" fill="none" stroke="#f5cd6a" strokeWidth="6" opacity=".35" className="fx-glow-pulse" />
+        <g className="fx-orbit" style={{ transformBox: 'view-box', transformOrigin: '50% 50%' }}>
+          {around(4, 47, (x, y, _d, i) => <path key={i} d={star} fill="#fffbe6" transform={`translate(${x} ${y}) scale(${i % 2 ? 0.7 : 1})`} style={{ filter: 'drop-shadow(0 0 2px #ffd27a)' }} />)}
+        </g>
+      </>
+    )
+  } else if (frame === 'inferno') {
+    art = (
+      <>
+        <defs>
+          <linearGradient id={`i${id}`} x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="#b91c1c" /><stop offset=".6" stopColor="#f97316" /><stop offset="1" stopColor="#fde047" /></linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r="46" fill="none" stroke="#f97316" strokeWidth="10" opacity=".35" className="fx-glow-pulse" />
+        {ring(`url(#i${id})`, 7)}
+        {around(12, 47, (x, y, deg, i) => (
+          <g key={i} transform={`translate(${x} ${y}) rotate(${deg})`}>
+            <path d="M0,-10 C4,-4 5,1 0,5 C-5,1 -4,-4 0,-10Z" fill={i % 2 ? '#fde047' : '#f97316'} className="fx-flicker" style={{ animationDelay: `${(i % 4) * 0.15}s` }} />
+          </g>
+        ))}
       </>
     )
   } else return null

@@ -34,7 +34,9 @@ export const DEFAULT_AVATAR = 'paw'
 /** Ring colours for a custom frame. */
 export const FRAME_COLORS = ['#fbf3e6', '#f5cd6a', '#f7b48f', '#f08a80', '#b9a7f2', '#9cc8f2', '#8dcfa1', '#f2a3c4']
 
-export type FrameUnlock = { level: number } | { trophy: string }
+import type { Unlock } from './cosmetics'
+
+export type FrameUnlock = NonNullable<Unlock>
 
 /** Special frames and what unlocks them. */
 export const FRAMES: { id: string; name: string; unlock: FrameUnlock }[] = [
@@ -44,6 +46,11 @@ export const FRAMES: { id: string; name: string; unlock: FrameUnlock }[] = [
   { id: 'stars', name: 'Starry', unlock: { trophy: 'mastery-10' } },
   { id: 'rainbow', name: 'Rainbow', unlock: { level: 10 } },
   { id: 'crown', name: 'Crown', unlock: { trophy: 'streak-30' } },
+  // animated
+  { id: 'neon', name: 'Neon', unlock: { level: 7 } },
+  { id: 'sparkle', name: 'Sparkle', unlock: { trophy: 'answers-1000' } },
+  { id: 'prism', name: 'Prism', unlock: { level: 15 } },
+  { id: 'inferno', name: 'Inferno', unlock: { trophy: 'streak-100' } },
 ]
 export const FRAME_BY_ID = Object.fromEntries(FRAMES.map((f) => [f.id, f]))
 

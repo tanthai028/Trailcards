@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Icon } from './Icon'
 
-export function TitlePicker({ value, titles, onChange }: { value: string | null; titles: string[]; onChange: (t: string | null) => void }) {
+/** `fx`: an unlocked title effect (glow, neon…), or 'none'. */
+export function TitlePicker({ value, titles, onChange, fx = 'none' }: { value: string | null; titles: string[]; onChange: (t: string | null) => void; fx?: string }) {
   const [open, setOpen] = useState(false)
   const options: { label: string; value: string | null }[] = [{ label: 'Wanderer', value: null }, ...titles.map((t) => ({ label: t, value: t }))]
 
@@ -24,7 +25,7 @@ export function TitlePicker({ value, titles, onChange }: { value: string | null;
         className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full bg-ink/55 py-1 pl-2.5 pr-2 text-xs font-extrabold text-gold backdrop-blur transition hover:bg-ink/70"
       >
         <Icon name="crown" size={13} />
-        <span className="max-w-[9rem] truncate">{value ?? 'Wanderer'}</span>
+        <span className={`max-w-[9rem] truncate ${fx !== 'none' ? `fx-title-${fx}` : ''}`}>{value ?? 'Wanderer'}</span>
         <Icon name="chevron" size={13} strokeWidth={3} className="opacity-70" />
       </button>
 
