@@ -39,7 +39,7 @@ export function Hud({ onProfile }: { onProfile: () => void }) {
   const { state } = useGame()
   const lv = levelInfo(state.xp)
   return (
-    <header className="relative z-20 flex items-center gap-3 bg-ink px-4 pb-2 pt-[max(12px,env(safe-area-inset-top))]">
+    <header className="relative z-20 flex items-center gap-3 bg-ink px-4 pb-2 pt-[max(12px,calc(env(safe-area-inset-top)+14px))]">
       <button
         onClick={onProfile}
         className="flex min-w-0 items-center gap-2.5 rounded-full py-1 pl-1 pr-3 transition hover:bg-white/5"

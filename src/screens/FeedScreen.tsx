@@ -78,8 +78,8 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
 
   return (
     <div className="flex h-full flex-col">
-      {/* solid behind the status bar so the page glow doesn't bleed under the clock */}
-      <div className="relative z-20 bg-ink pt-[env(safe-area-inset-top)]">
+      {/* solid behind the status bar; the extra 14px clears iOS's own blur under it in home-screen mode */}
+      <div className="relative z-20 bg-ink pt-[calc(env(safe-area-inset-top)+14px)]">
             <header className="flex items-center gap-2 px-3 pb-2 pt-2">
               <AvatarLevel onClick={() => go('profile')} size={34} />
               <ModeMenu

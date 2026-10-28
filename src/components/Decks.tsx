@@ -144,7 +144,7 @@ function DeckImport({ onClose, onImported }: { onClose: () => void; onImported: 
       role="dialog" aria-modal="true" aria-labelledby="import-title"
     >
       <div className="flex h-full w-full max-w-[480px] flex-col">
-        <header className="flex items-center gap-2 px-4 pb-2 pt-[max(12px,env(safe-area-inset-top))]">
+        <header className="flex items-center gap-2 px-4 pb-2 pt-[max(12px,calc(env(safe-area-inset-top)+14px))]">
           <button onClick={onClose} aria-label="Close import" className="grid size-10 place-items-center rounded-full text-cream/70 hover:text-cream">
             <Icon name="x" size={20} />
           </button>
