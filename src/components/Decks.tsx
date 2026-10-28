@@ -1,5 +1,6 @@
 // Study decks: a picker for what Learn shows, and a Quizlet-style paste import.
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { CARDS } from '../data/cards'
@@ -43,7 +44,8 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
         <Icon name="chevron" size={12} strokeWidth={3} className="shrink-0 opacity-60" />
       </button>
 
-      <AnimatePresence>
+      {/* portal: inside the Learn header the nav bar would paint over the sheet */}
+      {createPortal(<AnimatePresence>
         {open && (
           <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/60 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close}>
             <motion.div
@@ -75,9 +77,9 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
-      <AnimatePresence>{importing && <DeckImport onClose={() => setImporting(false)} onImported={onSourceChange} />}</AnimatePresence>
+      {createPortal(<AnimatePresence>{importing && <DeckImport onClose={() => setImporting(false)} onImported={onSourceChange} />}</AnimatePresence>, document.body)}
     </>
   )
 }
