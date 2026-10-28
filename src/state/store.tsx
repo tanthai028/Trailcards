@@ -27,6 +27,7 @@ interface Store {
   setBody: (b: Body) => void
   importDeck: (name: string, cards: DeckCard[]) => void
   deleteDeck: (id: string) => void
+  renameDeck: (id: string, name: string) => void
   setActiveDeck: (id: string | null) => void
   dismissTip: (id: string) => void
   setName: (name: string) => void
@@ -104,6 +105,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const deck: UserDeck = { id, name: name.trim().slice(0, 40) || 'My deck', scene: DECK_SCENES[s.decks.length % DECK_SCENES.length], createdAt: Date.now(), cards }
         commit({ ...s, decks: [...s.decks, deck], activeDeck: id })
         push([{ kind: 'toast', text: `Imported ${cards.length} cards into “${deck.name}”` }])
+      },
+      renameDeck: (id, name) => {
+        const s = stateRef.current
+        const clean = name.trim().slice(0, 40)
+        if (!clean) return
+        commit({ ...s, decks: s.decks.map((d) => (d.id === id ? { ...d, name: clean } : d)) })
       },
       deleteDeck: (id) => {
         const s = stateRef.current

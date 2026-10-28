@@ -17,7 +17,7 @@ function useEscape(onClose: () => void) {
 
 /** The "Studying: …" chip in Learn and the sheet it opens. */
 export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
-  const { state, setActiveDeck, deleteDeck } = useGame()
+  const { state, setActiveDeck, deleteDeck, renameDeck } = useGame()
   const [open, setOpen] = useState(false)
   const [importing, setImporting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -66,6 +66,7 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
                     detail={`${d.cards.length} cards · imported`}
                     on={active?.id === d.id}
                     onClick={() => choose(d.id)}
+                    onRename={(name) => renameDeck(d.id, name)}
                     onDelete={() => (confirmDelete === d.id ? (deleteDeck(d.id), setConfirmDelete(null)) : setConfirmDelete(d.id))}
                     confirming={confirmDelete === d.id}
                   />
@@ -84,7 +85,30 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
   )
 }
 
-function SourceRow({ label, detail, on, onClick, onDelete, confirming }: { label: string; detail: string; on: boolean; onClick: () => void; onDelete?: () => void; confirming?: boolean }) {
+function SourceRow({ label, detail, on, onClick, onRename, onDelete, confirming }: {
+  label: string; detail: string; on: boolean; onClick: () => void; onRename?: (name: string) => void; onDelete?: () => void; confirming?: boolean
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(label)
+  const save = () => {
+    if (draft.trim() && draft.trim() !== label) onRename?.(draft)
+    setEditing(false)
+  }
+  if (editing) {
+    return (
+      <li className="flex items-center gap-1.5 rounded-2xl bg-white/6 p-1.5">
+        <form onSubmit={(e) => { e.preventDefault(); save() }} className="flex min-w-0 flex-1 items-center gap-1.5">
+          <input
+            autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={save} maxLength={40}
+            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setDraft(label); setEditing(false) } }}
+            aria-label="Deck name"
+            className="min-h-11 min-w-0 flex-1 rounded-xl bg-ink/60 px-3 text-[15px] font-bold text-cream ring-1 ring-white/15 focus:outline-none focus:ring-2 focus:ring-gold"
+          />
+          <button type="submit" onMouseDown={(e) => e.preventDefault()} className="min-h-11 shrink-0 rounded-xl bg-gold px-3.5 text-xs font-extrabold text-ink">Save</button>
+        </form>
+      </li>
+    )
+  }
   return (
     <li className={`flex items-center gap-1 rounded-2xl ${on ? 'bg-gold/15' : ''}`}>
       <button onClick={onClick} aria-pressed={on} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl px-3.5 text-left">
@@ -95,6 +119,15 @@ function SourceRow({ label, detail, on, onClick, onDelete, confirming }: { label
         </span>
         {on && <Icon name="check" size={16} strokeWidth={3} className="text-gold" />}
       </button>
+      {onRename && !confirming && (
+        <button
+          onClick={() => { setDraft(label); setEditing(true) }}
+          aria-label={`Rename ${label}`}
+          className="grid min-h-10 min-w-10 shrink-0 place-items-center rounded-xl text-cream/45 hover:text-cream"
+        >
+          <Icon name="edit" size={15} />
+        </button>
+      )}
       {onDelete && (
         <button
           onClick={onDelete}
