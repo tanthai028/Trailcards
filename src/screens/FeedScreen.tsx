@@ -17,6 +17,8 @@ export type FeedMode = 'discover' | 'review' | 'saved'
 
 /** Set before opening Learn to land on a specific card (e.g. from the Saved list in Profile). */
 export const feedFocus: { id: string | null } = { id: null }
+/** Set from Profile > Replay tour to show the Learn tour again next time Learn opens. */
+export const tourReplay = { on: false }
 
 const idsFor = (s: GameState, mode: FeedMode) =>
   mode === 'discover'
@@ -33,6 +35,13 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
   const [ids, setIds] = useState(() => idsFor(state, mode))
   const [active, setActive] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  // a replay requested from Profile shows the tour once more
+  const [tour, setTour] = useState(() => tourReplay.on)
+  useEffect(() => {
+    // cleared a moment later so a Strict Mode remount still sees the request
+    const t = setTimeout(() => (tourReplay.on = false), 400)
+    return () => clearTimeout(t)
+  }, [])
   const scroller = useRef<HTMLDivElement>(null)
   // Answers for this stack, kept here (not in each card) because cards far from view are unmounted.
   const [answers, setAnswers] = useState<Record<string, Answered>>({})
@@ -221,7 +230,7 @@ export function FeedScreen({ mode, setMode, go }: { mode: FeedMode; setMode: (m:
             </header>
       </div>
 
-      {state.onboarded && !state.tips.includes('tour-learn') && <LearnTour active={active} onDone={() => dismissTip('tour-learn')} />}
+      {state.onboarded && (tour || !state.tips.includes('tour-learn')) && <LearnTour active={active} onDone={() => { setTour(false); dismissTip('tour-learn') }} />}
       <Coach
         tips={state.tips}
         answered={Object.keys(state.cards).length}

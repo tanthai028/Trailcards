@@ -12,7 +12,7 @@ import { Icon } from '../components/Icon'
 import { Trophy } from '../components/Trophy'
 import { TitlePicker } from '../components/TitleSheet'
 import type { Tab } from '../components/NavBar'
-import { feedFocus, MASTERY_LABEL, type FeedMode } from './FeedScreen'
+import { feedFocus, MASTERY_LABEL, tourReplay, type FeedMode } from './FeedScreen'
 
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
@@ -178,7 +178,12 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       </Section>
 
       {/* Settings */}
-      <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards." on={state.sound} onChange={setSound} className="mt-8" />
+      <button onClick={() => { tourReplay.on = true; go('feed') }} className="clay mt-8 flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 text-left">
+        <Icon name="spark" size={16} className="text-gold" />
+        <span className="flex-1 text-sm font-extrabold">Replay the Learn tour</span>
+        <Icon name="chevron" size={14} className="-rotate-90 text-cream/40" />
+      </button>
+      <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards." on={state.sound} onChange={setSound} className="mt-2" />
       <button
         onClick={() => setReduceMotion(!state.reduceMotion)}
         role="switch"
