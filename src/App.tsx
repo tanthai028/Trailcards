@@ -14,18 +14,18 @@ import { JoinSheet } from './components/JoinSheet'
 // Learn ships in the main bundle; the other tabs and onboarding load on demand, and are
 // fetched in the background right after the first paint so switching tabs never waits.
 const loadProfile = () => import('./screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen }))
-const loadExplore = () => import('./screens/ExploreScreen').then((m) => ({ default: m.ExploreScreen }))
-const loadRanks = () => import('./screens/RanksScreen').then((m) => ({ default: m.RanksScreen }))
+const loadGroup = () => import('./screens/GroupScreen').then((m) => ({ default: m.GroupScreen }))
 const loadOnboarding = () => import('./components/Onboarding').then((m) => ({ default: m.Onboarding }))
 const ProfileScreen = lazy(loadProfile)
-const ExploreScreen = lazy(loadExplore)
-const RanksScreen = lazy(loadRanks)
+const GroupScreen = lazy(loadGroup)
 const Onboarding = lazy(loadOnboarding)
 
-const TABS: Tab[] = ['feed', 'review', 'explore', 'ranks', 'profile']
+const TABS: Tab[] = ['feed', 'review', 'group', 'profile']
 const readHash = (): Tab => {
-  const h = location.hash.replace('#', '') as Tab
-  return TABS.includes(h) ? h : 'feed'
+  const h = location.hash.replace('#', '')
+  // Explore and Ranks were merged into Group; old links still land there
+  if (h === 'explore' || h === 'ranks') return 'group'
+  return TABS.includes(h as Tab) ? (h as Tab) : 'feed'
 }
 
 export default function App() {
@@ -36,7 +36,7 @@ export default function App() {
   const [joining, setJoining] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => { loadExplore(); loadRanks(); loadProfile() }, 1200)
+    const t = setTimeout(() => { loadGroup(); loadProfile() }, 1200)
     return () => clearTimeout(t)
   }, [])
 
@@ -80,8 +80,7 @@ export default function App() {
               {tab === 'feed' && <FeedScreen mode={feedMode} setMode={setMode} go={go} />}
               {tab === 'review' && <FeedScreen mode="review" setMode={setMode} go={go} />}
               <Suspense fallback={null}>
-                {tab === 'explore' && <ExploreScreen go={go} />}
-                {tab === 'ranks' && <RanksScreen />}
+                {tab === 'group' && <GroupScreen go={go} />}
                 {tab === 'profile' && <ProfileScreen go={go} />}
               </Suspense>
             </motion.div>

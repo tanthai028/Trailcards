@@ -1,13 +1,12 @@
 import { motion } from 'framer-motion'
 import { Icon } from './Icon'
 
-export type Tab = 'feed' | 'review' | 'explore' | 'ranks' | 'profile'
+export type Tab = 'feed' | 'review' | 'group' | 'profile'
 
 const ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: 'feed', label: 'Learn', icon: 'feed' },
   { id: 'review', label: 'Review', icon: 'refresh' },
-  { id: 'explore', label: 'Explore', icon: 'compass' },
-  { id: 'ranks', label: 'Ranks', icon: 'trophy' },
+  { id: 'group', label: 'Group', icon: 'trophy' },
   { id: 'profile', label: 'Profile', icon: 'profile' },
 ]
 
@@ -32,7 +31,7 @@ function Road() {
 export function NavBar({ tab, onTab, due = 0 }: { tab: Tab; onTab: (t: Tab) => void; due?: number }) {
   return (
     <nav className="relative z-20 touch-none border-t border-white/8 bg-ink px-3 pt-2" aria-label="Main">
-      <ul className="grid grid-cols-5 gap-1">
+      <ul className="grid grid-cols-4 gap-1">
         {ITEMS.map((it) => {
           const active = tab === it.id
           return (

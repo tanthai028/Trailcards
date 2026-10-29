@@ -1,4 +1,5 @@
 // Decks your group has shared: search them, preview one, and add a copy to your own decks.
+// Lives inside the Group tab, which handles the title and signing in.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -8,7 +9,6 @@ import { useGame } from '../state/store'
 import { cleanDeck } from '../state/sanitize'
 import { DECK_SCENES } from '../data/decks'
 import { SceneSvg, type SceneId } from '../art/Landscape'
-import { JoinPrompt, JoinSheet } from '../components/JoinSheet'
 import { Icon } from '../components/Icon'
 import type { Tab } from '../components/NavBar'
 
@@ -34,7 +34,6 @@ export function ExploreScreen({ go }: { go: (t: Tab) => void }) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<Sort>('popular')
   const [open, setOpen] = useState<Listing | null>(null)
-  const [joining, setJoining] = useState(false)
 
   const load = useCallback(async () => {
     if (!client || status !== 'member') return
@@ -57,10 +56,7 @@ export function ExploreScreen({ go }: { go: (t: Tab) => void }) {
 
   return (
     <div className="no-scrollbar h-full overflow-y-auto overscroll-contain px-4 pb-8">
-      <h1 className="mb-4 font-display text-3xl font-bold">Explore decks</h1>
-      {status !== 'member' ? (
-        <JoinPrompt what="the decks your friends shared" onJoin={() => setJoining(true)} />
-      ) : (
+      {status === 'member' && (
         <>
           <div className="flex gap-2">
             <label className="clay flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-2xl px-3">
@@ -102,7 +98,6 @@ export function ExploreScreen({ go }: { go: (t: Tab) => void }) {
         </>
       )}
       <AnimatePresence>
-        {joining && <JoinSheet onClose={() => setJoining(false)} />}
         {open && <DeckPreview key={open.id} listing={open} onClose={() => setOpen(null)} onChanged={() => { setOpen(null); void load() }} go={go} />}
       </AnimatePresence>
     </div>

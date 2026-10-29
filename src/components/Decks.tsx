@@ -273,7 +273,7 @@ function ShareDeck({ deck }: { deck: UserDeck }) {
     const { data, error } = await client!.from('shared_decks').insert({ ...row, owner: me!.id }).select('id').single()
     if (error) throw error
     updateDeck(deck.id, { sharedId: data.id })
-    return 'Shared. Your group can find it in Explore.'
+    return 'Shared. Your group can find it under Group › Shared decks.'
   })
   const unshare = () => run(async () => {
     const { error } = await client!.from('shared_decks').delete().eq('id', deck.sharedId!)
@@ -286,7 +286,7 @@ function ShareDeck({ deck }: { deck: UserDeck }) {
     <div className="clay mt-4 rounded-2xl p-3">
       <p className="text-sm font-extrabold">{deck.sharedId ? 'Shared with your group' : 'Share with your group'}</p>
       <p className="mt-0.5 text-xs text-cream/55">
-        {deck.sharedId ? 'Friends see it in Explore. Changes you make here go out when you update it.' : 'Friends can find it in Explore and add their own copy. Your progress stays private.'}
+        {deck.sharedId ? 'Friends see it under Group › Shared decks. Changes you make here go out when you update it.' : 'Friends can find it under Group › Shared decks and add their own copy. Your progress stays private.'}
       </p>
       {status !== 'member' ? (
         <button onClick={() => setJoining(true)} className="clay-btn clay-cream mt-2.5 min-h-11 w-full text-sm">Join your group to share</button>
