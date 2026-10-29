@@ -32,7 +32,10 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
   return (
     <div className="no-scrollbar h-full overflow-y-auto overscroll-contain px-4 pb-8">
       {/* Showcase banner */}
-      <div className="grain relative overflow-hidden rounded-[30px]">
+      {/* clip-path clips the banner once, as a whole. With overflow-hidden each layer (scene,
+          shade, grain) is rounded on its own and their soft edges add up to a light line
+          along the bottom corners. */}
+      <div className="grain relative rounded-[30px] [clip-path:inset(0_round_30px)]">
         <SceneSvg scene="meadow" className="absolute inset-0 h-full w-full" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
         <div className="relative flex items-end gap-4 px-4 pb-4 pt-20">
