@@ -52,8 +52,8 @@ interface Store {
 const Ctx = createContext<Store | null>(null)
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  // card theme shuffle: a new pick from your chosen ones each time the app opens
-  const [state, setState] = useState<G.GameState>(() => G.shuffleCard(localSave.load() ?? G.initialState()))
+  // card theme and scene shuffle: a new pick from your chosen ones each time the app opens
+  const [state, setState] = useState<G.GameState>(() => G.shuffleLooks(localSave.load() ?? G.initialState()))
   const [events, setEvents] = useState<GameEvent[]>([])
   const stateRef = useRef(state)
   stateRef.current = state

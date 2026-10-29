@@ -6,8 +6,8 @@ import { useGame } from '../state/store'
 import { frameUnlocked, isUnlocked } from '../state/game'
 import { AVATARS, FRAME_COLORS, FRAMES, type Frame, type FrameUnlock } from '../data/avatars'
 import { ACH_BY_ID } from '../data/achievements'
-import { CARD_FX, PIC_BGS, TITLE_FX, type Cosmetic } from '../data/cosmetics'
-import { SceneSvg } from '../art/Landscape'
+import { CARD_FX, CARD_SCENES, PIC_BGS, TITLE_FX, type Cosmetic } from '../data/cosmetics'
+import { SceneSvg, type SceneId } from '../art/Landscape'
 import { CardFx } from './CardFx'
 import { ProfilePic } from './ProfilePic'
 import { Icon } from './Icon'
@@ -47,8 +47,8 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
   const rings = ['none', ...FRAME_COLORS.map((c) => `color:${c}`)]
   const [ringList, ringsMore] = useMore(rings, 6, (r) => state.frame === r)
   const [frames, framesMore] = useMore(FRAMES, 3, (f) => state.frame === f.id)
-  const shuffle = state.cosmetics.cardShuffle ?? []
-  const shuffling = shuffle.length > 0
+  const cardShuffle = state.cosmetics.cardShuffle ?? []
+  const sceneShuffle = state.cosmetics.sceneShuffle ?? []
 
   return (
     <Sheet
@@ -133,34 +133,35 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
             preview={(c) => <span className="grid h-14 w-full place-items-center rounded-xl bg-ink/70 px-1"><span className={`truncate text-sm font-extrabold ${c.id === 'none' ? 'text-gold' : `fx-title-${c.id}`}`}>{state.title ?? 'Wanderer'}</span></span>} />
         </Section>
 
-        <Section label="Learn card theme">
-          {/* Shuffle: pick several, and each time the app opens your Learn cards get one of them */}
-          <button
-            role="switch" aria-checked={shuffling}
-            onClick={() => setCosmetics({ cardShuffle: shuffling ? [] : [state.cosmetics.card] })}
-            className="mb-2 flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-2.5 text-left"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-extrabold">Shuffle</span>
-              <span className="block text-[11px] leading-snug text-cream/55">
-                {!shuffling ? 'A different one of your picks each time you open the app.' : shuffle.length < 2 ? 'Tap two or more to shuffle between.' : `Shuffling ${shuffle.length}. Tap to add or remove.`}
-              </span>
-            </span>
-            <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${shuffling ? 'bg-gold' : 'bg-white/15'}`}>
-              <span className={`absolute top-1 size-5 rounded-full bg-cream shadow transition-transform ${shuffling ? 'translate-x-6' : 'translate-x-1'}`} />
-            </span>
-          </button>
-          <CosmeticGrid list={CARD_FX} value={state.cosmetics.card} picked={shuffling ? shuffle : undefined}
-            onPick={(card) => {
-              if (!shuffling) return setCosmetics({ card })
-              const has = shuffle.includes(card)
-              const next = has ? shuffle.filter((x) => x !== card) : [...shuffle, card]
-              // the cards show what you just added; removing the one on show moves to another pick
-              setCosmetics({ cardShuffle: next.length ? next : [card], card: has ? (card === state.cosmetics.card ? next[0] ?? card : state.cosmetics.card) : card })
+        <Section label="Learn card scene">
+          <ShuffleSwitch picks={sceneShuffle} onToggle={() => setCosmetics({ sceneShuffle: sceneShuffle.length ? [] : [state.cosmetics.scene] })} />
+          <CosmeticGrid list={CARD_SCENES} value={state.cosmetics.scene} picked={sceneShuffle.length ? sceneShuffle : undefined}
+            onPick={(scene) => {
+              if (!sceneShuffle.length) return setCosmetics({ scene })
+              const [picks, shown] = togglePick(sceneShuffle, scene, state.cosmetics.scene)
+              setCosmetics({ sceneShuffle: picks, scene: shown })
             }}
             preview={(c) => (
               <span className="relative block h-14 w-full overflow-hidden rounded-xl">
-                <SceneSvg scene={c.id === 'starfall' || c.id === 'aurora' ? 'night' : c.id === 'snow' ? 'peaks' : 'meadow'} still className="absolute inset-0 h-full w-full" />
+                {c.id === 'auto'
+                  ? <span className="grid h-full grid-cols-3"><SceneSvg scene="meadow" still className="h-full w-full" /><SceneSvg scene="coast" still className="h-full w-full" /><SceneSvg scene="forest" still className="h-full w-full" /></span>
+                  : <SceneSvg scene={c.id as SceneId} still className="absolute inset-0 h-full w-full" />}
+              </span>
+            )} />
+        </Section>
+
+        <Section label="Learn card theme">
+          <ShuffleSwitch picks={cardShuffle} onToggle={() => setCosmetics({ cardShuffle: cardShuffle.length ? [] : [state.cosmetics.card] })} />
+          <CosmeticGrid list={CARD_FX} value={state.cosmetics.card} picked={cardShuffle.length ? cardShuffle : undefined}
+            onPick={(card) => {
+              if (!cardShuffle.length) return setCosmetics({ card })
+              const [picks, shown] = togglePick(cardShuffle, card, state.cosmetics.card)
+              setCosmetics({ cardShuffle: picks, card: shown })
+            }}
+            preview={(c) => (
+              <span className="relative block h-14 w-full overflow-hidden rounded-xl">
+                {/* over your chosen scene, so you see the pair you'll get */}
+                <SceneSvg scene={state.cosmetics.scene !== 'auto' ? (state.cosmetics.scene as SceneId) : c.id === 'starfall' || c.id === 'aurora' ? 'night' : c.id === 'snow' ? 'peaks' : 'meadow'} still className="absolute inset-0 h-full w-full" />
                 <CardFx fx={c.id} />
               </span>
             )} />
@@ -168,6 +169,35 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
         <button onClick={onClose} className="clay-btn clay-cream mt-5 min-h-12 w-full text-[15px]">Done</button>
     </Sheet>
   )
+}
+
+/** Shuffle: pick several, and each time the app opens one of them is used. */
+function ShuffleSwitch({ picks, onToggle }: { picks: string[]; onToggle: () => void }) {
+  const on = picks.length > 0
+  return (
+    <button role="switch" aria-checked={on} onClick={onToggle} className="mb-2 flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-2.5 text-left">
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-extrabold">Shuffle</span>
+        <span className="block text-[11px] leading-snug text-cream/55">
+          {!on ? 'A different one of your picks each time you open the app.' : picks.length < 2 ? 'Tap two or more to shuffle between.' : `Shuffling ${picks.length}. Tap to add or remove.`}
+        </span>
+      </span>
+      <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-gold' : 'bg-white/15'}`}>
+        <span className={`absolute top-1 size-5 rounded-full bg-cream shadow transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+      </span>
+    </button>
+  )
+}
+
+/**
+ * Add or remove one shuffle pick. Returns the new picks and what to show now: the one just added,
+ * or another pick when the one on show is removed. The last pick stays (turn Shuffle off instead).
+ */
+function togglePick(picks: string[], id: string, current: string): [string[], string] {
+  const has = picks.includes(id)
+  const next = has ? picks.filter((x) => x !== id) : [...picks, id]
+  if (!next.length) return [[id], id]
+  return [next, has ? (id === current ? next[0] : current) : id]
 }
 
 function FrameChoice({ label, on, onClick, children }: { label: string; on: boolean; onClick: () => void; children: ReactNode }) {

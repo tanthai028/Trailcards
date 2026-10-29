@@ -20,6 +20,16 @@ export const PIC_BGS: Cosmetic[] = [
   { id: 'holo', name: 'Holo', unlock: { level: 12 } },
 ]
 
+/** The scene at the top of every Learn card: by topic (each deck's own), or one place for all. */
+export const CARD_SCENES: Cosmetic[] = [
+  { id: 'auto', name: 'By topic', unlock: null },
+  { id: 'campground', name: 'Campground', unlock: null },
+  { id: 'room', name: 'Cozy room', unlock: { trophy: 'first-card' } },
+  { id: 'beach', name: 'Beach', unlock: { trophy: 'ten-cards' } },
+  { id: 'city', name: 'City night', unlock: { level: 2 } },
+  { id: 'cabin', name: 'Snowy cabin', unlock: { level: 3 } },
+]
+
 /** An effect over the scene at the top of every Learn card. */
 export const CARD_FX: Cosmetic[] = [
   { id: 'none', name: 'Plain', unlock: null },

@@ -9,7 +9,7 @@ import { AvatarLevel } from '../components/Hud'
 import { MochiPeek } from '../components/MochiPeek'
 import { CardFx } from '../components/CardFx'
 import { DAILY_GOAL, currentStreak, feedCards, findCard, isDue, isRecall, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyPrefs, studyQueue, todayCount, type AnswerResult, type GameState, type KindFilter, type Mastery, type StudyPrefs } from '../state/game'
-import { SceneSvg } from '../art/Landscape'
+import { SceneSvg, type SceneId } from '../art/Landscape'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
 import { burst } from '../fx/FxLayer'
@@ -410,7 +410,7 @@ function FeedCard({
       <div className="grain relative h-[23%] min-h-[116px] shrink-0 overflow-hidden">
         {/* drifts at a fraction of the card's speed while swiping, so the scene feels deeper than the card */}
         <div className="parallax absolute inset-0" style={{ transform: `translateY(calc((var(--p, ${index}) - ${index}) * 46px)) scale(1.25)` }}>
-          <SceneSvg scene={topic.scene} still={!live} className="absolute inset-0 h-full w-full" />
+          <SceneSvg scene={state.cosmetics.scene !== 'auto' ? (state.cosmetics.scene as SceneId) : topic.scene} still={!live} className="absolute inset-0 h-full w-full" />
         </div>
         {/* your card theme, only on the card in view */}
         {live && <CardFx fx={state.cosmetics?.card ?? 'none'} />}

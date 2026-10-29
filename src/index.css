@@ -168,6 +168,16 @@ body {
 .cq-glint {
   animation: cq-glint 2.2s ease-in-out infinite;
 }
+/* a campfire's flames: stretching and settling from their base */
+.cq-flicker {
+  animation: cq-flicker 0.7s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+@keyframes cq-flicker {
+  from { transform: scale(1, 1); }
+  to { transform: scale(0.92, 0.84); }
+}
 .cq-still *,
 .cq-still {
   animation-play-state: paused !important;
@@ -186,12 +196,13 @@ body {
   50% { opacity: 0.9; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cq-drift, .cq-firefly, .cq-glint, .cq-twinkle { animation: none; }
+  .cq-drift, .cq-firefly, .cq-glint, .cq-twinkle, .cq-flicker { animation: none; }
 }
 [data-reduce-motion] .cq-drift,
 [data-reduce-motion] .cq-firefly,
 [data-reduce-motion] .cq-glint,
-[data-reduce-motion] .cq-twinkle {
+[data-reduce-motion] .cq-twinkle,
+[data-reduce-motion] .cq-flicker {
   animation: none !important;
 }
 

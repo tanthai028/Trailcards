@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   answerCard, currentStreak, DAILY_GOAL, findCard, initialState, INTERVALS, isDue, levelInfo,
-  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, feedCards, isRecall, undoAnswer, comebacks, shuffleCard, type GameState,
+  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, feedCards, isRecall, undoAnswer, comebacks, shuffleLooks, type GameState,
 } from './game'
 import { CARDS } from '../data/cards'
 import { deckFeedCards, parseDeck, type UserDeck } from '../data/decks'
@@ -292,14 +292,18 @@ describe('habit and effort trophies', () => {
   })
 })
 
-describe('card theme shuffle', () => {
+describe('card theme and scene shuffle', () => {
   it('picks another unlocked theme from your picks, and leaves locked ones out', () => {
-    // level 2 opens Fireflies; Leaves needs level 3
-    const s: GameState = { ...initialState(), xp: 120, cosmetics: { bg: 'none', card: 'none', title: 'none', cardShuffle: ['none', 'fireflies', 'leaves'] } }
-    for (let i = 0; i < 20; i++) expect(shuffleCard(s).cosmetics.card).toBe('fireflies')
+    // level 2 opens Fireflies and City night; Leaves and Snowy cabin need level 3
+    const s: GameState = { ...initialState(), xp: 120, cosmetics: { bg: 'none', card: 'none', title: 'none', scene: 'auto', cardShuffle: ['none', 'fireflies', 'leaves'], sceneShuffle: ['auto', 'city', 'cabin'] } }
+    for (let i = 0; i < 20; i++) {
+      const next = shuffleLooks(s).cosmetics
+      expect(next.card).toBe('fireflies')
+      expect(next.scene).toBe('city')
+    }
   })
   it('does nothing with fewer than two picks', () => {
-    const s: GameState = { ...initialState(), cosmetics: { bg: 'none', card: 'none', title: 'none', cardShuffle: ['none'] } }
-    expect(shuffleCard(s)).toBe(s)
+    const s: GameState = { ...initialState(), cosmetics: { bg: 'none', card: 'none', title: 'none', scene: 'auto', cardShuffle: ['none'] } }
+    expect(shuffleLooks(s)).toBe(s)
   })
 })

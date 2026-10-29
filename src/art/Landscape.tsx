@@ -3,6 +3,7 @@
 import { useId, type ReactNode } from 'react'
 
 export type SceneId = 'meadow' | 'night' | 'peaks' | 'coast' | 'forest' | 'pasture'
+  | 'campground' | 'room' | 'beach' | 'city' | 'cabin'
 
 
 function rng(seed: number) {
@@ -56,6 +57,10 @@ const Cloud = ({ x, y, s = 1, o = 0.85, c = '#fff' }: { x: number; y: number; s?
     </g>
   </g>
 )
+
+// city towers as [x, top, width]: a hazy back row, and a front row with lit windows
+const CITY_BACK = [[0, 150, 40], [36, 120, 34], [66, 160, 44], [106, 100, 30], [132, 140, 46], [174, 110, 36], [206, 150, 40], [242, 90, 30], [268, 130, 44], [308, 150, 34], [338, 116, 40], [374, 140, 30]]
+const CITY_FRONT = [[10, 176, 52], [56, 150, 40], [92, 190, 56], [144, 160, 44], [184, 140, 50], [230, 176, 44], [270, 156, 52], [318, 186, 46], [360, 166, 44]]
 
 const FIREFLIES = (() => {
   const r = rng(13)
@@ -170,6 +175,155 @@ function Landscape({ scene, children }: { scene: SceneId; children?: ReactNode }
           <rect x="26" y="242" width="132" height="3" fill="#d8b48a" />
           <rect x="26" y="250" width="132" height="3" fill="#d8b48a" />
           <path d="M0,266 Q120,252 240,264 T400,260 L400,300 L0,300Z" fill="#7cb877" />
+          {children}
+        </g>
+      )
+    case 'campground':
+      // dusk at camp: two tents around a crackling fire under the first stars
+      return (
+        <g>
+          <Sky id={`s${u}`} stops={[[0, '#1d1b4a'], [0.45, '#4a3a7a'], [0.75, '#c46a6a'], [0.88, '#f2a35e']]} />
+          {/* the band on a card shows the middle of the scene, so the scene sits up there */}
+          <rect y="240" width="400" height="60" fill="#3a2f4c" />
+          <g transform="translate(0,-40)">
+          {STARS.slice(0, 30).map((s, i) => <circle key={i} cx={s.x} cy={s.y * 0.7} r={s.s * 0.9} fill="#fff" opacity={s.o * 0.8} className={i % 5 === 0 ? 'cq-twinkle' : undefined} style={i % 5 === 0 ? { animationDelay: `-${(i % 7) * 0.4}s` } : undefined} />)}
+          <path d="M0,200 Q90,170 180,190 T400,180 L400,300 L0,300Z" fill="#3b2f5c" />
+          {pines(31, 14, 214, 40, 70, '#2a2346')}
+          <path d="M0,214 Q120,204 240,212 T400,208 L400,300 L0,300Z" fill="#4a3d5e" />
+          <Glow id={`f${u}`} x={200} y={226} r={95} color="#ffb35c" />
+          {/* tents */}
+          <path d="M70,232 L112,170 L154,232Z" fill="#e8814f" />
+          <path d="M112,170 L104,232 L120,232Z" fill="#8a3f2f" />
+          <path d="M254,232 L288,180 L322,232Z" fill="#5fa3a0" />
+          <path d="M288,180 L282,232 L294,232Z" fill="#2f5f63" />
+          {/* logs and fire */}
+          <rect x="182" y="230" width="36" height="6" rx="3" fill="#6b4630" transform="rotate(-12 200 233)" />
+          <rect x="182" y="230" width="36" height="6" rx="3" fill="#7d5338" transform="rotate(12 200 233)" />
+          <g className="cq-flicker">
+            <path d="M200,186 C214,206 216,218 208,230 L192,230 C184,218 188,204 200,186Z" fill="#ff8a3d" />
+            <path d="M200,202 C208,214 208,222 204,230 L196,230 C192,222 194,212 200,202Z" fill="#ffd56b" />
+          </g>
+          {[0, 1, 2].map((i) => <circle key={i} cx={196 + i * 5} cy={178 - i * 8} r="1.4" fill="#ffd56b" className="cq-firefly" style={{ animationDuration: `${2 + i}s`, animationDelay: `-${i}s` }} />)}
+          <path d="M0,244 Q130,236 260,244 T400,240 L400,300 L0,300Z" fill="#3a2f4c" />
+          </g>
+          {children}
+        </g>
+      )
+    case 'room':
+      // a cosy living room on a rainy evening: window, lamp, couch, plant
+      return (
+        <g>
+          <Sky id={`s${u}`} stops={[[0, '#6b4f7a'], [0.6, '#8a6584'], [1, '#a77a7c']]} />
+          {/* the band on a card shows the middle of the scene, so the scene sits up there */}
+          <rect y="240" width="400" height="60" fill="#5a3d4f" />
+          <g transform="translate(0,-26)">
+          {/* wallpaper stripes */}
+          {Array.from({ length: 14 }, (_, i) => <rect key={i} x={i * 30} y="0" width="12" height="300" fill="#fff" opacity="0.04" />)}
+          {/* window with rain and the moon */}
+          <rect x="40" y="70" width="120" height="120" rx="6" fill="#2b2b5c" />
+          <circle cx="128" cy="100" r="12" fill="#fff6d8" opacity="0.9" />
+          {Array.from({ length: 12 }, (_, i) => <rect key={i} x={50 + ((i * 37) % 100)} y={78 + ((i * 53) % 90)} width="1.5" height="10" rx="1" fill="#c9d8ff" opacity="0.6" className="cq-glint" style={{ animationDelay: `-${(i % 5) * 0.3}s` }} />)}
+          <rect x="40" y="70" width="120" height="120" rx="6" fill="none" stroke="#e9cfa8" strokeWidth="7" />
+          <rect x="97" y="70" width="6" height="120" fill="#e9cfa8" />
+          <rect x="40" y="127" width="120" height="6" fill="#e9cfa8" />
+          {/* picture on the wall */}
+          <rect x="205" y="92" width="44" height="34" rx="3" fill="#f5d48a" />
+          <rect x="210" y="97" width="34" height="24" rx="2" fill="#7fb3a6" />
+          {/* floor lamp and its glow */}
+          <Glow id={`l${u}`} x={330} y={110} r={90} color="#ffd59a" />
+          <rect x="328" y="118" width="4" height="110" fill="#3d2c3f" />
+          <path d="M310,118 L350,118 L342,92 L318,92Z" fill="#ffcf7d" />
+          {/* floor, rug, couch, plant */}
+          <rect y="226" width="400" height="74" fill="#5a3d4f" />
+          <ellipse cx="200" cy="252" rx="150" ry="14" fill="#c27a6a" opacity="0.7" />
+          <rect x="150" y="176" width="150" height="40" rx="14" fill="#d9775f" />
+          <rect x="140" y="196" width="170" height="36" rx="12" fill="#e68a6f" />
+          <rect x="166" y="190" width="56" height="18" rx="8" fill="#f2a98a" />
+          <rect x="228" y="190" width="56" height="18" rx="8" fill="#f2a98a" />
+          <rect x="34" y="208" width="26" height="22" rx="4" fill="#c46a4f" />
+          <path d="M47,208 C30,186 40,170 47,160 C54,170 64,186 47,208Z M47,208 C34,196 26,192 22,184 C36,184 44,196 47,208Z M47,208 C60,196 68,192 72,184 C58,184 50,196 47,208Z" fill="#6fae7a" />
+          </g>
+          {children}
+        </g>
+      )
+    case 'beach':
+      // a bright beach day: palm, striped umbrella, glinting sea
+      return (
+        <g>
+          <Sky id={`s${u}`} stops={[[0, '#5fb6f0'], [0.6, '#a9dcff'], [1, '#e4f5ff']]} />
+          {/* the band on a card shows the middle of the scene, so the scene sits up there */}
+          <rect y="240" width="400" height="60" fill="#f5d9a0" />
+          <g transform="translate(0,-40)">
+          <Glow id={`g${u}`} x={90} y={80} r={70} color="#fff6c8" />
+          <circle cx="90" cy="80" r="18" fill="#fff4c2" />
+          <Cloud x={260} y={64} s={1.2} />
+          <rect y="168" width="400" height="56" fill="#2f9bc4" />
+          <rect y="168" width="400" height="16" fill="#58b9da" />
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => <rect key={i} x={20 + i * 55} y={180 + (i % 3) * 11} width="26" height="2" rx="1" fill="#e9fbff" className="cq-glint" style={{ animationDelay: `-${i * 0.4}s` }} />)}
+          <path d="M0,222 Q60,214 120,222 T240,220 T400,218 L400,232 L0,232Z" fill="#e9fbff" opacity="0.8" />
+          <path d="M0,226 Q140,216 260,226 T400,222 L400,300 L0,300Z" fill="#f5d9a0" />
+          {/* umbrella */}
+          <rect x="98" y="168" width="3" height="66" fill="#8a6248" />
+          <path d="M60,176 Q100,140 140,176Z" fill="#ff7b6b" />
+          <path d="M80,176 Q100,140 100,176Z M100,176 Q100,140 120,176Z" fill="#fff4e6" />
+          {/* palm */}
+          <path d="M318,236 C322,200 330,170 344,140 L350,142 C338,172 330,202 326,236Z" fill="#a0703f" />
+          <path d="M346,140 C320,126 298,132 284,146 C306,136 324,138 346,144Z M346,140 C368,124 390,128 400,140 C380,134 364,138 348,146Z M346,140 C340,116 326,104 312,100 C330,112 338,124 344,142Z M346,140 C356,118 372,108 388,106 C370,116 360,126 350,144Z" fill="#3f9a5c" />
+          <circle cx="342" cy="148" r="5" fill="#7a5230" />
+          <circle cx="351" cy="147" r="5" fill="#6a4628" />
+          </g>
+          {children}
+        </g>
+      )
+    case 'city':
+      // a city at dusk: lit windows across two rows of towers
+      return (
+        <g>
+          <Sky id={`s${u}`} stops={[[0, '#1e1b47'], [0.5, '#4b3a86'], [0.85, '#e07a8a'], [1, '#ffb08a']]} />
+          {/* the band on a card shows the middle of the scene, so the scene sits up there */}
+          <rect y="240" width="400" height="60" fill="#1b1638" />
+          <g transform="translate(0,-36)">
+          <circle cx="318" cy="70" r="14" fill="#fff0d0" opacity="0.95" />
+          {CITY_BACK.map(([x, y, w], i) => <rect key={`b${i}`} x={x} y={y} width={w} height={300 - y} fill="#3b2f6b" />)}
+          {CITY_FRONT.map(([x, y, w], i) => (
+            <g key={`f${i}`}>
+              <rect x={x} y={y} width={w} height={300 - y} fill="#271f4d" />
+              {Array.from({ length: Math.floor((240 - y) / 14) }, (_, r) => Array.from({ length: Math.floor(w / 12) }, (_, c) => (
+                (r * 7 + c * 3 + i) % 3 !== 0 && <rect key={`${r}-${c}`} x={x + 4 + c * 12} y={y + 6 + r * 14} width="6" height="7" rx="1" fill="#ffd98a" opacity={(r + c + i) % 4 === 0 ? 0.35 : 0.85} className={(r + c + i) % 9 === 0 ? 'cq-twinkle' : undefined} />
+              )))}
+            </g>
+          ))}
+          <rect y="236" width="400" height="64" fill="#1b1638" />
+          </g>
+          {children}
+        </g>
+      )
+    case 'cabin':
+      // a snowy evening: a log cabin with a warm window and chimney smoke among snowy pines
+      return (
+        <g>
+          <Sky id={`s${u}`} stops={[[0, '#7f97c9'], [0.6, '#c7d3ef'], [1, '#f1e6f2']]} />
+          {/* the band on a card shows the middle of the scene, so the scene sits up there */}
+          <rect y="240" width="400" height="60" fill="#ffffff" />
+          <g transform="translate(0,-40)">
+          <path d="M0,190 Q100,160 200,182 T400,170 L400,300 L0,300Z" fill="#e6ecf8" />
+          {pines(41, 10, 206, 40, 64, '#4c6a78')}
+          <path d="M0,206 Q140,192 260,204 T400,198 L400,300 L0,300Z" fill="#f4f6fc" />
+          <g transform="translate(150,0)">
+            <Cloud x={84} y={128} s={0.5} o={0.7} />
+            <Cloud x={96} y={112} s={0.4} o={0.55} />
+            <rect x="74" y="140" width="12" height="30" fill="#6b4a3a" />
+            <rect x="10" y="176" width="96" height="56" fill="#8a5a3f" />
+            {[0, 1, 2, 3].map((i) => <rect key={i} x="10" y={180 + i * 13} width="96" height="3" fill="#6b4430" />)}
+            <path d="M0,180 L58,138 L116,180Z" fill="#f7f9ff" />
+            <path d="M6,182 L58,144 L110,182 L110,186 L6,186Z" fill="#6b4a3a" />
+            <rect x="24" y="196" width="22" height="18" rx="2" fill="#ffd27a" />
+            <rect x="34" y="196" width="2" height="18" fill="#8a5a3f" />
+            <rect x="66" y="198" width="22" height="34" rx="2" fill="#5a3a2b" />
+          </g>
+          <Glow id={`w${u}`} x={185} y={205} r={40} color="#ffd27a" />
+          <path d="M0,236 Q120,226 240,236 T400,232 L400,300 L0,300Z" fill="#ffffff" />
+          </g>
           {children}
         </g>
       )

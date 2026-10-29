@@ -2,7 +2,7 @@
 import { CARDS, CARD_BY_ID, type Card } from '../data/cards'
 import { deckFeedCards, shuffle, type UserDeck } from '../data/decks'
 import { DEFAULT_AVATAR, FRAME_BY_ID, isColorFrame, type Frame } from '../data/avatars'
-import { CARD_FX, type Unlock } from '../data/cosmetics'
+import { CARD_FX, CARD_SCENES, type Cosmetic, type Unlock } from '../data/cosmetics'
 import { ACHIEVEMENTS } from '../data/achievements'
 
 export type Mastery = 'new' | 'learning' | 'familiar' | 'mastered'
@@ -73,7 +73,7 @@ export const initialState = (): GameState => ({
   studyPrefs: {},
   avatar: DEFAULT_AVATAR,
   frame: 'none',
-  cosmetics: { bg: 'none', card: 'none', title: 'none' },
+  cosmetics: { bg: 'none', card: 'none', title: 'none', scene: 'auto' },
   photo: null,
   reduceMotion: false,
   sound: true,
@@ -88,8 +88,12 @@ export interface Cosmetics {
   bg: string
   card: string
   title: string
+  /** The Learn card scene: 'auto' follows each card's topic or deck. */
+  scene: string
   /** Learn card themes to shuffle between, one picked each time the app opens (fewer than 2 = off). */
   cardShuffle?: string[]
+  /** The same for Learn card scenes. */
+  sceneShuffle?: string[]
 }
 
 // ── Levels ──────────────────────────────────────────────────────
@@ -428,12 +432,16 @@ export function frameUnlocked(s: GameState, frame: Frame) {
   return !!f && isUnlocked(s, f.unlock)
 }
 
-/** Shuffle on: a different Learn card theme from your picks (the unlocked ones), for this visit. */
-export function shuffleCard(s: GameState): GameState {
-  const picks = (s.cosmetics.cardShuffle ?? []).filter((id) => isUnlocked(s, CARD_FX.find((c) => c.id === id)?.unlock ?? null))
-  const others = picks.filter((id) => id !== s.cosmetics.card)
-  if (picks.length < 2 || !others.length) return s
-  return { ...s, cosmetics: { ...s.cosmetics, card: others[Math.floor(Math.random() * others.length)] } }
+/** Shuffle on: a different Learn card theme and scene from your picks (the unlocked ones), for this visit. */
+export function shuffleLooks(s: GameState): GameState {
+  const reroll = (current: string, chosen: string[] | undefined, list: Cosmetic[]) => {
+    const picks = (chosen ?? []).filter((id) => isUnlocked(s, list.find((c) => c.id === id)?.unlock ?? null))
+    const others = picks.filter((id) => id !== current)
+    return picks.length < 2 || !others.length ? current : others[Math.floor(Math.random() * others.length)]
+  }
+  const card = reroll(s.cosmetics.card, s.cosmetics.cardShuffle, CARD_FX)
+  const scene = reroll(s.cosmetics.scene, s.cosmetics.sceneShuffle, CARD_SCENES)
+  return card === s.cosmetics.card && scene === s.cosmetics.scene ? s : { ...s, cosmetics: { ...s.cosmetics, card, scene } }
 }
 
 /** A level reached, a trophy earned, or free (null). */

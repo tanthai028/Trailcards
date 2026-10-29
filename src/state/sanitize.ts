@@ -5,7 +5,7 @@ import { ACH_BY_ID } from '../data/achievements'
 import { initialState, type CardProgress, type GameState, type Mastery } from './game'
 import { DECK_SCENES, type DeckCard, type UserDeck } from '../data/decks'
 import { AVATAR_BY_ID, DEFAULT_AVATAR, isKnownFrame, type Frame } from '../data/avatars'
-import { CARD_FX, PIC_BGS, TITLE_FX, known } from '../data/cosmetics'
+import { CARD_FX, CARD_SCENES, PIC_BGS, TITLE_FX, known } from '../data/cosmetics'
 import type { SceneId } from '../art/Landscape'
 
 type Raw = Record<string, unknown>
@@ -96,8 +96,15 @@ export const cleanAvatar = (v: unknown) => (typeof v === 'string' && AVATAR_BY_I
 export function cleanCosmetics(v: unknown): GameState['cosmetics'] {
   const r = isObj(v) ? v : {}
   const pick = (list: typeof PIC_BGS, id: unknown) => (known(list, id) ? (id as string) : 'none')
-  const shuffle = Array.isArray(r.cardShuffle) ? [...new Set(r.cardShuffle.filter((id) => known(CARD_FX, id)) as string[])] : []
-  return { bg: pick(PIC_BGS, r.bg), card: pick(CARD_FX, r.card), title: pick(TITLE_FX, r.title), ...(shuffle.length ? { cardShuffle: shuffle } : {}) }
+  const picks = (v: unknown, list: typeof PIC_BGS) => (Array.isArray(v) ? [...new Set(v.filter((id) => known(list, id)) as string[])] : [])
+  const cardShuffle = picks(r.cardShuffle, CARD_FX)
+  const sceneShuffle = picks(r.sceneShuffle, CARD_SCENES)
+  return {
+    bg: pick(PIC_BGS, r.bg), card: pick(CARD_FX, r.card), title: pick(TITLE_FX, r.title),
+    scene: known(CARD_SCENES, r.scene) ? (r.scene as string) : 'auto',
+    ...(cardShuffle.length ? { cardShuffle } : {}),
+    ...(sceneShuffle.length ? { sceneShuffle } : {}),
+  }
 }
 
 /** A known frame, or none. */
