@@ -171,20 +171,47 @@ function CardKind({ card }: { card: DeckCard }) {
   return <span className="mb-1 inline-block rounded-full bg-lav/20 px-2 py-px text-[10px] font-extrabold text-lav">{k === 'mcq' ? 'Multiple choice' : 'Recall'}</span>
 }
 
-const TOPIC_IDEAS = ['System design', 'Behavioral (STAR)', 'SQL', 'JavaScript', 'Data structures']
+const TOPIC_IDEAS = ['Cell biology', 'Spanish basics', 'World history', 'Chemistry', 'SQL', 'System design']
+// Both chats take the prompt in the link, so it's already typed in when they open. A very long
+// topic (a whole job description) would make the link too long; then it's copied instead.
+const CHATS = [['ChatGPT', 'https://chatgpt.com/?q='], ['Claude', 'https://claude.ai/new?q=']] as const
+const MAX_LINK = 7000
+
+/**
+ * After a chat was opened, coming back to the app checks the clipboard once per return and fills
+ * the empty reply box if it holds an AI reply. Reading can be refused (iOS asks, some browsers
+ * need a tap); then the Paste button is still there.
+ */
+function useReplyOnReturn(armed: boolean, text: string, setText: (t: string) => void) {
+  useEffect(() => {
+    if (!armed || text.trim()) return
+    const check = async () => {
+      if (document.visibilityState !== 'visible') return
+      try {
+        const clip = await navigator.clipboard.readText()
+        if (clip && looksLikeAiFormat(clip)) setText(clip)
+      } catch { /* refused: paste by hand */ }
+    }
+    document.addEventListener('visibilitychange', check)
+    window.addEventListener('focus', check)
+    return () => { document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check) }
+  }, [armed, text, setText])
+}
 const COUNTS = [20, 40, 60]
 const MIXES = [['Mostly multiple choice', 0.25], ['Half and half', 0.5], ['Mostly recall', 0.75]] as const
 
 /**
- * Step one of making cards with AI: describe the topic (or paste a job description), copy the
- * prompt, run it in ChatGPT or Claude. The reply is pasted into the box below this.
+ * Step one of making cards with AI: describe the topic (or paste notes or a job description),
+ * open ChatGPT or Claude with the prompt already filled in, and send it. The reply comes back
+ * into the box below this. `onOpen` fires when a chat is opened, so the box can pick the reply
+ * up from the clipboard when you come back.
  */
-function AiPrompt({ topic, setTopic, avoid, more }: { topic: string; setTopic: (t: string) => void; avoid?: string[]; more?: boolean }) {
+function AiPrompt({ topic, setTopic, avoid, more, onOpen }: { topic: string; setTopic: (t: string) => void; avoid?: string[]; more?: boolean; onOpen?: () => void }) {
   const [count, setCount] = useState(more ? 20 : 40)
   const [mix, setMix] = useState(0.25)
   const [copied, setCopied] = useState(false)
   const [show, setShow] = useState(false)
-  const prompt = buildPrompt({ topic: topic || 'general interview questions', count, recall: mix, avoid })
+  const prompt = buildPrompt({ topic: topic || 'general knowledge', count, recall: mix, avoid })
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(prompt)
@@ -200,7 +227,7 @@ function AiPrompt({ topic, setTopic, avoid, more }: { topic: string; setTopic: (
         <label htmlFor="ai-topic" className="text-sm font-bold text-cream/80">{more ? 'Topic' : 'What are you studying?'}</label>
         <textarea
           id="ai-topic" value={topic} onChange={(e) => setTopic(e.target.value)} rows={topic.length > 60 ? 4 : 2}
-          placeholder="A topic like “system design”, or paste a job description"
+          placeholder="A topic like “cell biology”, or paste your notes"
           className="mt-1.5 block w-full resize-none rounded-2xl bg-white/8 px-4 py-3 text-[14px] text-cream ring-1 ring-white/12 placeholder:text-cream/35 focus:outline-none focus:ring-2 focus:ring-gold"
         />
         {!more && !topic && (
@@ -230,16 +257,30 @@ function AiPrompt({ topic, setTopic, avoid, more }: { topic: string; setTopic: (
         </div>
       </div>
       <div className="rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
-        <ol className="space-y-1 text-[13px] leading-snug text-cream/75">
-          <li><span className="font-extrabold text-gold">1.</span> Copy the prompt.</li>
-          <li><span className="font-extrabold text-gold">2.</span> Paste it into <a href="https://chatgpt.com" target="_blank" rel="noreferrer" className="font-bold text-lav underline">ChatGPT</a> or <a href="https://claude.ai/new" target="_blank" rel="noreferrer" className="font-bold text-lav underline">Claude</a>.</li>
-          <li><span className="font-extrabold text-gold">3.</span> Copy its whole reply and paste it below.</li>
-        </ol>
+        <p className="text-[13px] leading-snug text-cream/75">
+          Open a chat: your prompt is already filled in. Send it, copy the whole reply, and come back. It lands in the box below.
+        </p>
         <div className="mt-2.5 flex gap-2">
-          <button onClick={copy} disabled={!topic.trim()} className={`clay-btn min-h-10 flex-1 text-sm ${topic.trim() ? 'clay-butter' : 'bg-white/10 text-cream/40'}`}>
-            {copied ? 'Copied!' : 'Copy prompt'}
-          </button>
-          <button onClick={() => setShow(!show)} aria-expanded={show} className="min-h-10 rounded-xl bg-white/8 px-3 text-xs font-extrabold text-cream/70">{show ? 'Hide' : 'See prompt'}</button>
+          {CHATS.map(([label, base]) => {
+            const link = base + encodeURIComponent(prompt)
+            const fits = link.length <= MAX_LINK
+            return (
+              <a
+                key={label}
+                href={topic.trim() ? (fits ? link : base.split('?')[0]) : undefined}
+                target="_blank" rel="noreferrer"
+                aria-disabled={!topic.trim()}
+                onClick={(e) => { if (!topic.trim()) { e.preventDefault(); return } if (!fits) void copy(); onOpen?.() }}
+                className={`clay-btn grid min-h-10 flex-1 place-items-center text-sm ${topic.trim() ? 'clay-butter' : 'pointer-events-none bg-white/10 text-cream/40'}`}
+              >
+                Open {label}
+              </a>
+            )
+          })}
+        </div>
+        <div className="mt-1.5 flex gap-3">
+          <button onClick={copy} disabled={!topic.trim()} className="min-h-9 text-xs font-extrabold text-cream/60 hover:text-cream disabled:opacity-40">{copied ? 'Copied!' : 'Copy prompt'}</button>
+          <button onClick={() => setShow(!show)} aria-expanded={show} className="min-h-9 text-xs font-extrabold text-cream/60 hover:text-cream">{show ? 'Hide prompt' : 'See prompt'}</button>
         </div>
         {show && <pre className="no-scrollbar mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-ink/60 p-2.5 text-[11px] leading-snug text-cream/70">{prompt}</pre>}
       </div>
@@ -325,6 +366,8 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
   const [more, setMore] = useState(false)
   const [moreTopic, setMoreTopic] = useState(deck.topic ?? deck.name)
   const [moreText, setMoreText] = useState('')
+  const [moreOpened, setMoreOpened] = useState(false)
+  useReplyOnReturn(moreOpened, moreText, setMoreText)
   const moreResult = useMemo(() => (moreText.trim() ? parseAiDeck(moreText) : null), [moreText])
   const fresh = moreResult ? moreResult.cards.filter((c) => !deck.cards.some((x) => x.id === c.id)) : []
   const save = (cards: DeckCard[]) => updateDeck(deck.id, { cards })
@@ -413,7 +456,7 @@ function DeckPage({ deck, onClose }: { deck: UserDeck; onClose: () => void }) {
           </button>
           {more && (
             <div className="mt-1">
-              <AiPrompt topic={moreTopic} setTopic={setMoreTopic} avoid={deck.cards.map((c) => c.term)} more />
+              <AiPrompt topic={moreTopic} setTopic={setMoreTopic} avoid={deck.cards.map((c) => c.term)} more onOpen={() => setMoreOpened(true)} />
               <textarea value={moreText} onChange={(e) => setMoreText(e.target.value)} rows={3} placeholder="Paste the AI's reply here" aria-label="AI reply" className={`mt-3 ${FIELD} resize-none py-2.5 font-normal`} />
               {moreResult?.error && <p className="mt-2 text-xs font-bold text-coral">{moreResult.error}</p>}
               {moreResult && !moreResult.error && (
@@ -556,6 +599,8 @@ export function DeckImport({ onClose, onImported, initialMode = 'ai' }: { onClos
   const [touchedSep, setTouchedSep] = useState(false)
   const [fixing, setFixing] = useState(false)
   const [showAll, setShowAll] = useState(false)
+  const [opened, setOpened] = useState(false)
+  useReplyOnReturn(opened && mode === 'ai', text, setText)
   useEscape(onClose)
 
   // Until someone picks a separator themselves, follow whatever the pasted text looks like.
@@ -628,7 +673,7 @@ export function DeckImport({ onClose, onImported, initialMode = 'ai' }: { onClos
             ))}
           </div>
           {mode === 'ai' ? (
-            <AiPrompt topic={topic} setTopic={setTopic} />
+            <AiPrompt topic={topic} setTopic={setTopic} onOpen={() => setOpened(true)} />
           ) : (
             <p className="mt-3 text-[13px] text-cream/60">Paste cards from Quizlet, Anki, Knowt or your notes.</p>
           )}

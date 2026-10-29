@@ -525,7 +525,7 @@ function StudyChooser() {
   const { setActiveDeck } = useGame()
   const [importing, setImporting] = useState<'ai' | 'paste' | null>(null)
   const options = [
-    { title: 'Create with AI', text: 'Type a topic like "system design", or paste a job description. ChatGPT or Claude writes the cards.', icon: 'spark', run: () => setImporting('ai'), main: true },
+    { title: 'Create with AI', text: 'Type a topic like "cell biology", or paste your notes. ChatGPT or Claude writes the cards.', icon: 'spark', run: () => setImporting('ai'), main: true },
     { title: 'Paste flashcards', text: 'Bring a set from Quizlet, Anki, Knowt or your notes.', icon: 'book', run: () => setImporting('paste') },
     { title: 'Try the nature deck', text: '72 built-in cards about the sky, oceans, forests and animals.', icon: 'leaf', run: () => setActiveDeck(null) },
   ]

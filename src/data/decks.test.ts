@@ -61,6 +61,10 @@ describe('AI card format', () => {
     expect(p).toContain('- What is sharding?')
     const job = buildPrompt({ topic: 'Senior Backend Engineer\nWe use Go, Postgres and Kafka...', count: 10, recall: 0.5 })
     expect(job).toContain('Job description:')
+    expect(job).toContain('interview-prep')
+    const notes = buildPrompt({ topic: 'Mitochondria make ATP.\nRibosomes build proteins.', count: 10, recall: 0.5 })
+    expect(notes).toContain('Notes:')
+    expect(notes).toContain('10 study flashcards')
   })
 
   it('turns AI cards into quiz cards with their own choices, and recall cards with none', () => {

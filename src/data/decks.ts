@@ -159,7 +159,7 @@ function collect(rows: { row: number; raw: string; pair: [string, string] | null
 // forgiving about the wrapper and strict about each card.
 
 export interface PromptOptions {
-  /** A topic ("system design") or a pasted job description. */
+  /** A topic ("cell biology"), or pasted study notes or a job description. */
   topic: string
   count: number
   /** Share of open recall questions, 0 to 1; the rest are multiple choice. */
@@ -171,16 +171,20 @@ export interface PromptOptions {
 export function buildPrompt({ topic, count, recall, avoid = [] }: PromptOptions): string {
   const nRecall = Math.round(count * recall)
   const nMcq = count - nRecall
-  const isJob = topic.length > 200 || /\n/.test(topic.trim())
+  // Long or multi-line text is pasted material: a job description (prep for its interview) or study notes.
+  const pasted = topic.length > 200 || /\n/.test(topic.trim())
+  const isJob = pasted && /\b(job|role|position|candidate|hiring|responsibilit|requirement|qualification|engineer|developer|manager|we use|you will|years of experience)/i.test(topic)
   const subject = isJob
     ? `the job description below. Cover the skills, tools and situations it asks about, the way an interviewer for this role would.\n\nJob description:\n"""\n${topic.trim()}\n"""`
-    : `this topic: ${topic.trim()}`
+    : pasted
+      ? `the study notes below. Cover the key facts, terms and ideas in them.\n\nNotes:\n"""\n${topic.trim()}\n"""`
+      : `this topic: ${topic.trim()}`
   const avoidText = avoid.length
     ? `\n\nThe deck already has these questions. Don't repeat them or ask the same thing in other words:\n${avoid.slice(0, 120).map((q) => `- ${q}`).join('\n')}`
     : ''
-  return `Write ${count} interview-prep flashcards about ${subject}
+  return `Write ${count} ${isJob ? 'interview-prep' : 'study'} flashcards about ${subject}
 
-Make ${nMcq} multiple-choice cards and ${nRecall} open "recall" cards. Mix easy, medium and hard. Each card tests one idea. Questions should be ones a real interviewer might ask.
+Make ${nMcq} multiple-choice cards and ${nRecall} open "recall" cards. Mix easy, medium and hard. Each card tests one idea. ${isJob ? 'Questions should be ones a real interviewer might ask.' : 'Questions should check real understanding, not just the wording.'}
 
 - Multiple choice: exactly 4 choices, one clearly correct; the 3 wrong ones should be plausible mistakes, not jokes. Keep choices short.
 - Recall: an open question to answer out loud. "answer" is a model answer of 2-4 sentences or short key points.
