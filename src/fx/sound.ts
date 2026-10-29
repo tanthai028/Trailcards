@@ -94,33 +94,56 @@ export function playChime(i = 0) {
 }
 
 /**
- * Moving to another card: a soft card flick. A short, low wooden thock for the card landing and
- * a faint papery tick on top, nudged a little in pitch each time so a run of swipes doesn't
- * sound like the same sample on repeat. (A filtered-noise whoosh sounded cheap.)
+ * A card sliding off the deck: grainy high noise that rises and fades (the paper sliding,
+ * its grain a little rough so it crinkles rather than hisses), then a crisp snap as it lands.
+ * Each one is a little different. Built on any context, so it can also be rendered offline.
  */
-export function playSwipe() {
-  const c = audio()
-  if (!c || !master) return
-  const t = c.currentTime
-  const vary = 2 ** ((Math.random() - 0.5) / 12)
-  tone(210 * vary, { dur: 0.11, gain: 0.08, slideTo: 150 * vary, attack: 0.004 })
-  tone(630 * vary, { dur: 0.045, type: 'triangle', gain: 0.018, attack: 0.002 })
-  // the tick: 20ms of noise, kept to the papery middle-high band
-  const len = Math.floor(c.sampleRate * 0.02)
-  const buf = c.createBuffer(1, len, c.sampleRate)
+export function cardFlick(c: BaseAudioContext, out: AudioNode, t: number, level = 1) {
+  const sr = c.sampleRate
+  const slide = 0.11
+  const len = Math.floor(sr * (slide + 0.03))
+  const buf = c.createBuffer(1, len, sr)
   const data = buf.getChannelData(0)
-  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len)
+  const snapAt = Math.floor(sr * slide)
+  let grain = 1
+  for (let i = 0; i < len; i++) {
+    // the crinkle: loudness jumps every couple of milliseconds
+    if (i % Math.floor(sr * 0.0018) === 0) grain = 0.45 + Math.random() * 0.55
+    const n = Math.random() * 2 - 1
+    if (i < snapAt) {
+      const p = i / snapAt
+      data[i] = n * grain * Math.sin(Math.PI * p ** 0.7) * 0.55
+    } else {
+      // the snap: a short, sharp burst
+      const k = (i - snapAt) / (sr * 0.006)
+      data[i] = n * Math.exp(-k)
+    }
+  }
   const src = c.createBufferSource()
   src.buffer = buf
-  const band = c.createBiquadFilter()
-  band.type = 'bandpass'
-  band.frequency.value = 3200
-  band.Q.value = 1.2
+  src.playbackRate.value = 0.94 + Math.random() * 0.12
+  // paper lives up high: no rumble under it, and the top softened so it isn't fizzy
+  const low = c.createBiquadFilter()
+  low.type = 'highpass'
+  low.frequency.value = 1400
+  const top = c.createBiquadFilter()
+  top.type = 'lowpass'
+  top.frequency.value = 7500
+  const peak = c.createBiquadFilter()
+  peak.type = 'peaking'
+  peak.frequency.value = 3800
+  peak.gain.value = 4
   const env = c.createGain()
-  env.gain.value = 0.035
-  src.connect(band).connect(env).connect(master)
+  env.gain.value = 0.11 * level
+  src.connect(low).connect(top).connect(peak).connect(env).connect(out)
   src.start(t)
-  src.stop(t + 0.03)
+}
+
+/** Moving to another card: a card or page being flicked. Dry, no echo: paper doesn't ring. */
+export function playSwipe() {
+  const c = audio()
+  if (!c) return
+  cardFlick(c, c.destination, c.currentTime, 0.7)
 }
 
 /** Level up: a rising fanfare that lands on a ringing chord. */
