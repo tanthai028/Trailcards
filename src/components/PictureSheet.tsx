@@ -145,7 +145,16 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
               <span className="relative block h-14 w-full overflow-hidden rounded-xl">
                 {c.id === 'auto'
                   ? <span className="grid h-full grid-cols-3"><SceneSvg scene="meadow" still className="h-full w-full" /><SceneSvg scene="coast" still className="h-full w-full" /><SceneSvg scene="forest" still className="h-full w-full" /></span>
-                  : <SceneSvg scene={c.id as SceneId} still className="absolute inset-0 h-full w-full" />}
+                  : (
+                    // a tiny whole card: the scene on top, then the theme's own paper, text and an answer
+                    <span data-card-theme={c.id} className="card-theme absolute inset-0 flex flex-col bg-paper">
+                      <SceneSvg scene={c.id as SceneId} still className="h-1/2 w-full shrink-0" />
+                      <span className="flex flex-1 flex-col justify-center gap-[3px] px-2">
+                        <span className="block h-[3px] w-3/4 rounded-full bg-ink/45" />
+                        <span className="block h-[5px] w-full rounded-[3px] bg-white/80 ring-1 ring-ink/10" />
+                      </span>
+                    </span>
+                  )}
               </span>
             )} />
         </Section>

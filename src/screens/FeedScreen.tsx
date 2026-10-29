@@ -10,6 +10,7 @@ import { MochiPeek } from '../components/MochiPeek'
 import { CardFx } from '../components/CardFx'
 import { DAILY_GOAL, currentStreak, feedCards, findCard, isDue, isRecall, nextDueAt, practiceBatch, reviewQueue, sourceCards, statusOf, studyPrefs, studyQueue, todayCount, type AnswerResult, type GameState, type KindFilter, type Mastery, type StudyPrefs } from '../state/game'
 import { SceneSvg, type SceneId } from '../art/Landscape'
+import { CardOrnaments, useThemeFont } from '../components/CardTheme'
 import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
 import { burst } from '../fx/FxLayer'
@@ -367,6 +368,8 @@ function FeedCard({
   onPick: (choice: number) => void
 }) {
   const { state, toggleBookmark } = useGame()
+  const theme = state.cosmetics.scene
+  useThemeFont(theme)
   const deck = (card as DeckFeedCard).deck
   const topic = deck ? { name: deck.name, accent: '#b9a7f2', scene: deck.scene } : TOPICS[card.topic]
   const choice = answered?.choice ?? null
@@ -406,7 +409,9 @@ function FeedCard({
     .filter(({ i }) => !result || i === card.answerIndex || i === choice)
 
   return (
-    <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-paper text-ink">
+    // data-card-theme recolours the whole card from index.css; ornaments float on top of it
+    <article data-card-theme={theme} className="card-theme relative flex h-full flex-col overflow-hidden rounded-[28px] bg-paper text-ink">
+      <CardOrnaments theme={theme} />
       <div className="grain relative h-[23%] min-h-[116px] shrink-0 overflow-hidden">
         {/* drifts at a fraction of the card's speed while swiping, so the scene feels deeper than the card */}
         <div className="parallax absolute inset-0" style={{ transform: `translateY(calc((var(--p, ${index}) - ${index}) * 46px)) scale(1.25)` }}>
@@ -429,9 +434,9 @@ function FeedCard({
 
       <div ref={fitRef} className="relative -mt-2 flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-14" style={{ fontSize: 16 }}>
         <div className="flex items-baseline justify-between gap-2">
-          <p className="line-clamp-2 text-[0.68em] font-black" style={{ color: shade(topic.accent) }}>{card.hook}</p>
+          <p className="card-hook line-clamp-2 text-[0.68em] font-black" style={{ color: shade(topic.accent) }}>{card.hook}</p>
           {tag ? (
-            <span className={`shrink-0 rounded-full px-2 py-px text-[0.62em] font-extrabold ${tag === 'New' ? 'bg-sky/30 text-[#2f5f8f]' : tag === 'Review' ? 'bg-gold/35 text-[#7a5410]' : 'bg-lav/25 text-[#5b47a8]'}`}>{tag}</span>
+            <span className={`card-chip shrink-0 rounded-full px-2 py-px text-[0.62em] font-extrabold ${tag === 'New' ? 'bg-sky/30 text-[#2f5f8f]' : tag === 'Review' ? 'bg-gold/35 text-[#7a5410]' : 'bg-lav/25 text-[#5b47a8]'}`}>{tag}</span>
           ) : (
             <span className="flex shrink-0 items-center gap-1.5 text-[0.68em] font-bold tabular-nums text-ink/40">
               {isReview && <span className="rounded-full bg-gold/35 px-2 py-px font-extrabold text-[#7a5410]">{MASTERY_LABEL[result?.from ?? status]}</span>}
@@ -510,7 +515,7 @@ function FeedCard({
                         : 'bg-coral/20 ring-2 ring-coral'
                       }`}
                     >
-                      <span className={`grid size-6 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${st === 'right' ? 'bg-[#4f9a6a] text-white' : st === 'wrong' ? 'bg-coral text-white' : BADGE[i % BADGE.length]}`}>
+                      <span className={`card-chip grid size-6 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${st === 'right' ? 'bg-[#4f9a6a] text-white' : st === 'wrong' ? 'bg-coral text-white' : BADGE[i % BADGE.length]}`}>
                         {st === 'right' ? <Icon name="check" size={14} strokeWidth={3} /> : st === 'wrong' ? <Icon name="x" size={13} strokeWidth={3} /> : i + 1}
                       </span>
                       <span>{c}</span>
