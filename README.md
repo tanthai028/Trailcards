@@ -1,133 +1,105 @@
+<img src="public/icon-192.png" alt="Wayfarer icon" width="64" align="left" style="margin-right:12px">
+
 # Wayfarer
 
-A cozy learning feed you scroll like social media. Each card is a short field note about the natural world: sky, stars, rocks, ocean, forests, animals. You answer a question, get feedback right away, earn XP and coins, dress up a chibi traveler, and slowly turn a camper van into home.
+**Study anything by scrolling: one card, one idea, one swipe at a time.**
+
+React · TypeScript · Vite · Tailwind · Framer Motion · Supabase · PWA
+
+<p>
+  <img src="docs/learn.jpg" alt="A Learn card with a campground scene at the top, a short reading about three kinds of rock, and four answer choices" width="240">
+  &nbsp;
+  <img src="docs/answer.jpg" alt="The same card after a right answer: confetti, Mochi the cat with the explanation, and the chosen answer marked green" width="240">
+  &nbsp;
+  <img src="docs/customize.jpg" alt="Customize sheet with Learn card scenes (By topic, Campground, Cozy room) and card themes, each with a Shuffle switch" width="240">
+</p>
+
+## Why I built it
+
+Flashcard apps work, but opening one feels like homework. Scrolling a feed doesn't. I wanted studying to take the same zero effort to start: open the app, read one short card, answer it, swipe, and before you notice you've done ten.
+
+So Wayfarer is a feed, not a deck list. Every card teaches one idea in a few sentences, asks one question, and explains the answer right there. Cards you learn come back on a spaced schedule, and a small cast of things (a streak, levels, unlockable scenes, a cat named Mochi) gives you a reason to come back tomorrow.
+
+## In 30 seconds
+
+1. Pick a name and a picture, then pick what to study: make a deck with AI, paste flashcards, or try the built-in nature deck.
+2. Read a card, answer it, see why. Swipe up for the next one.
+3. Cards you've learned come back in **Review** a day later, then 3 days, a week, and longer.
+4. Ten answers a day keeps your streak. XP fills your level and unlocks new card scenes and looks.
+
+## Features
+
+- **A feed you swipe.** One card per swipe, no scrolling inside a card. Multiple choice and open "recall" cards, with the explanation in place after you answer.
+- **Make a deck with AI, without an API key.** Type a topic or paste your notes; "Open ChatGPT" or "Open Claude" opens the chat with the prompt already filled in. Copy the reply, come back, and it lands in the import box. Quizlet, Anki and Knowt exports paste in too.
+- **Spaced review.** Right answers move a card from New to Familiar to Mastered on growing intervals; misses come back sooner.
+- **Make it yours.** Five Learn card scenes (campground, cozy room, beach, city night, snowy cabin) and nine card themes (sparkles, rain, leaves, aurora…), with a Shuffle that picks a different favourite each time you open the app. Plus picture frames, backgrounds and title effects.
+- **Friends.** Sign in with an email code and an invite code to join a group: a weekly and all-time leaderboard, and decks your friends shared that you can add in one tap.
+- **Works offline, installs like an app.** Everything is saved on the device first; add it to your home screen and it runs full screen.
+
+## For engineers: what's under the hood
+
+| Area | How it works |
+| --- | --- |
+| **Local-first state** | One `GameState` saved to `localStorage` and rebuilt through `sanitize.ts` on every load, so old or hand-edited saves can't crash the app. Sync pushes a few seconds after changes; on sign-in the copy with more XP wins, so a new phone catches up and an old one never overwrites newer progress. |
+| **Server rules** | Supabase with row-level security on every table. XP only reaches the leaderboard through `add_xp`, which caps each call and each day on the server. Groups are invite-only (`join_group`); decks and pictures are readable by group members only. |
+| **Pager** | A hand-rolled one-card-per-swipe pager instead of CSS scroll snap: the card follows your finger, a flick or a 60px drag moves exactly one card, and it settles in about 0.2s, so you can tap an answer right away. Trackpads get one card per gesture. |
+| **Scenes and effects** | Every scene is hand-drawn SVG in code, in a shared 400×300 space; the art is placed in the middle strip that a card's header actually shows. Themes are CSS particles over the scene, drawn only on the card in view. |
+| **Sound** | Synthesized with Web Audio: mallet chimes that climb with your streak, a paper-flick swipe. No audio files. |
+| **Feedback that doesn't spam** | Answering raises achievements, level-ups and streak toasts once. Undo takes back that answer's XP and trophies and removes any toast that hasn't shown yet; re-answering can't replay one you've already seen. |
+
+## What I learned
+
+- **Clipping is per layer.** A rounded card with `overflow: hidden` clips each child separately, and their anti-aliased edges add up into a faint light line along the corners. `clip-path` clips the group once.
+- **Some features don't exist on the web.** iPhone home-screen web apps get no vibration at all. I built haptics, tested every workaround, and removed the setting instead of shipping a switch that does nothing.
+- **Undo is a state problem, not a button.** Taking an answer back has to unwind XP, streaks, trophies and the celebrations they triggered, or people find the spam loop in a minute.
+- **Testing like a new user finds the real problems.** Fresh-account runs found a landing page that didn't fit small phones, a tour nobody needed, and two tabs that were the same empty sign-in screen.
+- **Next:** generating decks inside the app for signed-in users, with a daily limit, so making a deck is one tap.
+
+## Tech stack
+
+- **App:** React 18, TypeScript, Vite 6, Tailwind CSS 4, Framer Motion
+- **Backend:** Supabase (Postgres with row-level security, email-code auth, storage)
+- **Audio:** Web Audio API, synthesized
+- **Tests:** Vitest for the game rules, deck parsing and save loading
+
+## Run it locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Product decisions
+Without a Supabase project the app runs fully on the device; the Friends tab just says it isn't connected. To turn on accounts and the leaderboard, create a project, run the SQL in `supabase/migrations/`, and add a `.env.local`:
 
-**Subject:** "Field Notes from the Road", the natural world you meet while traveling. It fits the van-life theme, demos well to any audience, and every topic has a scene that matches it. The content model (`src/data/cards.ts`) is topic-agnostic: add a topic and cards and the feed, mastery tracker and achievements pick them up.
-
-**Core loop:** scroll a card → read a 2–3 sentence explanation → answer → see why → +XP and coins → spend them in the closet or on van upgrades → review shaky concepts → plant grows, trophies fill the shelf.
-
-**Screens:** Learn (feed with Discover / Review / Saved) · Closet · Van · Profile. A first-run welcome screen asks girl or guy, and a name.
-
-## UX principles
-
-- **Mobile-first.** Built for phone widths first; desktop shows the same column, centered. Tap targets are at least 44px.
-- **One action, one thing.** No step should take two gestures when one will do:
-  - A Learn card always fits the screen with no inner scrolling. Scrolling moves to the next card.
-  - After you answer, the explanation replaces the reading text in the same space and the wrong choices collapse, so the card never grows. On short phones the text shrinks slightly (down to about 12px) instead of scrolling.
-  - In the closet, tapping something you own wears it immediately. Tapping something locked tries it on with an Unlock button, because spending coins stays a deliberate second tap.
-
-## Economy (deterministic, single currency)
-
-| Card status → answer | Right | Wrong |
-| --- | --- | --- |
-| New | +20 XP, +10 coins → Familiar | +5 XP → Learning |
-| Learning (review) | +12 XP, +6 coins → Familiar | +3 XP |
-| Familiar (review) | +15 XP, +8 coins → **Mastered** | +3 XP → Learning |
-| Mastered (practice) | +3 XP | +2 XP → Familiar |
-
-- Level *L* needs `50·L·(L−1)` total XP (100, 300, 600, 1000…). Levels unlock destinations: Saltwind Cliffs (Lv 2) and Starfall Mesa (Lv 4).
-- The plant gets 1 growth point per Familiar concept and 3 per Mastered one. Its stages are Seed → Sprout → Sapling → Leafy → Blooming.
-- Achievements give a one-time coin bonus and a wearable title.
-- No streaks, timers, loot boxes or daily chores.
-
-## Design system
-
-- **Palette:** plum dusk `#221a33` for the app shell, cream `#fbf3e6` for card content, van lavender `#b9a7f2`, butter `#f5cd6a` for coins and rewards, sage for correct and coral for wrong. Rarity colors are sage / sky / lavender / gold.
-- **Type:** Fredoka for headings (rounded, like the clay figurines), Nunito for UI text. Labels are sentence case, not tracked capitals.
-- **Material:** every panel is `.clay` (top highlight, darker lip, short shadow). Primary actions are `.clay-btn`, which presses down 3px on tap. The sliding nav highlight is `.clay-pill`, with no CSS transform transition so it doesn't fight Framer's layout animation.
-- **Motion:** Framer Motion for rewards, toasts, level-up and tab transitions. Ambient CSS loops for blinking, idle bob, cat tail, plant sway and fire flicker, all turned off under `prefers-reduced-motion`.
-
-## Artwork
-
-The Home screen, character and companions use **pre-rendered 2.5D artwork**: AI-generated isometric renders placed as layered images. There is **no real-time 3D engine**. Everything you see is a flat image with depth baked into the render. Placement, draw order, contact shadows and selection glow are handled in React.
-
-### What's rendered vs. drawn
-
-| Rendered images (`src/assets/art/`) | Still SVG (`src/art/`) |
-| --- | --- |
-| 4 van room states (Bare → Cozy → Lived-in → Dream), 3 exterior dioramas | Feed card landscapes |
-| 24 figurines: 2 body types × 2 hairstyles × 6 outfits | Icons and trophies |
-| Extras baked into figurine renders (in progress, see below) | Small icons in toasts and feed feedback |
-| Mochi and 5 plant stages (Home cards) | Fallbacks for any missing render |
-
-### How the character works
-
-- **Body × hairstyle × outfit** is one full-body render per combination: girl (Soft Bob, High Ponytail) and guy (Messy Crop, Wolf Cut). Every prompt shares one word-for-word character description, so face, proportions, pose and lighting stay consistent. Outfits aren't gender-locked: all six exist for both bodies.
-- **Hair color** isn't a separate render. The art script extracts a hair mask from each figurine (dark indigo pixels connected to the top of the head, stopping below the chin so navy collars aren't included). At runtime `Figurine.tsx` recolors only those pixels on a canvas, keeping the render's shading and mapping its brightness onto the new palette. Results are cached per figurine and color.
-- **Extras are baked into the render** (`fig-<body>-<hair>-<outfit>-<extra>`). Layering a separate glasses or hat image on top always looked stuck on, so each extra gets rendered *with* the character. That's 96 renders (24 figurines × 4 extras).
-  - **Status:** 85 of 96 are done. Missing: guy · Wolf Cut with headphones (Courier, Tidecaller, Keeper, Starlit, Nocturne) and with the ranger hat (all 6 outfits). AICreate's free tier has an hourly image budget.
-  - Until a combination is baked, the app falls back to the old overlay (a separate extra image placed using measured face anchors), so nothing goes missing. Each new render replaces its overlay automatically after `npm run art`.
-- **The profile icon** is a head crop of the same figurine (`Avatar`), framed from the face box so hats and ponytails don't throw it off.
-- **Save data:** `look.body` is new (defaults to girl). Hairstyles belong to one body; switching body falls back to that body's free style. Twin Buns was retired and refunded (80 coins) for anyone who owned it.
-
-### Pipeline
-
-1. **Generate:** AICreate `generate_image` (FLUX, free, no account; AICreate keeps prompts and images). Sprites go on a flat magenta screen, or green for plum or purple subjects. Dioramas go on a light-grey studio backdrop. Prompts are in [`art-src/PROMPTS.md`](art-src/PROMPTS.md).
-2. **Save raw:** copy the render into `art-src/raw/<name>.png`. WebP raws work too, and that's how they're committed (about 2 MB in total).
-3. **Process:** `npm run art` (or `npm run art -- cat`). [`scripts/process-art.mjs`](scripts/process-art.mjs) uses `sharp` to:
-   - shave the generator's edge vignette;
-   - chroma-key only screen regions connected to the border, plus large enclosed gaps, so lavender or plum *inside* a figure survives;
-   - despill an 8px rim band (or the whole sprite for green-screened figures and props with no real greens);
-   - trim to bounds and export WebP into `src/assets/art/`;
-   - for figurines, also write `<name>-hair.webp` (hair mask) and face/hair boxes into `anchors.json`.
-4. **Place:** `src/scene/assets.ts` picks up every file in `src/assets/art/` by name, so new art needs no imports. Missing art falls back to the SVG version.
-
-### The van
-
-The van is a **sequence of complete room renders**, not a room with objects layered on top. Separately rendered props never looked placed: they had no shared lighting or occlusion, and nothing could sit behind the bed. So each upgrade is a whole new picture with everything, including Mochi asleep on the bed, painted in place:
-
-| Tier | Item | Cost | What it adds |
-| --- | --- | --- | --- |
-| 0 · Bare Van | — | free | bed, kitchenette, Mochi |
-| 1 · Cozy Nest | `van-cozy` | 40 | string lights, rug, pastel pillows, bunting |
-| 2 · Lived-in | `van-livedin` | 180 | books, reading chair, paper lanterns, telescope |
-| 3 · Dream Van | `van-dream` | 320 | wood stove, surfboards, maps, plants everywhere |
-
-- Upgrades unlock in order with one tap.
-- Your figurine stands on the stage floor beside the diorama, like a display figure next to a dollhouse, rather than being pasted inside it. Tapping it opens the closet.
-- **Why not real-time 3D for free placement:** it was considered and set aside for mobile. It brings engine and model downloads, battery and heat, a lower-detail look at phone size, and drag gestures that fight page scrolling.
-- **Save migration:** the six old individual decorations are removed and refunded in full.
-
-```
-src/scene/
-  VanExterior.tsx destination diorama
-  Figurine.tsx    figurine render (baked extra if available), runtime hair recolor, overlay fallback, Avatar crop
-  stage.ts        stage colours sampled from each render's backdrop + edge feather
-  assets.ts       picks up every file in src/assets/art/ by name
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_KEY=your-publishable-key
 ```
 
-### Limitations
+```bash
+npm test
+npm run build
+```
 
-- These are static renders: no free placement, camera movement or walk-through. The van changes by whole-room upgrades.
-- Each room tier is a separate generation, so furniture positions change between tiers. It reads as a renovation, but it isn't the same room gaining items.
-- The plant's growth lives in its own card, since the generator can't redraw the same room with only the plant changed.
-- The figurine has one pose and no expressions.
-- 11 of 96 baked extras are still missing (guy · Wolf Cut headphones and hats). Those combinations fall back to the overlay and look stuck on.
-- Hair recoloring maps brightness onto a palette. Very light colors (Snow) read slightly grey in shadowed strands.
-- AICreate's free tier limits images per hour, which makes big asset batches slow.
-
-## Structure
+## Project structure
 
 ```
 src/
-  data/        cards, items (cosmetics, van upgrades, destinations), achievements
-  state/       game.ts (pure rules), storage.ts (save adapter), store.tsx (React context)
-  scene/       rendered 2.5D van interior/exterior, figurine, slot layout
-  assets/art/  processed WebP renders (generated by npm run art)
-  art/         SVG portrait sticker, landscapes, fallbacks
-  components/  HUD, nav, toasts/level-up, onboarding, icons, trophy
-  screens/     Feed, Closet, Home (van), Profile
-art-src/       raw renders + prompt log
-scripts/       process-art.mjs
+  App.tsx            tabs, onboarding, the app frame
+  screens/           Learn and Review feed, Friends, Profile
+  components/        sheets, deck import, Mochi, toasts, nav
+  state/             game rules (XP, review schedule, unlocks), save and sanitize, store
+  data/              built-in cards, achievements, looks, deck parsing and the AI prompt
+  art/               SVG scenes and Mochi
+  fx/                sound and confetti
+  net/               Supabase client and account sync
+supabase/migrations/ tables, row-level security and server functions
 ```
 
-**Persistence:** `localStorage` key `wayfarer.save.v1`, behind the `SaveAdapter` interface in `state/storage.ts`. A Supabase adapter can implement the same `load`/`save`, and `game.ts` has no React or storage dependencies, so the rules can move server-side unchanged.
+---
 
-**Keyboard:** `1–4` answers the visible card, `J`/`K` or the arrow keys move between cards, `Esc` closes the level-up dialog.
+## About
+
+Built by Tan Thai. [LinkedIn](https://linkedin.com/in/tanthai028) · [GitHub](https://github.com/tanthai028)
+
+More projects: [Stride](https://github.com/tanthai028/stride-desktop-app) · [YTBookmarks](https://github.com/tanthai028/YTBookmark) · [yt-transcriber](https://github.com/tanthai028/yt-transcriber) · [RJ Job Tracker](https://github.com/tanthai028/RJTracker)
