@@ -482,23 +482,25 @@ function FeedCard({
             {recall ? (
               <Recall answer={card.q.kind === 'recall' ? card.q.answer : ''} shown={revealed || !!result} onReveal={() => setRevealed(true)} grade={result ? choice : null} onGrade={pick} />
             ) : (
-            <div className={`grid gap-[0.45em] ${card.choices.length === 2 && !result ? 'grid-cols-2' : ''}`}>
-              <AnimatePresence initial={false}>
+            <div className={`relative grid gap-[0.45em] ${card.choices.length === 2 && !result ? 'grid-cols-2' : ''}`}>
+              {/* On answering, the whole list swaps: the old buttons fade out where they are (popLayout
+                  takes them out of the flow) and the answered ones rise into their final places.
+                  Sliding each button to its new slot made a low choice fly up and a top one sit still. */}
+              <AnimatePresence initial={false} mode="popLayout">
                 {visibleChoices.map(({ c, i }) => {
                   const isAnswer = i === card.answerIndex
                   const st = !result ? 'idle' : isAnswer ? 'right' : 'wrong'
                   return (
                     <motion.button
-                      key={i}
-                      layout="position"
+                      key={result ? `done-${i}` : i}
                       onClick={() => pick(i)}
                       data-choice={i}
                       disabled={!!result}
                       whileTap={result ? undefined : { scale: 0.97 }}
-                      initial={false}
-                      animate={st === 'wrong' ? { x: [0, -6, 6, -4, 4, 0], opacity: 1 } : st === 'right' && i === choice ? { scale: [1, 1.04, 1], opacity: 1 } : { opacity: 1 }}
-                      exit={{ opacity: 0, height: 0, transition: { duration: 0.18 } }}
-                      transition={{ duration: 0.3 }}
+                      initial={result ? { opacity: 0, y: 10 } : false}
+                      animate={st === 'wrong' ? { x: [0, -6, 6, -4, 4, 0], opacity: 1, y: 0 } : st === 'right' && i === choice ? { scale: [1, 1.04, 1], opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                      transition={{ duration: 0.3, delay: result ? 0.08 : 0 }}
                       className={`relative flex min-h-11 items-center gap-2.5 rounded-2xl px-3 py-[0.5em] text-left text-[0.86em] font-bold leading-snug transition-colors ${
                         st === 'idle' ? 'bg-paper ring-1 ring-ink/10 hover:bg-white hover:ring-ink/20'
                         : st === 'right' ? 'bg-sage/35 ring-2 ring-[#4f9a6a]'

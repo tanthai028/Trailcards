@@ -74,7 +74,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
             </div>
           </div>
         </div>
-        <button onClick={() => setSettings(true)} aria-label="Settings" className="absolute right-3 top-3 grid size-10 place-items-center rounded-full bg-ink/45 text-cream/80 backdrop-blur-sm hover:text-cream">
+        <button onClick={() => setSettings(true)} aria-label="Settings" className="absolute right-3 top-3 grid size-10 place-items-center rounded-full bg-ink/45 text-cream/80 hover:text-cream">
           <Icon name="gear" size={19} />
         </button>
       </div>
