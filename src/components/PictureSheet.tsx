@@ -43,6 +43,11 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
     }
   }
   const pick = (frame: Frame) => frameUnlocked(state, frame) && setFrame(frame)
+  // one row of each to start; "Show all" opens the rest (already open if your pick is further down)
+  const [icons, iconsMore] = useMore(AVATARS, 6, (a) => !state.photo && state.avatar === a.id)
+  const rings = ['none', ...FRAME_COLORS.map((c) => `color:${c}`)]
+  const [ringList, ringsMore] = useMore(rings, 6, (r) => state.frame === r)
+  const [frames, framesMore] = useMore(FRAMES, 3, (f) => state.frame === f.id)
 
   return createPortal(
     <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/60 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
@@ -73,7 +78,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
 
         <Section label="Icon">
           <div className="grid grid-cols-6 gap-2">
-            {AVATARS.map((a) => {
+            {icons.map((a) => {
               const on = !state.photo && state.avatar === a.id
               return (
                 <button key={a.id} onClick={() => setAvatar(a.id)} aria-label={`${a.id} icon`} aria-pressed={on}
@@ -83,6 +88,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
               )
             })}
           </div>
+          {iconsMore}
         </Section>
 
         <Section label={state.photo ? 'Icon background (shows when you use an icon)' : 'Icon background'}>
@@ -92,18 +98,20 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
 
         <Section label="Frame">
           <div className="flex flex-wrap gap-2">
-            <FrameChoice label="No frame" on={state.frame === 'none'} onClick={() => pick('none')}>
-              <span className="absolute inset-[9%] rounded-full border-2 border-dashed border-white/25" />
-            </FrameChoice>
-            {FRAME_COLORS.map((c) => (
-              <FrameChoice key={c} label={`Ring ${c}`} on={state.frame === `color:${c}`} onClick={() => pick(`color:${c}`)}>
-                <span className="absolute inset-[6%] rounded-full border-[5px]" style={{ borderColor: c }} />
+            {ringList.map((r) => r === 'none' ? (
+              <FrameChoice key={r} label="No frame" on={state.frame === 'none'} onClick={() => pick('none')}>
+                <span className="absolute inset-[9%] rounded-full border-2 border-dashed border-white/25" />
+              </FrameChoice>
+            ) : (
+              <FrameChoice key={r} label={`Ring ${r.slice(6)}`} on={state.frame === r} onClick={() => pick(r)}>
+                <span className="absolute inset-[6%] rounded-full border-[5px]" style={{ borderColor: r.slice(6) }} />
               </FrameChoice>
             ))}
           </div>
+          {ringsMore}
           <p className="mb-2 mt-4 text-xs font-extrabold text-cream/60">Special frames</p>
           <div className="grid grid-cols-3 gap-2">
-            {FRAMES.map((f) => {
+            {frames.map((f) => {
               const open = frameUnlocked(state, f.id)
               const on = state.frame === f.id
               return (
@@ -119,6 +127,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
               )
             })}
           </div>
+          {framesMore}
         </Section>
 
         <Section label="Title effect">
@@ -153,9 +162,11 @@ function FrameChoice({ label, on, onClick, children }: { label: string; on: bool
 /** A grid of unlockable looks: the preview, its name, and what unlocks it while locked. */
 function CosmeticGrid({ list, value, onPick, preview }: { list: Cosmetic[]; value: string; onPick: (id: string) => void; preview: (c: Cosmetic) => ReactNode }) {
   const { state } = useGame()
+  const [shown, more] = useMore(list, 3, (c) => c.id === value)
   return (
+    <>
     <div className="grid grid-cols-3 gap-2">
-      {list.map((c) => {
+      {shown.map((c) => {
         const open = isUnlocked(state, c.unlock)
         const on = value === c.id
         return (
@@ -171,7 +182,22 @@ function CosmeticGrid({ list, value, onPick, preview }: { list: Cosmetic[]; valu
         )
       })}
     </div>
+    {more}
+    </>
   )
+}
+
+/** The first `n` items, and a Show all / Show less toggle when there are more. Starts open if the chosen one is hidden. */
+function useMore<T>(items: T[], n: number, isOn: (t: T) => boolean) {
+  const [open, setOpen] = useState(() => items.findIndex(isOn) >= n)
+  if (items.length <= n) return [items, null] as const
+  const toggle = (
+    <button onClick={() => setOpen(!open)} className="mt-2 flex min-h-9 w-full items-center justify-center gap-1 rounded-xl text-xs font-extrabold text-cream/60 hover:text-cream">
+      {open ? 'Show less' : `Show all ${items.length}`}
+      <Icon name="chevron" size={12} strokeWidth={3} className={open ? 'rotate-180' : ''} />
+    </button>
+  )
+  return [open ? items : items.slice(0, n), toggle] as const
 }
 
 function Section({ label, children }: { label: string; children: ReactNode }) {
