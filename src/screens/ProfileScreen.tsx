@@ -11,6 +11,7 @@ import { PictureSheet } from '../components/PictureSheet'
 import { JoinSheet } from '../components/JoinSheet'
 import { useAccount } from '../net/account'
 import { Icon } from '../components/Icon'
+import { haptic, hapticSupport } from '../fx/haptics'
 import { Trophy } from '../components/Trophy'
 import { TitlePicker } from '../components/TitleSheet'
 import type { Tab } from '../components/NavBar'
@@ -195,6 +196,7 @@ function SettingsSheet({ onClose, go }: { onClose: () => void; go: (t: Tab, m?: 
           </button>
           <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards. On iPhone, the silent switch mutes them." on={state.sound} onChange={setSound} className="mt-2" />
           <Toggle label="Haptics" hint="Taps on answers: two for right, three for wrong. iPhone needs iOS 18 or later." on={state.haptics} onChange={setHaptics} className="mt-2" />
+          <HapticTest on={state.haptics} />
           <button
             onClick={() => setReduceMotion(!state.reduceMotion)}
             role="switch"
@@ -230,6 +232,27 @@ function SettingsSheet({ onClose, go }: { onClose: () => void; go: (t: Tab, m?: 
           </div>
           <button onClick={onClose} className="clay-btn clay-cream mt-5 min-h-12 w-full text-[15px]">Done</button>
     </Sheet>
+  )
+}
+
+/** Try a vibration from a real tap, and say which kind this device supports, so "nothing happens" can be told apart. */
+function HapticTest({ on }: { on: boolean }) {
+  const [note, setNote] = useState<string | null>(null)
+  const test = () => {
+    const kind = hapticSupport()
+    haptic('success')
+    setNote(
+      !on ? 'Haptics are off. Turn them on above first.'
+      : kind === 'vibrate' ? 'Sent a vibration. If you felt nothing, check your phone’s vibration settings.'
+      : kind === 'ios' ? 'Sent two taps. Nothing? It needs iOS 18 or later, and Settings › Sounds & Haptics › System Haptics on.'
+      : 'This browser can’t vibrate. iPhone needs iOS 18 or later.',
+    )
+  }
+  return (
+    <div className="mt-1.5 flex items-start gap-2 px-1">
+      <button onClick={test} className="min-h-9 shrink-0 rounded-xl bg-white/8 px-3 text-xs font-extrabold text-cream/80 hover:text-cream">Test haptics</button>
+      {note && <p role="status" className="pt-1 text-[11px] leading-snug text-cream/60">{note}</p>}
+    </div>
   )
 }
 

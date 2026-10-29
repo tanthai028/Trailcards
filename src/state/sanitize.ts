@@ -96,7 +96,8 @@ export const cleanAvatar = (v: unknown) => (typeof v === 'string' && AVATAR_BY_I
 export function cleanCosmetics(v: unknown): GameState['cosmetics'] {
   const r = isObj(v) ? v : {}
   const pick = (list: typeof PIC_BGS, id: unknown) => (known(list, id) ? (id as string) : 'none')
-  return { bg: pick(PIC_BGS, r.bg), card: pick(CARD_FX, r.card), title: pick(TITLE_FX, r.title) }
+  const shuffle = Array.isArray(r.bgShuffle) ? [...new Set(r.bgShuffle.filter((id) => known(PIC_BGS, id)) as string[])] : []
+  return { bg: pick(PIC_BGS, r.bg), card: pick(CARD_FX, r.card), title: pick(TITLE_FX, r.title), ...(shuffle.length ? { bgShuffle: shuffle } : {}) }
 }
 
 /** A known frame, or none. */

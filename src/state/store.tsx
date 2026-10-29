@@ -53,7 +53,8 @@ interface Store {
 const Ctx = createContext<Store | null>(null)
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<G.GameState>(() => localSave.load() ?? G.initialState())
+  // background shuffle: a new pick from your chosen ones each time the app opens
+  const [state, setState] = useState<G.GameState>(() => G.shuffleBg(localSave.load() ?? G.initialState()))
   const [events, setEvents] = useState<GameEvent[]>([])
   const stateRef = useRef(state)
   stateRef.current = state

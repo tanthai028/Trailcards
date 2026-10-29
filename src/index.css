@@ -225,6 +225,34 @@ body {
    Every .fx-* animation stops with Reduce motion (rules at the end). */
 
 /* picture backgrounds */
+.fx-bg-sunset {
+  background: linear-gradient(160deg, #ffd27a, #f7934c 45%, #e0485a 80%, #8a3a7a);
+  background-size: 200% 200%;
+  animation: fx-pan 8s ease-in-out infinite alternate;
+}
+.fx-bg-meadow {
+  background: linear-gradient(180deg, #e6f9b0, #8fdc9f 45%, #3f9f6a);
+  background-size: 100% 200%;
+  animation: fx-tide 6s ease-in-out infinite alternate;
+}
+.fx-bg-berry {
+  background: radial-gradient(circle at 35% 30%, #fbcfe8 0%, #f472b6 45%, #9d3a8c 90%);
+  animation: fx-ember 3s ease-in-out infinite;
+}
+.fx-bg-sky {
+  background: linear-gradient(180deg, #e0f2fe, #7dd3fc 55%, #3b82f6);
+}
+/* two small clouds drifting across */
+.fx-bg-sky::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 22% 72%, rgba(255, 255, 255, 0.9) 0 11%, transparent 12%),
+    radial-gradient(circle at 33% 66%, rgba(255, 255, 255, 0.9) 0 13%, transparent 14%),
+    radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.75) 0 8%, transparent 9%);
+  animation: fx-clouds 9s ease-in-out infinite alternate;
+}
 .fx-bg-aurora {
   background: linear-gradient(125deg, #6ee7b7, #60a5fa, #a78bfa, #f472b6, #6ee7b7);
   background-size: 300% 300%;
@@ -344,6 +372,7 @@ body {
 @keyframes fx-pan { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 @keyframes fx-tide { from { background-position: 50% 0%; } to { background-position: 50% 100%; } }
 @keyframes fx-spin { to { transform: rotate(360deg); } }
+@keyframes fx-clouds { from { transform: translateX(-14%); } to { transform: translateX(14%); } }
 @keyframes fx-ember { 0%, 100% { filter: brightness(1) saturate(1); } 50% { filter: brightness(1.18) saturate(1.2); } }
 @keyframes fx-neon { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } 52% { opacity: 1; } 54% { opacity: 0.75; } }
 @keyframes fx-flicker { from { transform: scale(1, 1); } to { transform: scale(0.9, 1.15); } }

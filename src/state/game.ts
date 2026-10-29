@@ -2,7 +2,7 @@
 import { CARDS, CARD_BY_ID, type Card } from '../data/cards'
 import { deckFeedCards, shuffle, type UserDeck } from '../data/decks'
 import { DEFAULT_AVATAR, FRAME_BY_ID, isColorFrame, type Frame } from '../data/avatars'
-import type { Unlock } from '../data/cosmetics'
+import { PIC_BGS, type Unlock } from '../data/cosmetics'
 import { ACHIEVEMENTS } from '../data/achievements'
 
 export type Mastery = 'new' | 'learning' | 'familiar' | 'mastered'
@@ -91,6 +91,8 @@ export interface Cosmetics {
   bg: string
   card: string
   title: string
+  /** Backgrounds to shuffle between, one picked each time the app opens (fewer than 2 = off). */
+  bgShuffle?: string[]
 }
 
 // ── Levels ──────────────────────────────────────────────────────
@@ -427,6 +429,14 @@ export function frameUnlocked(s: GameState, frame: Frame) {
   if (frame === 'none' || isColorFrame(frame)) return true
   const f = FRAME_BY_ID[frame]
   return !!f && isUnlocked(s, f.unlock)
+}
+
+/** Shuffle on: a different background from your picks (the unlocked ones), for this visit. */
+export function shuffleBg(s: GameState): GameState {
+  const picks = (s.cosmetics.bgShuffle ?? []).filter((id) => isUnlocked(s, PIC_BGS.find((b) => b.id === id)?.unlock ?? null))
+  const others = picks.filter((id) => id !== s.cosmetics.bg)
+  if (picks.length < 2 || !others.length) return s
+  return { ...s, cosmetics: { ...s.cosmetics, bg: others[Math.floor(Math.random() * others.length)] } }
 }
 
 /** A level reached, a trophy earned, or free (null). */

@@ -38,3 +38,11 @@ export function haptic(kind: Haptic) {
   iosTick()
   for (let i = 1; i < TICKS[kind]; i++) setTimeout(iosTick, i * 90)
 }
+
+/** Which kind of haptics this device can do here, for the test in Settings. */
+export function hapticSupport(): 'vibrate' | 'ios' | 'none' {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') return 'vibrate'
+  // Safari 17.4+ knows the native switch; iOS 18 adds the tick when one is toggled
+  if (typeof document !== 'undefined' && 'switch' in document.createElement('input')) return 'ios'
+  return 'none'
+}

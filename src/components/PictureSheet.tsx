@@ -47,6 +47,8 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
   const rings = ['none', ...FRAME_COLORS.map((c) => `color:${c}`)]
   const [ringList, ringsMore] = useMore(rings, 6, (r) => state.frame === r)
   const [frames, framesMore] = useMore(FRAMES, 3, (f) => state.frame === f.id)
+  const shuffle = state.cosmetics.bgShuffle ?? []
+  const shuffling = shuffle.length > 0
 
   return (
     <Sheet
@@ -88,7 +90,30 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
         </Section>
 
         <Section label={state.photo ? 'Icon background (shows when you use an icon)' : 'Icon background'}>
-          <CosmeticGrid list={PIC_BGS} value={state.cosmetics.bg} onPick={(bg) => setCosmetics({ bg })}
+          {/* Shuffle: pick several, and each time the app opens your picture gets one of them */}
+          <button
+            role="switch" aria-checked={shuffling}
+            onClick={() => setCosmetics({ bgShuffle: shuffling ? [] : [state.cosmetics.bg] })}
+            className="mb-2 flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-2.5 text-left"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-extrabold">Shuffle</span>
+              <span className="block text-[11px] leading-snug text-cream/55">
+                {!shuffling ? 'A different one of your picks each time you open the app.' : shuffle.length < 2 ? 'Tap two or more to shuffle between.' : `Shuffling ${shuffle.length}. Tap to add or remove.`}
+              </span>
+            </span>
+            <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${shuffling ? 'bg-gold' : 'bg-white/15'}`}>
+              <span className={`absolute top-1 size-5 rounded-full bg-cream shadow transition-transform ${shuffling ? 'translate-x-6' : 'translate-x-1'}`} />
+            </span>
+          </button>
+          <CosmeticGrid list={PIC_BGS} value={state.cosmetics.bg} picked={shuffling ? shuffle : undefined}
+            onPick={(bg) => {
+              if (!shuffling) return setCosmetics({ bg })
+              const has = shuffle.includes(bg)
+              const next = has ? shuffle.filter((x) => x !== bg) : [...shuffle, bg]
+              // the picture shows what you just added; removing the one on show moves to another pick
+              setCosmetics({ bgShuffle: next.length ? next : [bg], bg: has ? (bg === state.cosmetics.bg ? next[0] ?? bg : state.cosmetics.bg) : bg })
+            }}
             preview={(c) => <ProfilePic avatar={state.avatar} photo={null} bg={c.id} className="size-14" />} />
         </Section>
 
@@ -153,21 +178,26 @@ function FrameChoice({ label, on, onClick, children }: { label: string; on: bool
   )
 }
 
-/** A grid of unlockable looks: the preview, its name, and what unlocks it while locked. */
-function CosmeticGrid({ list, value, onPick, preview }: { list: Cosmetic[]; value: string; onPick: (id: string) => void; preview: (c: Cosmetic) => ReactNode }) {
+/**
+ * A grid of unlockable looks: the preview, its name, and what unlocks it while locked.
+ * `picked`: several can be chosen (the background shuffle); each shows a check.
+ */
+function CosmeticGrid({ list, value, picked, onPick, preview }: { list: Cosmetic[]; value: string; picked?: string[]; onPick: (id: string) => void; preview: (c: Cosmetic) => ReactNode }) {
   const { state } = useGame()
-  const [shown, more] = useMore(list, 3, (c) => c.id === value)
+  const isOn = (id: string) => (picked ? picked.includes(id) : value === id)
+  const [shown, more] = useMore(list, 3, (c) => isOn(c.id))
   return (
     <>
     <div className="grid grid-cols-3 gap-2">
       {shown.map((c) => {
         const open = isUnlocked(state, c.unlock)
-        const on = value === c.id
+        const on = isOn(c.id)
         return (
           <button key={c.id} onClick={() => open && onPick(c.id)} disabled={!open} aria-pressed={on}
             className={`flex flex-col items-center gap-1 rounded-2xl p-2 ring-2 ${on ? 'bg-gold/10 ring-gold' : 'bg-white/5 ring-transparent'} disabled:cursor-not-allowed`}>
             <span className={`relative grid w-full place-items-center ${open ? '' : 'opacity-40 grayscale'}`}>
               {preview(c)}
+              {picked && on && <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-gold text-ink"><Icon name="check" size={12} strokeWidth={3} /></span>}
               {!open && <span className="absolute inset-0 grid place-items-center"><span className="grid size-7 place-items-center rounded-full bg-ink/80"><Icon name="lock" size={13} /></span></span>}
             </span>
             <span className="text-xs font-extrabold">{c.name}</span>

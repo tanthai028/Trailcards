@@ -13,6 +13,11 @@ export interface Cosmetic {
 /** Behind your icon (a photo covers it). */
 export const PIC_BGS: Cosmetic[] = [
   { id: 'none', name: 'Icon colour', unlock: null },
+  // early ones, so there's something new to try within the first sessions
+  { id: 'sunset', name: 'Sunset', unlock: { trophy: 'first-card' } },
+  { id: 'meadow', name: 'Meadow', unlock: { level: 2 } },
+  { id: 'berry', name: 'Berry', unlock: { trophy: 'ten-cards' } },
+  { id: 'sky', name: 'Sky', unlock: { level: 3 } },
   { id: 'aurora', name: 'Aurora', unlock: { level: 4 } },
   { id: 'galaxy', name: 'Galaxy', unlock: { level: 6 } },
   { id: 'ember', name: 'Ember', unlock: { trophy: 'streak-7' } },
