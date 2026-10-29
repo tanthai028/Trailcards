@@ -16,6 +16,8 @@ interface Store {
   state: G.GameState
   events: GameEvent[]
   dismiss: (id: number) => void
+  /** A celebration has appeared on screen (so Undo won't let it be earned and shown again). */
+  shown: (id: number) => void
   answer: (cardId: string, choice: number) => G.AnswerResult
   toggleBookmark: (cardId: string) => void
   /** Your icon picture. */
@@ -56,6 +58,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state)
   stateRef.current = state
   const nextId = useRef(1)
+  // Celebrations already raised this session. Undo takes an answer back, achievements and XP
+  // included, so answering again would earn them again; each one is still only celebrated once.
+  const celebrated = useRef(new Set<string>())
+  const fresh = (key: string) => !celebrated.current.has(key) && !!celebrated.current.add(key)
+  // the events the last answer raised, so Undo can take back the ones still waiting
+  const lastAnswer = useRef<number[]>([])
+  const keyOf = useRef(new Map<number, string>())
+  const onScreen = useRef(new Set<number>())
 
   useEffect(() => localSave.save(state), [state])
 
@@ -66,8 +76,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // No toast spam: a new plain note replaces the one waiting (tapping save five times shows one
   // note, not five), and the same note isn't queued twice. Trophies and streaks still queue.
-  const push = useCallback((evs: NewEvent[]) => {
-    if (!evs.length) return
+  const push = useCallback((raw: NewEvent[]): number[] => {
+    if (!raw.length) return []
+    const evs = raw.map((e) => ({ ...e, id: nextId.current++ }) as GameEvent)
     setEvents((cur) => {
       let next = cur
       for (const e of evs) {
@@ -75,26 +86,31 @@ export function GameProvider({ children }: { children: ReactNode }) {
           if (next.some((x) => x.kind === 'toast' && x.text === e.text)) continue
           next = next.filter((x) => x.kind !== 'toast')
         }
-        next = [...next, { ...e, id: nextId.current++ } as GameEvent]
+        next = [...next, e]
       }
       return next
     })
+    return evs.map((e) => e.id)
   }, [])
 
-  const pushAch = useCallback((ids: string[]) => push(ids.map((achId) => ({ kind: 'achievement' as const, achId }))), [push])
+  const pushAch = useCallback((ids: string[]) => push(ids.filter((a) => fresh(`ach:${a}`)).map((achId) => ({ kind: 'achievement' as const, achId }))), [push])
 
   const store = useMemo<Store>(
     () => ({
       state,
       events,
       dismiss: (id) => setEvents((cur) => cur.filter((e) => e.id !== id)),
+      shown: (id) => { onScreen.current.add(id) },
       answer: (cardId, choice) => {
         const { state: s, result } = G.answerCard(stateRef.current, cardId, choice)
         commit(s)
-        const evs: NewEvent[] = result.achievements.map((achId) => ({ kind: 'achievement' as const, achId }))
-        if (result.levelUp != null) evs.push({ kind: 'levelUp', level: result.levelUp })
-        if (result.goalStreak != null) evs.push({ kind: 'streak', days: result.goalStreak })
-        push(evs)
+        const evs: [string, NewEvent][] = result.achievements.map((achId) => [`ach:${achId}`, { kind: 'achievement' as const, achId }])
+        if (result.levelUp != null) evs.push([`level:${result.levelUp}`, { kind: 'levelUp', level: result.levelUp }])
+        if (result.goalStreak != null) evs.push([`streak:${result.goalStreak}`, { kind: 'streak', days: result.goalStreak }])
+        const raised = evs.filter(([key]) => fresh(key))
+        const ids = push(raised.map(([, e]) => e))
+        ids.forEach((id, k) => keyOf.current.set(id, raised[k][0]))
+        lastAnswer.current = ids
         return result
       },
       toggleBookmark: (cardId) => {
@@ -142,7 +158,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const s = stateRef.current
         commit({ ...s, studyPrefs: { ...s.studyPrefs, [G.prefsKey(s)]: { ...G.studyPrefs(s), ...patch } } })
       },
-      undoAnswer: (before) => commit(G.undoAnswer(stateRef.current, before)),
+      undoAnswer: (before) => {
+        commit(G.undoAnswer(stateRef.current, before))
+        // Its trophy, level-up or streak goes with it. One that never got on screen can be earned
+        // and shown again; one already seen stays quiet, so answer-undo-answer can't replay it.
+        const gone = lastAnswer.current
+        lastAnswer.current = []
+        for (const id of gone) {
+          const key = keyOf.current.get(id)
+          if (key && !onScreen.current.has(id)) celebrated.current.delete(key)
+        }
+        if (gone.length) setEvents((cur) => cur.filter((e) => !gone.includes(e.id)))
+      },
       setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id, deckChosen: true }),
       setReduceMotion: (on) => commit({ ...stateRef.current, reduceMotion: on }),
       setSound: (on) => commit({ ...stateRef.current, sound: on }),

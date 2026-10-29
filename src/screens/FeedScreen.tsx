@@ -467,7 +467,9 @@ function FeedCard({
           )}
         </AnimatePresence>
 
-        <div className="pt-[0.75em]">
+        {/* the explanation is often taller or shorter than the text it replaces: the question
+            slides to its new place instead of jumping (the whole block, so every choice moves alike) */}
+        <motion.div layout="position" transition={{ duration: 0.25, ease: 'easeOut' }} className="pt-[0.75em]">
           <div data-tour="quiz" className="relative rounded-3xl bg-white/70 p-[0.6em] ring-1 ring-ink/5">
             {result?.correct && (answered?.streak ?? 0) >= 2 && (
               <motion.span
@@ -519,7 +521,7 @@ function FeedCard({
             )}
           </div>
 
-        </div>
+        </motion.div>
       </div>
     </article>
   )

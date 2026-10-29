@@ -10,27 +10,28 @@ import { haptic } from '../fx/haptics'
 
 /** Toasts (achievements, streaks, small notes) and the level-up celebration. */
 export function EventLayer() {
-  const { events, dismiss, state } = useGame()
+  const { events, dismiss, shown, state } = useGame()
   // one at a time; the rest wait their turn
   const toasts = events.filter((e) => e.kind !== 'levelUp').slice(0, 1)
   const levelUp = events.find((e) => e.kind === 'levelUp') as Extract<GameEvent, { kind: 'levelUp' }> | undefined
 
   useEffect(() => {
     if (!levelUp) return
+    shown(levelUp.id)
     playLevelUp()
     haptic('heavy')
     celebrate()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && dismiss(levelUp.id)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [levelUp, dismiss])
+  }, [levelUp, dismiss, shown])
 
   return (
     <>
       {/* every toast sits in the same grid cell, so one fading out overlaps the next instead of stacking */}
       <div className="pointer-events-none absolute inset-x-0 top-16 z-40 grid justify-items-center px-4 [&>*]:col-start-1 [&>*]:row-start-1" aria-live="polite">
         <AnimatePresence>
-          {toasts.map((e) => <Toast key={e.id} e={e} onDone={() => dismiss(e.id)} />)}
+          {toasts.map((e) => <Toast key={e.id} e={e} onShow={() => shown(e.id)} onDone={() => dismiss(e.id)} />)}
         </AnimatePresence>
       </div>
       <AnimatePresence>
@@ -64,7 +65,7 @@ export function EventLayer() {
   )
 }
 
-function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
+function Toast({ e, onShow, onDone }: { e: GameEvent; onShow: () => void; onDone: () => void }) {
   // Achievements and streaks wait a beat, so the answer's own XP and feedback land first
   // instead of being covered by the toast over the Learn header.
   const wait = e.kind === 'toast' ? 0 : 1100
@@ -72,6 +73,7 @@ function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
   useEffect(() => {
     const t = setTimeout(() => {
       setShown(true)
+      onShow()
       if (e.kind === 'achievement' || e.kind === 'streak') playAchievement()
     }, wait)
     return () => clearTimeout(t)
