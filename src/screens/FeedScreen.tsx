@@ -335,7 +335,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
           <EndCard mode={mode} empty={ids.length === 0} counts={counts} setMode={setMode} go={go} />
         </section>
       </motion.div>
-      <MochiPeek cheer={cheer} off={reduced || mode === 'saved'} scroller={scroller} />
+      <MochiPeek cheer={cheer} off={reduced || mode === 'saved'} scroller={scroller} undoUp={!!undo && undo.i === active} />
       {/* bottom-left of the card, clear of the save button on the right */}
       <AnimatePresence>
         {undo && undo.i === active && (

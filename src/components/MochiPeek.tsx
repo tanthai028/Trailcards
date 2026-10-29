@@ -21,11 +21,23 @@ const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)]
 
 /** `cheer` changes when there's something to celebrate (a run of right answers). `scroller` is the
  *  feed, so Mochi can ride along with the card Mochi appeared on. */
-export function MochiPeek({ cheer, off, scroller }: { cheer: number; off: boolean; scroller: RefObject<HTMLElement> }) {
+export function MochiPeek({ cheer, off, scroller, undoUp }: { cheer: number; off: boolean; scroller: RefObject<HTMLElement>; undoUp: boolean }) {
   const [act, setAct] = useState<Act | null>(null)
   const [line, setLine] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>()
   const layer = useRef<HTMLDivElement>(null)
+  // While the Undo pill is up (bottom-left), Mochi peeks from the open middle of the bottom edge,
+  // between it and the save button, instead of popping up underneath it.
+  const undo = useRef(undoUp)
+  undo.current = undoUp
+  const spot = (lo: number, hi: number) => {
+    if (!undo.current) return rand(lo, hi)
+    // in px along the bottom edge: past the pill (~125px from the left) and short of the save
+    // button (52px from the right) with Mochi's 80px width, as a % of the edge
+    const w = (layer.current?.clientWidth ?? 375) - 32
+    const from = 138, to = Math.max(from, w - 136)
+    return (rand(from, to) / w) * 100
+  }
 
   // the next visit, a while after the last one ends
   const later = (ms: number) => {
@@ -33,7 +45,7 @@ export function MochiPeek({ cheer, off, scroller }: { cheer: number; off: boolea
     timer.current = setTimeout(() => {
       if (document.visibilityState !== 'visible') return later(5000)
       const kind = pick(['peek', 'peek', 'walk', 'side'] as const)
-      setAct({ kind, x: rand(12, 62), flip: Math.random() < 0.5, key: Date.now() })
+      setAct({ kind, x: spot(12, 62), flip: Math.random() < 0.5, key: Date.now() })
     }, ms)
   }
   useEffect(() => {
@@ -46,7 +58,7 @@ export function MochiPeek({ cheer, off, scroller }: { cheer: number; off: boolea
   useEffect(() => {
     if (!cheer || off) return
     clearTimeout(timer.current)
-    setAct({ kind: 'peek', x: rand(20, 55), flip: false, cheer: pick(CHEERS), key: Date.now() })
+    setAct({ kind: 'peek', x: spot(20, 55), flip: false, cheer: pick(CHEERS), key: Date.now() })
   }, [cheer, off])
 
   useEffect(() => {
