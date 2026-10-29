@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
@@ -18,13 +19,14 @@ import { feedFocus, MASTERY_LABEL, tourReplay, type FeedMode } from './FeedScree
 const MASTERY_COLORS: Record<Mastery, string> = { mastered: '#ffd27a', familiar: '#8fc9a3', learning: '#ff9f8a', new: 'rgba(255,255,255,.12)' }
 
 export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
-  const { state, setName, setTitle, reset, setReduceMotion, setSound, setHaptics, restore, toggleBookmark, setActiveDeck } = useGame()
+  const { state, setName, setTitle, toggleBookmark, setActiveDeck } = useGame()
   const lv = levelInfo(state.xp)
   const s = stats(state)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(state.name)
-  const [confirmReset, setConfirmReset] = useState(false)
   const [picture, setPicture] = useState(false)
+  const [settings, setSettings] = useState(false)
+  const [allAch, setAllAch] = useState(false)
   const titles = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).map((a) => a.title)
 
   return (
@@ -69,6 +71,9 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
             </div>
           </div>
         </div>
+        <button onClick={() => setSettings(true)} aria-label="Settings" className="absolute right-3 top-3 grid size-10 place-items-center rounded-full bg-ink/45 text-cream/80 backdrop-blur-sm hover:text-cream">
+          <Icon name="gear" size={19} />
+        </button>
       </div>
 
       <button onClick={() => setPicture(true)} className="clay mt-3 flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 text-left">
@@ -136,11 +141,17 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       )}
 
       {/* Achievements: earned first, then the ones you're closest to */}
-      <Section title="Achievements" hint={`${ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length}/${ACHIEVEMENTS.length} earned`}>
+      {/* the earned ones and the closest few; the full list on request */}
+      <Section
+        title="Achievements"
+        hint={`${ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length}/${ACHIEVEMENTS.length}`}
+        action={{ label: allAch ? 'Show less' : 'See all', onClick: () => setAllAch(!allAch) }}
+      >
         <ul className="grid grid-cols-3 gap-2">
           {ACHIEVEMENTS
             .map((a) => ({ a, at: state.achievements[a.id], p: achievementProgress(state, a.id) }))
             .sort((x, y) => (x.at ? 0 : 1) - (y.at ? 0 : 1) || (y.p ? y.p[0] / y.p[1] : 0) - (x.p ? x.p[0] / x.p[1] : 0))
+            .slice(0, allAch ? undefined : 3)
             .map(({ a, at, p }) => (
               <li key={a.id} className={`flex flex-col items-center rounded-2xl px-2 pb-2.5 pt-3 text-center ring-1 ${at ? 'bg-gold/10 ring-gold/30' : 'clay ring-white/8'}`}>
                 <Trophy a={ACH_BY_ID[a.id]} earned={!!at} size={40} />
@@ -162,49 +173,73 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       <AnimatePresence>{picture && <PictureSheet onClose={() => setPicture(false)} />}</AnimatePresence>
 
       <AccountRow />
+      <AnimatePresence>{settings && <SettingsSheet onClose={() => setSettings(false)} go={go} />}</AnimatePresence>
 
-      {/* Settings */}
-      <button onClick={() => { tourReplay.on = true; go('feed') }} className="clay mt-2 flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 text-left">
-        <Icon name="spark" size={16} className="text-gold" />
-        <span className="flex-1 text-sm font-extrabold">Replay the Learn tour</span>
-        <Icon name="chevron" size={14} className="-rotate-90 text-cream/40" />
-      </button>
-      <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards. On iPhone, the silent switch mutes them." on={state.sound} onChange={setSound} className="mt-2" />
-      <Toggle label="Haptics" hint="A little tap on answers, on phones that support it." on={state.haptics} onChange={setHaptics} className="mt-2" />
-      <button
-        onClick={() => setReduceMotion(!state.reduceMotion)}
-        role="switch"
-        aria-checked={state.reduceMotion}
-        className="clay mt-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-extrabold">Reduce motion</span>
-          <span className="block text-xs text-cream/55">Fewer animations. Your phone's own setting is always followed too.</span>
-        </span>
-        <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${state.reduceMotion ? 'bg-gold' : 'bg-white/15'}`}>
-          <span className={`absolute top-1 size-5 rounded-full bg-cream shadow transition-transform ${state.reduceMotion ? 'translate-x-6' : 'translate-x-1'}`} />
-        </span>
-      </button>
-
-      <Backup state={state} onRestore={restore} />
-
-      <div className="mt-6 text-center">
-        {confirmReset ? (
-          <div className="rounded-2xl bg-coral/15 p-3 ring-1 ring-coral/40">
-            <p className="text-sm font-bold">Erase all progress on this device? This can’t be undone.</p>
-            <div className="mt-2 flex justify-center gap-2">
-              <button onClick={() => setConfirmReset(false)} className="rounded-xl bg-white/10 px-4 py-2 text-sm font-extrabold">Keep it</button>
-              <button onClick={() => { reset(); setConfirmReset(false); go('feed', 'discover') }} className="rounded-xl bg-coral px-4 py-2 text-sm font-extrabold text-ink">Erase</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setConfirmReset(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-cream/40 hover:text-cream/70">
-            <Icon name="refresh" size={13} /> Reset progress
-          </button>
-        )}
-        <p className="mt-2 text-[11px] text-cream/30">Progress saves automatically on this device.</p>
-      </div>
     </div>
+  )
+}
+
+/** Sound, motion, the tour, backup and reset: things you set once, kept off the main page. */
+function SettingsSheet({ onClose, go }: { onClose: () => void; go: (t: Tab, m?: FeedMode) => void }) {
+  const { state, reset, setReduceMotion, setSound, setHaptics, restore } = useGame()
+  const [confirmReset, setConfirmReset] = useState(false)
+  return createPortal(
+    <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/60 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div
+        role="dialog" aria-modal="true" aria-label="Settings"
+        onClick={(e) => e.stopPropagation()}
+        initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40, transition: { duration: 0.12 } }}
+        transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+        className="clay no-scrollbar max-h-[88vh] w-full max-w-[480px] overflow-y-auto rounded-t-[28px] px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 text-cream"
+      >
+        <span className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-white/20" aria-hidden="true" />
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-2xl font-bold">Settings</h2>
+          <button onClick={onClose} aria-label="Close settings" className="grid size-10 place-items-center rounded-full text-cream/60 hover:text-cream"><Icon name="x" size={18} /></button>
+        </div>
+          <button onClick={() => { tourReplay.on = true; go('feed') }} className="clay flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 text-left">
+            <Icon name="spark" size={16} className="text-gold" />
+            <span className="flex-1 text-sm font-extrabold">Replay the Learn tour</span>
+            <Icon name="chevron" size={14} className="-rotate-90 text-cream/40" />
+          </button>
+          <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards. On iPhone, the silent switch mutes them." on={state.sound} onChange={setSound} className="mt-2" />
+          <Toggle label="Haptics" hint="A little tap on answers, on phones that support it." on={state.haptics} onChange={setHaptics} className="mt-2" />
+          <button
+            onClick={() => setReduceMotion(!state.reduceMotion)}
+            role="switch"
+            aria-checked={state.reduceMotion}
+            className="clay mt-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-extrabold">Reduce motion</span>
+              <span className="block text-xs text-cream/55">Fewer animations. Your phone's own setting is always followed too.</span>
+            </span>
+            <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${state.reduceMotion ? 'bg-gold' : 'bg-white/15'}`}>
+              <span className={`absolute top-1 size-5 rounded-full bg-cream shadow transition-transform ${state.reduceMotion ? 'translate-x-6' : 'translate-x-1'}`} />
+            </span>
+          </button>
+
+          <Backup state={state} onRestore={restore} />
+
+          <div className="mt-6 text-center">
+            {confirmReset ? (
+              <div className="rounded-2xl bg-coral/15 p-3 ring-1 ring-coral/40">
+                <p className="text-sm font-bold">Erase all progress on this device? This can’t be undone.</p>
+                <div className="mt-2 flex justify-center gap-2">
+                  <button onClick={() => setConfirmReset(false)} className="rounded-xl bg-white/10 px-4 py-2 text-sm font-extrabold">Keep it</button>
+                  <button onClick={() => { reset(); setConfirmReset(false); go('feed', 'discover') }} className="rounded-xl bg-coral px-4 py-2 text-sm font-extrabold text-ink">Erase</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmReset(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-cream/40 hover:text-cream/70">
+                <Icon name="refresh" size={13} /> Reset progress
+              </button>
+            )}
+            <p className="mt-2 text-[11px] text-cream/30">Progress saves automatically on this device.</p>
+          </div>
+      </motion.div>
+    </motion.div>,
+    document.body,
   )
 }
 
@@ -347,10 +382,12 @@ function Section({ title, hint, action, children }: { title: string; hint?: stri
     <section className="mt-6">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">{title}</h2>
-        {hint && <span className="text-xs font-bold text-cream/45">{hint}</span>}
-        {action && (
-          <button onClick={action.onClick} className="rounded-full clay px-3 py-1 text-xs font-extrabold hover:brightness-110">{action.label}</button>
-        )}
+        <span className="flex items-center gap-2">
+          {hint && <span className="text-xs font-bold text-cream/45">{hint}</span>}
+          {action && (
+            <button onClick={action.onClick} className="rounded-full clay px-3 py-1 text-xs font-extrabold hover:brightness-110">{action.label}</button>
+          )}
+        </span>
       </div>
       {children}
     </section>
