@@ -286,13 +286,15 @@ function Feed({ mode, setMode, go }: FeedProps) {
         <div data-tour="goal" className="shrink-0"><AvatarLevel onClick={() => go('profile')} size={52} /></div>
       </header>
 
-      {state.onboarded && state.deckChosen && (tour || !state.tips.includes('tour-learn')) && <LearnTour active={active} onDone={() => { setTour(false); dismissTip('tour-learn') }} />}
+      {/* the tour only runs when replayed from Profile; first-timers learn from the Coach tips below */}
+      {state.onboarded && state.deckChosen && tour && <LearnTour active={active} onDone={() => { setTour(false); dismissTip('tour-learn') }} />}
       <Coach
         tips={state.tips}
         answered={Object.keys(state.cards).length}
         active={active}
         reviewDue={counts.review}
         mode={mode}
+        lift={!!undo}
         dismiss={dismissTip}
         onReview={() => setMode('review')}
       />
@@ -325,7 +327,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
           <EndCard mode={mode} empty={ids.length === 0} counts={counts} setMode={setMode} go={go} />
         </section>
       </motion.div>
-      <MochiPeek cheer={cheer} off={reduced || mode === 'saved'} />
+      <MochiPeek cheer={cheer} off={reduced || mode === 'saved'} scroller={scroller} />
       {/* bottom-left of the card, clear of the save button on the right */}
       <AnimatePresence>
         {undo && (
@@ -787,36 +789,54 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
 }
 
 /**
- * First-run coaching, one bubble at a time: how to answer, how to move on, what the header
- * controls do, and what Review is the first time something is due. Each is shown once.
+ * First-run coaching, one line at a time, each at the moment it matters: swiping on after the
+ * first answer, what XP and the streak are after a few, switching decks a little later, and
+ * Review the first time something is due. Each is shown once. Anyone who has been through the
+ * Learn tour already knows the basics, so they only get the Review one.
  */
-function Coach({ tips, answered, active, reviewDue, mode, dismiss, onReview }: {
-  tips: string[]; answered: number; active: number; reviewDue: number; mode: FeedMode
+function Coach({ tips, answered, active, reviewDue, mode, lift, dismiss, onReview }: {
+  tips: string[]; answered: number; active: number; reviewDue: number; mode: FeedMode; lift: boolean
   dismiss: (id: string) => void; onReview: () => void
 }) {
   const seen = (id: string) => tips.includes(id)
-  // answering and swiping teach themselves: the tip goes away once you've done it
+  // swiping teaches itself: the tip goes away once you've done it
   useEffect(() => {
-    if (answered > 0 && !seen('coach-answer')) dismiss('coach-answer')
     if (active > 0 && !seen('coach-swipe')) dismiss('coach-swipe')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answered, active])
+  }, [active])
 
-  let tip: { id: string; text: string; action?: { label: string; run: () => void } } | null = null
-  // the first-run basics are taught by the Learn tour; what's left is the first time reviews come due
-  if (!seen('tour-learn')) tip = null
+  let tip: { id: string; text: string; swipe?: boolean; action?: { label: string; run: () => void } } | null = null
+  const basics = mode === 'discover' && !seen('tour-learn')
+  if (basics && answered > 0 && active === 0 && !seen('coach-swipe')) tip = { id: 'coach-swipe', text: 'Swipe up for the next card.', swipe: true }
+  else if (basics && answered >= 3 && !seen('coach-goal')) tip = { id: 'coach-goal', text: 'Right answers fill the ring on your level badge. 10 a day builds your streak.' }
+  else if (basics && answered >= 8 && !seen('coach-deck')) tip = { id: 'coach-deck', text: 'Tap the deck name up top to switch decks, or make one with AI.' }
   else if (reviewDue > 0 && mode !== 'review' && !seen('coach-review')) tip = { id: 'coach-review', text: `${reviewDue} card${reviewDue === 1 ? '' : 's'} due for review.`, action: { label: 'Review now', run: onReview } }
+
+  // A beat after it's earned, so the answer's own feedback lands first. Plain notes go by themselves
+  // after a while; the swipe one waits for a swipe and the Review one for a choice.
+  const id = tip?.id ?? null
+  const plain = !!tip && !tip.swipe && !tip.action
+  const [shown, setShown] = useState<string | null>(null)
+  useEffect(() => {
+    setShown(null)
+    if (!id) return
+    const t = setTimeout(() => setShown(id), 1200)
+    const t2 = plain ? setTimeout(() => dismiss(id), 9000) : undefined
+    return () => { clearTimeout(t); clearTimeout(t2) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   return (
     <AnimatePresence>
-      {tip && (
+      {tip && shown === tip.id && (
         <motion.div
           key={tip.id}
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.15 } }}
-          className="pointer-events-auto absolute inset-x-6 bottom-5 z-30 flex items-center gap-3 rounded-3xl bg-ink-2 p-3 pl-4 text-cream shadow-[0_12px_30px_-8px_rgba(0,0,0,.6)] ring-1 ring-white/10"
+          // sits above the Undo pill while that's showing
+          className={`pointer-events-auto absolute inset-x-6 z-30 flex items-center gap-3 rounded-3xl bg-ink-2 p-3 pl-4 text-cream shadow-[0_12px_30px_-8px_rgba(0,0,0,.6)] ring-1 ring-white/10 transition-[bottom] duration-200 ${lift ? 'bottom-[4.25rem]' : 'bottom-5'}`}
           role="status"
         >
-          {tip.id === 'coach-swipe' && (
+          {tip.swipe && (
             <motion.span animate={{ y: [3, -3, 3] }} transition={{ repeat: Infinity, duration: 1.2 }} className="shrink-0 text-gold" aria-hidden="true">
               <Icon name="down" size={18} strokeWidth={3} className="rotate-180" />
             </motion.span>

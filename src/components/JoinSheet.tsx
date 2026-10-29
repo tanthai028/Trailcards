@@ -91,7 +91,7 @@ export function JoinSheet({ onClose }: { onClose: () => void }) {
 export function JoinPrompt({ what, onJoin }: { what: string; onJoin: () => void }) {
   const { status } = useAccount()
   if (status === 'offline') {
-    return <p className="clay rounded-3xl p-5 text-center text-sm text-cream/65">This build isn't connected to a server, so {what} isn't available.</p>
+    return <p className="clay rounded-3xl p-5 text-center text-sm text-cream/65">This build isn't connected to a server, so you can't see {what}.</p>
   }
   return (
     <div className="clay rounded-3xl p-5 text-center">

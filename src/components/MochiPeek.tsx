@@ -1,7 +1,7 @@
 // Mochi lives around the edge of the Learn card: every so often Mochi peeks up from behind the
 // card's bottom edge, strolls along it, or leans in from the side, and pops up to cheer a run
 // of right answers. Tap Mochi while peeking for a line. Hidden with Reduce motion.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Cat } from '../art/Companions'
 
@@ -19,11 +19,13 @@ type Act = { kind: 'peek' | 'walk' | 'side'; x: number; flip: boolean; cheer?: s
 const rand = (a: number, b: number) => a + Math.random() * (b - a)
 const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)]
 
-/** `cheer` changes when there's something to celebrate (a run of right answers). */
-export function MochiPeek({ cheer, off }: { cheer: number; off: boolean }) {
+/** `cheer` changes when there's something to celebrate (a run of right answers). `scroller` is the
+ *  feed, so Mochi can ride along with the card Mochi appeared on. */
+export function MochiPeek({ cheer, off, scroller }: { cheer: number; off: boolean; scroller: RefObject<HTMLElement> }) {
   const [act, setAct] = useState<Act | null>(null)
   const [line, setLine] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>()
+  const layer = useRef<HTMLDivElement>(null)
 
   // the next visit, a while after the last one ends
   const later = (ms: number) => {
@@ -54,6 +56,23 @@ export function MochiPeek({ cheer, off }: { cheer: number; off: boolean }) {
   }, [line])
 
   const done = () => { setAct(null); setLine(null); later(rand(18000, 40000)) }
+
+  // Mochi sits on the card Mochi appeared on: when the feed scrolls, Mochi moves with that card
+  // (set straight on the style, no re-render per frame) and leaves once the card is off screen.
+  useEffect(() => {
+    const el = scroller.current, box = layer.current
+    if (!act || !el || !box) return
+    const base = el.scrollTop
+    const onScroll = () => {
+      const d = el.scrollTop - base
+      box.style.transform = d ? `translateY(${-d}px)` : ''
+      if (Math.abs(d) >= el.clientHeight) done()
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => { el.removeEventListener('scroll', onScroll); box.style.transform = '' }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [act?.key])
+
   if (off) return null
 
   const bubble = (text: string) => (
@@ -64,7 +83,8 @@ export function MochiPeek({ cheer, off }: { cheer: number; off: boolean }) {
   )
 
   return (
-    <>
+    // clipped to the feed, so Mochi riding a card down never lands on the tab bar
+    <div ref={layer} className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
       {/* bottom edge of the card: Mochi rises from behind it, or walks along it */}
       <div className="pointer-events-none absolute inset-x-4 bottom-2 z-20 h-32 overflow-hidden rounded-b-[28px]" aria-hidden={!act}>
         <AnimatePresence>
@@ -109,6 +129,6 @@ export function MochiPeek({ cheer, off }: { cheer: number; off: boolean }) {
           )}
         </AnimatePresence>
       </div>
-    </>
+    </div>
   )
 }
