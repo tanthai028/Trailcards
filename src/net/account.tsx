@@ -8,7 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { EmailOtpType, SupabaseClient } from '@supabase/supabase-js'
 import { useGame } from '../state/store'
 import { parseStoredSave } from '../state/storage'
-import type { GameState } from '../state/game'
+import { initialState, type GameState } from '../state/game'
 import { errorText, getClient, online } from './client'
 
 export type AccountStatus = 'offline' | 'loading' | 'signedOut' | 'needsInvite' | 'member'
@@ -94,7 +94,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     const sb = client, id = uid.current
     if (!sb || !id || !ready.current) return
     const s = latest.current
-    await sb.from('progress').upsert({ user_id: id, state: forServer(s), updated_at: new Date().toISOString() })
+    const { error: saveError } = await sb.from('progress').upsert({ user_id: id, state: forServer(s), updated_at: new Date().toISOString() })
+    // signing out needs to know this landed before it clears the device
+    if (saveError) throw new Error(errorText(saveError))
     // XP since the last send goes to the board (the server caps it)
     const sent = Number(memo.get(id, 'xp') ?? s.xp)
     let gain = s.xp - sent
@@ -203,11 +205,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (error) throw new Error(errorText(error))
       await loadMember(client!, uid.current!)
     },
+    // Save to the server first, and stop if that fails. Then the device goes back to a fresh
+    // guest (keeping its sound, haptics and motion settings), so nothing of the account shows;
+    // signing in again brings the progress back down.
     signOut: async () => {
-      await flush()
+      await pushing.current
+      await push().catch(() => { throw new Error("Couldn't save your progress first. Check your connection and try again.") })
       await client?.auth.signOut()
+      const s = latest.current
+      restore({ ...initialState(), sound: s.sound, haptics: s.haptics, reduceMotion: s.reduceMotion, tips: s.tips })
     },
-  }), [status, email, me, client, loadMember, uid, flush])
+  }), [status, email, me, client, loadMember, uid, push, restore])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

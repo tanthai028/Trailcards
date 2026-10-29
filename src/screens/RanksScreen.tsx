@@ -1,5 +1,5 @@
 // The group leaderboard: XP this week (resets Monday) or all time.
-// Lives inside the Group tab, which handles the title and signing in.
+// Lives inside the Friends tab, which handles the title and signing in.
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAccount, type Member } from '../net/account'

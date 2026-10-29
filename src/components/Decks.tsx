@@ -76,7 +76,7 @@ export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {
         aria-label={`Studying ${active?.name ?? 'Field notes'}. Change deck`}
         className="group flex max-w-full items-start gap-1.5 text-left"
       >
-        <span className={`line-clamp-3 font-display font-bold leading-[1.15] text-cream [overflow-wrap:anywhere] [text-shadow:0_1px_3px_rgba(20,12,40,.55)] ${titleSize(active?.name ?? '')}`}>{active?.name ?? 'Field notes'}</span>
+        <span className={`line-clamp-3 font-display font-bold leading-[1.15] text-cream [overflow-wrap:anywhere] [text-shadow:0_1px_2px_rgba(20,12,40,.75),0_0_14px_rgba(20,12,40,.5)] ${titleSize(active?.name ?? '')}`}>{active?.name ?? 'Field notes'}</span>
         <Icon name="chevron" size={16} strokeWidth={3} className="mt-1.5 shrink-0 text-cream/70 drop-shadow transition-colors group-hover:text-cream" />
       </button>
 
@@ -314,7 +314,7 @@ function ShareDeck({ deck }: { deck: UserDeck }) {
     const { data, error } = await client!.from('shared_decks').insert({ ...row, owner: me!.id }).select('id').single()
     if (error) throw error
     updateDeck(deck.id, { sharedId: data.id })
-    return 'Shared. Your group can find it under Group › Shared decks.'
+    return 'Shared. Your group can find it under Friends › Shared decks.'
   })
   const unshare = () => run(async () => {
     const { error } = await client!.from('shared_decks').delete().eq('id', deck.sharedId!)
@@ -327,7 +327,7 @@ function ShareDeck({ deck }: { deck: UserDeck }) {
     <div className="clay mt-4 rounded-2xl p-3">
       <p className="text-sm font-extrabold">{deck.sharedId ? 'Shared with your group' : 'Share with your group'}</p>
       <p className="mt-0.5 text-xs text-cream/55">
-        {deck.sharedId ? 'Friends see it under Group › Shared decks. Changes you make here go out when you update it.' : 'Friends can find it under Group › Shared decks and add their own copy. Your progress stays private.'}
+        {deck.sharedId ? 'Friends see it under Friends › Shared decks. Changes you make here go out when you update it.' : 'Friends can find it under Friends › Shared decks and add their own copy. Your progress stays private.'}
       </p>
       {status !== 'member' ? (
         <button onClick={() => setJoining(true)} className="clay-btn clay-cream mt-2.5 min-h-11 w-full text-sm">Join your group to share</button>

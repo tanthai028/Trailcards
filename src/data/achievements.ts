@@ -32,7 +32,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'first-deck', name: 'Deck Builder', title: 'Deck Builder', desc: 'Make or import your own deck.', icon: 'book' },
   { id: 'decks-5', name: 'Librarian', title: 'Librarian', desc: 'Have 5 decks of your own.', icon: 'cloud' },
   { id: 'share-deck', name: 'Generous', title: 'Generous', desc: 'Share a deck with your group.', icon: 'heart' },
-  { id: 'explorer', name: 'Explorer', title: 'Explorer', desc: 'Add a deck a friend shared in Group.', icon: 'compass' },
+  { id: 'explorer', name: 'Explorer', title: 'Explorer', desc: 'Add a deck a friend shared in Friends.', icon: 'compass' },
   // when you study
   { id: 'night-owl', name: 'Night Owl', title: 'Night Owl', desc: 'Study between midnight and 4 am.', icon: 'moon' },
   { id: 'early-bird', name: 'Early Bird', title: 'Early Bird', desc: 'Study between 5 and 7 am.', icon: 'sun' },

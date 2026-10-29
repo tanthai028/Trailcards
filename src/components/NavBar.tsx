@@ -6,14 +6,15 @@ export type Tab = 'feed' | 'review' | 'group' | 'profile'
 const ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: 'feed', label: 'Learn', icon: 'feed' },
   { id: 'review', label: 'Review', icon: 'refresh' },
-  { id: 'group', label: 'Group', icon: 'trophy' },
+  { id: 'group', label: 'Friends', icon: 'trophy' },
   { id: 'profile', label: 'Profile', icon: 'profile' },
 ]
 
-/** The home-indicator strip can't hold buttons, so it's a little road with two pines. */
+/** The home-indicator strip can't hold buttons, so it's a little road with two pines. It only
+ *  takes part of the inset: the indicator sits low, and the full inset left a tall empty band. */
 function Road() {
   return (
-    <div className="relative -mx-3 mt-1.5 h-[max(12px,calc(env(safe-area-inset-bottom)-4px))] overflow-hidden" aria-hidden="true">
+    <div className="relative -mx-3 mt-0.5 h-[max(8px,calc(env(safe-area-inset-bottom)-14px))] overflow-hidden" aria-hidden="true">
       <div
         className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 opacity-30"
         style={{ backgroundImage: 'repeating-linear-gradient(90deg, var(--color-gold) 0 14px, transparent 14px 26px)' }}
@@ -30,7 +31,7 @@ function Road() {
 /** `due`: cards waiting in Review, shown as a count on its tab. */
 export function NavBar({ tab, onTab, due = 0 }: { tab: Tab; onTab: (t: Tab) => void; due?: number }) {
   return (
-    <nav className="relative z-20 touch-none border-t border-white/8 bg-ink px-3 pt-2" aria-label="Main">
+    <nav className="relative z-20 touch-none border-t border-white/8 bg-ink px-3 pt-1" aria-label="Main">
       <ul className="grid grid-cols-4 gap-1">
         {ITEMS.map((it) => {
           const active = tab === it.id
@@ -40,7 +41,7 @@ export function NavBar({ tab, onTab, due = 0 }: { tab: Tab; onTab: (t: Tab) => v
                 onClick={() => onTab(it.id)}
                 data-tour={it.id === 'review' ? 'review' : undefined}
                 aria-current={active ? 'page' : undefined}
-                className={`relative flex w-full flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-bold leading-4 transition-colors duration-200 ${active ? 'text-ink' : 'text-cream/60 hover:text-cream'}`}
+                className={`relative flex w-full flex-col items-center gap-0.5 rounded-2xl py-1 text-[11px] font-bold leading-4 transition-colors duration-200 ${active ? 'text-ink' : 'text-cream/60 hover:text-cream'}`}
               >
                 {active && (
                   <motion.span layoutId="nav-pill" className="clay-pill absolute inset-0 rounded-2xl" transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.8 }} />

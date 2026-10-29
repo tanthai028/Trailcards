@@ -1,8 +1,7 @@
 // Choose your picture: upload a photo (squared and shrunk on the device) or pick an icon,
 // then a frame: a ring in any colour, or a special one you've unlocked.
 import { useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
-import { motion } from 'framer-motion'
+import { Sheet } from './Sheet'
 import { useGame } from '../state/store'
 import { frameUnlocked, isUnlocked } from '../state/game'
 import { AVATARS, FRAME_COLORS, FRAMES, type Frame, type FrameUnlock } from '../data/avatars'
@@ -49,16 +48,11 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
   const [ringList, ringsMore] = useMore(rings, 6, (r) => state.frame === r)
   const [frames, framesMore] = useMore(FRAMES, 3, (f) => state.frame === f.id)
 
-  return createPortal(
-    <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/60 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-      <motion.div
-        role="dialog" aria-modal="true" aria-label="Customize"
-        onClick={(e) => e.stopPropagation()}
-        initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40, transition: { duration: 0.12 } }}
-        transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-        className="clay no-scrollbar max-h-[88vh] w-full max-w-[480px] overflow-y-auto rounded-t-[28px] px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 text-cream"
-      >
-        <span className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-white/20" aria-hidden="true" />
+  return (
+    <Sheet
+      label="Customize"
+      onClose={onClose}
+      header={
         <div className="flex items-center gap-4">
           <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="size-20" />
           <div className="min-w-0 flex-1">
@@ -66,12 +60,14 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
             <p className="text-xs text-cream/55">Your picture, frame, title and Learn cards. Study to unlock more.</p>
           </div>
         </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
+      }
+    >
+        {/* Remove only shows once there's a photo to remove */}
+        <div className={`grid gap-2 ${state.photo ? 'grid-cols-2' : ''}`}>
           <button onClick={() => file.current?.click()} className="clay-btn clay-butter flex min-h-12 items-center justify-center gap-2 text-sm">
             <Icon name="profile" size={16} /> Upload photo
           </button>
-          <button onClick={() => setPhoto(null)} disabled={!state.photo} className="clay-btn clay-plum min-h-12 text-sm disabled:opacity-40">Remove photo</button>
+          {state.photo && <button onClick={() => setPhoto(null)} className="clay-btn clay-plum min-h-12 text-sm">Remove photo</button>}
         </div>
         <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} />
         {error && <p role="alert" className="mt-2 text-xs font-bold text-coral">{error}</p>}
@@ -145,9 +141,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
             )} />
         </Section>
         <button onClick={onClose} className="clay-btn clay-cream mt-5 min-h-12 w-full text-[15px]">Done</button>
-      </motion.div>
-    </motion.div>,
-    document.body,
+    </Sheet>
   )
 }
 

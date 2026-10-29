@@ -85,6 +85,10 @@ function Feed({ mode, setMode, go }: FeedProps) {
     const t = setTimeout(() => setUndo(null), 6000)
     return () => clearTimeout(t)
   }, [undo])
+  // Undo belongs to the card it answered: swiping on drops it
+  useEffect(() => {
+    if (undo && undo.i !== active) setUndo(null)
+  }, [active, undo])
   const takeBack = () => {
     if (!undo) return
     undoAnswer(undo.before)
@@ -294,7 +298,8 @@ function Feed({ mode, setMode, go }: FeedProps) {
         active={active}
         reviewDue={counts.review}
         mode={mode}
-        lift={!!undo}
+        lift={!!undo && undo.i === active}
+        answeredHere={!!answers[active]}
         dismiss={dismissTip}
         onReview={() => setMode('review')}
       />
@@ -330,7 +335,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
       <MochiPeek cheer={cheer} off={reduced || mode === 'saved'} scroller={scroller} />
       {/* bottom-left of the card, clear of the save button on the right */}
       <AnimatePresence>
-        {undo && (
+        {undo && undo.i === active && (
           <motion.button
             key={undo.key}
             onClick={takeBack}
@@ -401,7 +406,7 @@ function FeedCard({
     .filter(({ i }) => !result || i === card.answerIndex || i === choice)
 
   return (
-    <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-paper text-ink shadow-[0_20px_50px_-20px_rgba(0,0,0,.6)]">
+    <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-paper text-ink">
       <div className="grain relative h-[23%] min-h-[116px] shrink-0 overflow-hidden">
         {/* drifts at a fraction of the card's speed while swiping, so the scene feels deeper than the card */}
         <div className="parallax absolute inset-0" style={{ transform: `translateY(calc((var(--p, ${index}) - ${index}) * 46px)) scale(1.25)` }}>
@@ -410,8 +415,6 @@ function FeedCard({
         {/* your card theme, only on the card in view */}
         {live && <CardFx fx={state.cosmetics?.card ?? 'none'} />}
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-paper to-transparent" />
-        {/* keeps the deck name and your picture readable on light skies */}
-        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-ink/65 via-ink/25 to-transparent" />
       </div>
 
       {/* bottom-right, clear of the answers: the text area below keeps room for it */}
@@ -794,8 +797,8 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
  * Review the first time something is due. Each is shown once. Anyone who has been through the
  * Learn tour already knows the basics, so they only get the Review one.
  */
-function Coach({ tips, answered, active, reviewDue, mode, lift, dismiss, onReview }: {
-  tips: string[]; answered: number; active: number; reviewDue: number; mode: FeedMode; lift: boolean
+function Coach({ tips, answered, active, reviewDue, mode, lift, answeredHere, dismiss, onReview }: {
+  tips: string[]; answered: number; active: number; reviewDue: number; mode: FeedMode; lift: boolean; answeredHere: boolean
   dismiss: (id: string) => void; onReview: () => void
 }) {
   const seen = (id: string) => tips.includes(id)
@@ -807,7 +810,7 @@ function Coach({ tips, answered, active, reviewDue, mode, lift, dismiss, onRevie
 
   let tip: { id: string; text: string; swipe?: boolean; action?: { label: string; run: () => void } } | null = null
   const basics = mode === 'discover' && !seen('tour-learn')
-  if (basics && answered > 0 && active === 0 && !seen('coach-swipe')) tip = { id: 'coach-swipe', text: 'Swipe up for the next card.', swipe: true }
+  if (basics && answeredHere && active === 0 && !seen('coach-swipe')) tip = { id: 'coach-swipe', text: 'Swipe up for the next card.', swipe: true }
   else if (basics && answered >= 3 && !seen('coach-goal')) tip = { id: 'coach-goal', text: 'Right answers fill the ring on your level badge. 10 a day builds your streak.' }
   else if (basics && answered >= 8 && !seen('coach-deck')) tip = { id: 'coach-deck', text: 'Tap the deck name up top to switch decks, or make one with AI.' }
   else if (reviewDue > 0 && mode !== 'review' && !seen('coach-review')) tip = { id: 'coach-review', text: `${reviewDue} card${reviewDue === 1 ? '' : 's'} due for review.`, action: { label: 'Review now', run: onReview } }

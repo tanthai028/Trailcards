@@ -1,4 +1,4 @@
-// Your study group: the leaderboard and the decks friends shared, behind one sign-in.
+// The Friends tab, your study group: the leaderboard and the decks friends shared, behind one sign-in.
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAccount } from '../net/account'
@@ -19,9 +19,9 @@ export function GroupScreen({ go }: { go: (t: Tab) => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="mb-3 flex items-center justify-between gap-3 px-4">
-        <h1 className="font-display text-3xl font-bold">Group</h1>
+        <h1 className="font-display text-3xl font-bold">Friends</h1>
         {member && (
-          <div role="tablist" aria-label="Group" className="flex rounded-full clay p-1">
+          <div role="tablist" aria-label="Friends" className="flex rounded-full clay p-1">
             {PARTS.map(([p, label]) => (
               <button key={p} role="tab" aria-selected={part === p} onClick={() => setPart(p)}
                 className={`relative min-h-8 rounded-full px-3 text-xs font-extrabold ${part === p ? 'text-ink' : 'text-cream/60'}`}>

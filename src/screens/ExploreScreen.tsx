@@ -1,5 +1,5 @@
 // Decks your group has shared: search them, preview one, and add a copy to your own decks.
-// Lives inside the Group tab, which handles the title and signing in.
+// Lives inside the Friends tab, which handles the title and signing in.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'

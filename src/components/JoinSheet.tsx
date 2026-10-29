@@ -87,7 +87,7 @@ export function JoinSheet({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** Shown on the Group tab before you've joined. */
+/** Shown on the Friends tab before you've joined. */
 export function JoinPrompt({ what, onJoin }: { what: string; onJoin: () => void }) {
   const { status } = useAccount()
   if (status === 'offline') {

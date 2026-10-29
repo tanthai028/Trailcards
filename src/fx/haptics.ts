@@ -1,6 +1,7 @@
 // Haptic taps. Android: the Vibration API. iPhone: Safari has no vibration API, but toggling a
 // native switch (<input type="checkbox" switch>, iOS 18+) plays the system tick, so a hidden
-// one is toggled from inside the tap. Elsewhere this does nothing.
+// one is toggled from inside the tap. The first tick has to run right inside the tap itself:
+// Safari drops it if it comes from a timer. Elsewhere this does nothing.
 
 export type Haptic = 'light' | 'success' | 'error' | 'heavy'
 
@@ -13,22 +14,19 @@ const PATTERN: Record<Haptic, number | number[]> = { light: 8, success: [10, 50,
 // iPhone taps per kind, and the gap between them
 const TICKS: Record<Haptic, number> = { light: 1, success: 2, error: 3, heavy: 1 }
 
-let label: HTMLLabelElement | null = null
+// A fresh switch inside its label for every tick, clicked and removed, the way that's known to
+// reach the iOS haptic engine (a reused, off-screen one can go quiet).
 function iosTick() {
-  if (!label) {
-    const input = document.createElement('input')
-    input.type = 'checkbox'
-    input.id = 'cq-haptic'
-    input.setAttribute('switch', '')
-    label = document.createElement('label')
-    label.htmlFor = input.id
-    for (const el of [input, label]) {
-      el.setAttribute('aria-hidden', 'true')
-      el.style.cssText = 'position:fixed;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none'
-      document.body.appendChild(el)
-    }
-  }
+  const label = document.createElement('label')
+  label.setAttribute('aria-hidden', 'true')
+  label.style.display = 'none'
+  const input = document.createElement('input')
+  input.type = 'checkbox'
+  input.setAttribute('switch', '')
+  label.appendChild(input)
+  document.head.appendChild(label)
   label.click()
+  label.remove()
 }
 
 export function haptic(kind: Haptic) {
@@ -37,5 +35,6 @@ export function haptic(kind: Haptic) {
     navigator.vibrate(PATTERN[kind])
     return
   }
-  for (let i = 0; i < TICKS[kind]; i++) setTimeout(iosTick, i * 90)
+  iosTick()
+  for (let i = 1; i < TICKS[kind]; i++) setTimeout(iosTick, i * 90)
 }

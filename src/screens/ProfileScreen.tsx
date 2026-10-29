@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { Sheet } from '../components/Sheet'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../state/store'
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements'
@@ -175,7 +175,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
 
       <AnimatePresence>{picture && <PictureSheet onClose={() => setPicture(false)} />}</AnimatePresence>
 
-      <AccountRow />
+      <AccountRow go={go} />
       <AnimatePresence>{settings && <SettingsSheet onClose={() => setSettings(false)} go={go} />}</AnimatePresence>
 
     </div>
@@ -186,27 +186,15 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
 function SettingsSheet({ onClose, go }: { onClose: () => void; go: (t: Tab, m?: FeedMode) => void }) {
   const { state, reset, setReduceMotion, setSound, setHaptics, restore } = useGame()
   const [confirmReset, setConfirmReset] = useState(false)
-  return createPortal(
-    <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/60 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-      <motion.div
-        role="dialog" aria-modal="true" aria-label="Settings"
-        onClick={(e) => e.stopPropagation()}
-        initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40, transition: { duration: 0.12 } }}
-        transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-        className="clay no-scrollbar max-h-[88vh] w-full max-w-[480px] overflow-y-auto rounded-t-[28px] px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 text-cream"
-      >
-        <span className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-white/20" aria-hidden="true" />
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-2xl font-bold">Settings</h2>
-          <button onClick={onClose} aria-label="Close settings" className="grid size-10 place-items-center rounded-full text-cream/60 hover:text-cream"><Icon name="x" size={18} /></button>
-        </div>
+  return (
+    <Sheet label="Settings" onClose={onClose} header={<h2 className="font-display text-2xl font-bold">Settings</h2>}>
           <button onClick={() => { tourReplay.on = true; go('feed') }} className="clay flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 text-left">
             <Icon name="spark" size={16} className="text-gold" />
             <span className="flex-1 text-sm font-extrabold">Replay the Learn tour</span>
             <Icon name="chevron" size={14} className="-rotate-90 text-cream/40" />
           </button>
           <Toggle label="Sound" hint="Chimes on answers and a soft swish between cards. On iPhone, the silent switch mutes them." on={state.sound} onChange={setSound} className="mt-2" />
-          <Toggle label="Haptics" hint="A little tap on answers, on phones that support it." on={state.haptics} onChange={setHaptics} className="mt-2" />
+          <Toggle label="Haptics" hint="Taps on answers: two for right, three for wrong. iPhone needs iOS 18 or later." on={state.haptics} onChange={setHaptics} className="mt-2" />
           <button
             onClick={() => setReduceMotion(!state.reduceMotion)}
             role="switch"
@@ -240,9 +228,8 @@ function SettingsSheet({ onClose, go }: { onClose: () => void; go: (t: Tab, m?: 
             )}
             <p className="mt-2 text-[11px] text-cream/30">Progress saves automatically on this device.</p>
           </div>
-      </motion.div>
-    </motion.div>,
-    document.body,
+          <button onClick={onClose} className="clay-btn clay-cream mt-5 min-h-12 w-full text-[15px]">Done</button>
+    </Sheet>
   )
 }
 
@@ -310,12 +297,14 @@ function Backup({ state, onRestore }: { state: GameState; onRestore: (s: GameSta
 }
 
 /** Signed in or not: sign in to sync and join the board, or sign out. */
-function AccountRow() {
+function AccountRow({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
   const { status, email, signOut } = useAccount()
   const [joining, setJoining] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   if (status === 'offline' || status === 'loading') return null
   return (
-    <div className="clay mt-8 flex min-h-12 items-center gap-3 rounded-2xl px-4 py-3">
+    <div className="clay mt-8 flex min-h-12 flex-wrap items-center gap-3 rounded-2xl px-4 py-3">
       <Icon name="profile" size={16} className="shrink-0 text-gold" />
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-extrabold">{status === 'member' ? 'Synced with your group' : status === 'needsInvite' ? 'Waiting for an invite code' : 'Not signed in'}</span>
@@ -324,8 +313,19 @@ function AccountRow() {
       {status === 'signedOut' || status === 'needsInvite' ? (
         <button onClick={() => setJoining(true)} className="clay-btn clay-butter min-h-10 shrink-0 px-3 text-xs">{status === 'signedOut' ? 'Sign in' : 'Enter code'}</button>
       ) : (
-        <button onClick={() => void signOut()} className="clay-btn clay-plum min-h-10 shrink-0 px-3 text-xs">Sign out</button>
+        <button
+          disabled={leaving}
+          onClick={() => {
+            setLeaving(true); setError(null)
+            // back to the start: the welcome screen shows over Learn
+            signOut().then(() => go('feed', 'discover'), (e: Error) => setError(e.message)).finally(() => setLeaving(false))
+          }}
+          className="clay-btn clay-plum min-h-10 shrink-0 px-3 text-xs disabled:opacity-50"
+        >
+          {leaving ? 'Saving…' : 'Sign out'}
+        </button>
       )}
+      {error && <p role="alert" className="basis-full text-xs font-bold text-coral">{error}</p>}
       <AnimatePresence>{joining && <JoinSheet onClose={() => setJoining(false)} />}</AnimatePresence>
     </div>
   )
