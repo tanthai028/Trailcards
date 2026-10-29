@@ -11,7 +11,8 @@ import { haptic } from '../fx/haptics'
 /** Toasts (achievements, streaks, small notes) and the level-up celebration. */
 export function EventLayer() {
   const { events, dismiss, state } = useGame()
-  const toasts = events.filter((e) => e.kind !== 'levelUp').slice(0, 3)
+  // one at a time; the rest wait their turn
+  const toasts = events.filter((e) => e.kind !== 'levelUp').slice(0, 1)
   const levelUp = events.find((e) => e.kind === 'levelUp') as Extract<GameEvent, { kind: 'levelUp' }> | undefined
 
   useEffect(() => {
@@ -26,7 +27,8 @@ export function EventLayer() {
 
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 top-16 z-40 flex flex-col items-center gap-2 px-4" aria-live="polite">
+      {/* every toast sits in the same grid cell, so one fading out overlaps the next instead of stacking */}
+      <div className="pointer-events-none absolute inset-x-0 top-16 z-40 grid justify-items-center px-4 [&>*]:col-start-1 [&>*]:row-start-1" aria-live="polite">
         <AnimatePresence>
           {toasts.map((e) => <Toast key={e.id} e={e} onDone={() => dismiss(e.id)} />)}
         </AnimatePresence>
@@ -108,11 +110,10 @@ function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
   }
   return (
     <motion.div
-      layout
       initial={{ opacity: 0, y: -16, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-      className="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-3xl bg-ink-2/95 px-3 py-2.5 text-cream shadow-xl ring-1 ring-white/15 backdrop-blur"
+      exit={{ opacity: 0, y: -10, scale: 0.95, transition: { duration: 0.15 } }}
+      className="pointer-events-auto flex w-fit max-w-[19rem] items-center gap-3 rounded-3xl bg-ink-2/95 px-3 py-2.5 text-cream shadow-xl ring-1 ring-white/15 backdrop-blur"
       onClick={onDone}
     >
       {body}

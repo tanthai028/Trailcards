@@ -64,9 +64,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(s)
   }, [])
 
+  // No toast spam: a new plain note replaces the one waiting (tapping save five times shows one
+  // note, not five), and the same note isn't queued twice. Trophies and streaks still queue.
   const push = useCallback((evs: NewEvent[]) => {
     if (!evs.length) return
-    setEvents((cur) => [...cur, ...evs.map((e) => ({ ...e, id: nextId.current++ }) as GameEvent)])
+    setEvents((cur) => {
+      let next = cur
+      for (const e of evs) {
+        if (e.kind === 'toast') {
+          if (next.some((x) => x.kind === 'toast' && x.text === e.text)) continue
+          next = next.filter((x) => x.kind !== 'toast')
+        }
+        next = [...next, { ...e, id: nextId.current++ } as GameEvent]
+      }
+      return next
+    })
   }, [])
 
   const pushAch = useCallback((ids: string[]) => push(ids.map((achId) => ({ kind: 'achievement' as const, achId }))), [push])
