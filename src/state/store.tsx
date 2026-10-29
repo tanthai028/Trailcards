@@ -30,7 +30,6 @@ interface Store {
   setPhoto: (photo: string | null) => void
   setReduceMotion: (on: boolean) => void
   setSound: (on: boolean) => void
-  setHaptics: (on: boolean) => void
   importDeck: (name: string, cards: DeckCard[], opts?: Partial<Pick<UserDeck, 'topic' | 'scene' | 'reverse' | 'origin'>>) => void
   deleteDeck: (id: string) => void
   renameDeck: (id: string, name: string) => void
@@ -53,8 +52,8 @@ interface Store {
 const Ctx = createContext<Store | null>(null)
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  // background shuffle: a new pick from your chosen ones each time the app opens
-  const [state, setState] = useState<G.GameState>(() => G.shuffleBg(localSave.load() ?? G.initialState()))
+  // card theme shuffle: a new pick from your chosen ones each time the app opens
+  const [state, setState] = useState<G.GameState>(() => G.shuffleCard(localSave.load() ?? G.initialState()))
   const [events, setEvents] = useState<GameEvent[]>([])
   const stateRef = useRef(state)
   stateRef.current = state
@@ -174,7 +173,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setActiveDeck: (id) => commit({ ...stateRef.current, activeDeck: id, deckChosen: true }),
       setReduceMotion: (on) => commit({ ...stateRef.current, reduceMotion: on }),
       setSound: (on) => commit({ ...stateRef.current, sound: on }),
-      setHaptics: (on) => commit({ ...stateRef.current, haptics: on }),
       setName: (name) => commit({ ...stateRef.current, name: name.trim().slice(0, 20) || 'Wanderer' }),
       setTitle: (title) => commit({ ...stateRef.current, title }),
       finishOnboarding: (name, avatar) =>

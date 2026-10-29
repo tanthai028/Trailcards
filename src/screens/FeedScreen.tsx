@@ -14,7 +14,6 @@ import { Cat } from '../art/Companions'
 import { Icon } from '../components/Icon'
 import { burst } from '../fx/FxLayer'
 import { playChime, playCorrect, playSwipe, playWrong } from '../fx/sound'
-import { haptic } from '../fx/haptics'
 import type { Tab } from '../components/NavBar'
 
 export type FeedMode = 'discover' | 'review' | 'saved'
@@ -93,7 +92,6 @@ function Feed({ mode, setMode, go }: FeedProps) {
     if (!undo) return
     undoAnswer(undo.before)
     playChime(0)
-    haptic('light')
     setStreak(undo.streak)
     setAnswers((a) => { const { [undo.i]: _gone, ...rest } = a; return rest })
     setUndo(null)
@@ -111,7 +109,6 @@ function Feed({ mode, setMode, go }: FeedProps) {
     if (result.correct && (run === 3 || run === 5 || run % 10 === 0)) setCheer(Date.now())
     setStreak(run)
     setAnswers((a) => ({ ...a, [i]: { choice, result, streak: run } }))
-    haptic(result.correct ? 'success' : result.partial ? 'light' : 'error')
     if (result.correct) {
       playCorrect(run)
       // A beat later, from where the picked answer has landed: the list swaps on answering, so

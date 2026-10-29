@@ -96,8 +96,8 @@ export const cleanAvatar = (v: unknown) => (typeof v === 'string' && AVATAR_BY_I
 export function cleanCosmetics(v: unknown): GameState['cosmetics'] {
   const r = isObj(v) ? v : {}
   const pick = (list: typeof PIC_BGS, id: unknown) => (known(list, id) ? (id as string) : 'none')
-  const shuffle = Array.isArray(r.bgShuffle) ? [...new Set(r.bgShuffle.filter((id) => known(PIC_BGS, id)) as string[])] : []
-  return { bg: pick(PIC_BGS, r.bg), card: pick(CARD_FX, r.card), title: pick(TITLE_FX, r.title), ...(shuffle.length ? { bgShuffle: shuffle } : {}) }
+  const shuffle = Array.isArray(r.cardShuffle) ? [...new Set(r.cardShuffle.filter((id) => known(CARD_FX, id)) as string[])] : []
+  return { bg: pick(PIC_BGS, r.bg), card: pick(CARD_FX, r.card), title: pick(TITLE_FX, r.title), ...(shuffle.length ? { cardShuffle: shuffle } : {}) }
 }
 
 /** A known frame, or none. */
@@ -142,7 +142,6 @@ export function sanitize(raw: Raw): GameState {
     photo: photo(raw.photo),
     reduceMotion: bool(raw.reduceMotion, base.reduceMotion),
     sound: bool(raw.sound, base.sound),
-    haptics: bool(raw.haptics, base.haptics),
     daily: { day: str(daily.day, ''), count: Math.floor(num(daily.count, 0, 0)) },
     streak: {
       days: Math.floor(num(streak.days, 0, 0)),

@@ -11,6 +11,18 @@ export function CardFx({ fx }: { fx: string }) {
   if (fx === 'none') return null
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      {fx === 'sparkles' && SPOTS.map(([x, d], i) => (
+        <span key={i} className="cq-twinkle fx-particle" style={{ left: `${x}%`, top: `${15 + ((i * 41) % 65)}%`, width: 4, height: 4, background: '#fff7d1', boxShadow: '0 0 6px 2px rgba(255,236,160,.8)', animationDelay: `${-d}s` }} />
+      ))}
+      {fx === 'clouds' && [[22, 0, 26], [48, 9, 32], [12, 17, 28]].map(([top, d, t], i) => (
+        <span key={i} className="fx-cloud fx-particle" style={{ top: `${top}%`, width: 70 + i * 14, height: 22 + i * 4, borderRadius: 999, background: 'rgba(255,255,255,.75)', filter: 'blur(3px)', animationDuration: `${t}s`, animationDelay: `${-d}s` }} />
+      ))}
+      {fx === 'leaves' && SPOTS.slice(0, 8).map(([x, d, t], i) => (
+        <span key={i} className="fx-particle fx-fall" style={{ left: `${x}%`, top: 0, width: 10, height: 7, borderRadius: '80% 0 80% 0', background: ['#f5a742', '#d9632b', '#9bbf4a', '#e8c547'][i % 4], animationDuration: `${t * 1.25}s`, animationDelay: `${-d}s` }} />
+      ))}
+      {fx === 'rain' && [...SPOTS, ...SPOTS.map(([x, d, t, s]) => [x + 5, d + 0.7, t, s] as const)].map(([x, d, t], i) => (
+        <span key={i} className="fx-particle fx-fall" style={{ left: `${x}%`, top: 0, width: 1.5, height: 12, borderRadius: 2, background: 'rgba(225,240,255,.7)', animationDuration: `${t / 6}s`, animationDelay: `${-d / 3}s` }} />
+      ))}
       {fx === 'fireflies' && SPOTS.map(([x, d, t, s], i) => (
         <span key={i} className="fx-particle fx-drift" style={{ left: `${x}%`, top: `${25 + ((i * 37) % 55)}%`, width: s + 1, height: s + 1, background: '#fff6b0', boxShadow: '0 0 8px 3px rgba(255,236,140,.75)', animationDuration: `${t / 2.5}s`, animationDelay: `${-d}s` }} />
       ))}

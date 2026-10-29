@@ -7,7 +7,6 @@ import { EventLayer } from './components/EventLayer'
 import { InstallHint, shouldShowInstallHint } from './components/InstallHint'
 import { FxLayer } from './fx/FxLayer'
 import { setSoundEnabled } from './fx/sound'
-import { setHapticsEnabled } from './fx/haptics'
 import { FeedScreen, type FeedMode } from './screens/FeedScreen'
 import { JoinSheet } from './components/JoinSheet'
 
@@ -45,7 +44,6 @@ export default function App() {
     document.documentElement.toggleAttribute('data-reduce-motion', state.reduceMotion)
   }, [state.reduceMotion])
   useEffect(() => setSoundEnabled(state.sound), [state.sound])
-  useEffect(() => setHapticsEnabled(state.haptics), [state.haptics])
 
   useEffect(() => {
     const onHash = () => setTab(readHash())

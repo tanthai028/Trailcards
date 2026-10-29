@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   answerCard, currentStreak, DAILY_GOAL, findCard, initialState, INTERVALS, isDue, levelInfo,
-  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, feedCards, isRecall, undoAnswer, comebacks, shuffleBg, type GameState,
+  reviewQueue, sourceCards, todayCount, studyQueue, practiceBatch, frameUnlocked, feedCards, isRecall, undoAnswer, comebacks, shuffleCard, type GameState,
 } from './game'
 import { CARDS } from '../data/cards'
 import { deckFeedCards, parseDeck, type UserDeck } from '../data/decks'
@@ -292,14 +292,14 @@ describe('habit and effort trophies', () => {
   })
 })
 
-describe('background shuffle', () => {
-  it('picks another unlocked background from your picks, and leaves locked ones out', () => {
-    // level 2 opens Meadow; Sky needs level 3
-    const s: GameState = { ...initialState(), xp: 120, cosmetics: { bg: 'none', card: 'none', title: 'none', bgShuffle: ['none', 'meadow', 'sky'] } }
-    for (let i = 0; i < 20; i++) expect(shuffleBg(s).cosmetics.bg).toBe('meadow')
+describe('card theme shuffle', () => {
+  it('picks another unlocked theme from your picks, and leaves locked ones out', () => {
+    // level 2 opens Fireflies; Leaves needs level 3
+    const s: GameState = { ...initialState(), xp: 120, cosmetics: { bg: 'none', card: 'none', title: 'none', cardShuffle: ['none', 'fireflies', 'leaves'] } }
+    for (let i = 0; i < 20; i++) expect(shuffleCard(s).cosmetics.card).toBe('fireflies')
   })
   it('does nothing with fewer than two picks', () => {
-    const s: GameState = { ...initialState(), cosmetics: { bg: 'none', card: 'none', title: 'none', bgShuffle: ['none'] } }
-    expect(shuffleBg(s)).toBe(s)
+    const s: GameState = { ...initialState(), cosmetics: { bg: 'none', card: 'none', title: 'none', cardShuffle: ['none'] } }
+    expect(shuffleCard(s)).toBe(s)
   })
 })

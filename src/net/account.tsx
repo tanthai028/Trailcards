@@ -206,14 +206,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       await loadMember(client!, uid.current!)
     },
     // Save to the server first, and stop if that fails. Then the device goes back to a fresh
-    // guest (keeping its sound, haptics and motion settings), so nothing of the account shows;
+    // guest (keeping its sound and motion settings), so nothing of the account shows;
     // signing in again brings the progress back down.
     signOut: async () => {
       await pushing.current
       await push().catch(() => { throw new Error("Couldn't save your progress first. Check your connection and try again.") })
       await client?.auth.signOut()
       const s = latest.current
-      restore({ ...initialState(), sound: s.sound, haptics: s.haptics, reduceMotion: s.reduceMotion, tips: s.tips })
+      restore({ ...initialState(), sound: s.sound, reduceMotion: s.reduceMotion, tips: s.tips })
     },
   }), [status, email, me, client, loadMember, uid, push, restore])
 

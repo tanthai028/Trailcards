@@ -1,7 +1,7 @@
 // Tiny synthesized sound effects (Web Audio). No audio files: each sound is a few
 // oscillators or a noise burst through a soft echo, so it adds almost nothing to the bundle.
 // iOS only lets audio start inside a tap, and mutes web audio when the phone's ring/silent
-// switch is on silent; haptics (haptics.ts) carry the feedback then.
+// switch is on silent.
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null

@@ -13,11 +13,6 @@ export interface Cosmetic {
 /** Behind your icon (a photo covers it). */
 export const PIC_BGS: Cosmetic[] = [
   { id: 'none', name: 'Icon colour', unlock: null },
-  // early ones, so there's something new to try within the first sessions
-  { id: 'sunset', name: 'Sunset', unlock: { trophy: 'first-card' } },
-  { id: 'meadow', name: 'Meadow', unlock: { level: 2 } },
-  { id: 'berry', name: 'Berry', unlock: { trophy: 'ten-cards' } },
-  { id: 'sky', name: 'Sky', unlock: { level: 3 } },
   { id: 'aurora', name: 'Aurora', unlock: { level: 4 } },
   { id: 'galaxy', name: 'Galaxy', unlock: { level: 6 } },
   { id: 'ember', name: 'Ember', unlock: { trophy: 'streak-7' } },
@@ -28,7 +23,12 @@ export const PIC_BGS: Cosmetic[] = [
 /** An effect over the scene at the top of every Learn card. */
 export const CARD_FX: Cosmetic[] = [
   { id: 'none', name: 'Plain', unlock: null },
+  // early ones, so there's something new to try within the first sessions
+  { id: 'sparkles', name: 'Sparkles', unlock: { trophy: 'first-card' } },
   { id: 'fireflies', name: 'Fireflies', unlock: { level: 2 } },
+  { id: 'clouds', name: 'Clouds', unlock: { trophy: 'ten-cards' } },
+  { id: 'leaves', name: 'Leaves', unlock: { level: 3 } },
+  { id: 'rain', name: 'Rain', unlock: { trophy: 'streak-3' } },
   { id: 'snow', name: 'Snowfall', unlock: { trophy: 'mastery-10' } },
   { id: 'petals', name: 'Petals', unlock: { trophy: 'goal-days-30' } },
   { id: 'aurora', name: 'Aurora', unlock: { level: 8 } },
