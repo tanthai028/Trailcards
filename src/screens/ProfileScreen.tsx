@@ -40,7 +40,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
         <div className="relative flex items-end gap-4 px-4 pb-4 pt-14">
           <button onClick={() => setPicture(true)} aria-label="Customize your picture" className="relative shrink-0">
-            <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="size-28 drop-shadow-xl" />
+            <ProfilePic avatar={state.avatar} frame={state.frame} fx={state.cosmetics.iconFx} photo={state.photo} className="size-28 drop-shadow-xl" />
           </button>
           <div className="min-w-0 flex-1 pb-2">
             {editing ? (

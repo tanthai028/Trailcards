@@ -295,7 +295,7 @@ describe('habit and effort trophies', () => {
 describe('card theme and scene shuffle', () => {
   it('picks another unlocked theme from your picks, and leaves locked ones out', () => {
     // level 2 opens Fireflies and City night; Leaves and Snowy cabin need level 3
-    const s: GameState = { ...initialState(), xp: 120, cosmetics: { bg: 'none', card: 'none', title: 'none', scene: 'auto', cardShuffle: ['none', 'fireflies', 'leaves'], sceneShuffle: ['auto', 'city', 'cabin'] } }
+    const s: GameState = { ...initialState(), xp: 120, cosmetics: { iconFx: 'none', card: 'none', title: 'none', scene: 'auto', cardShuffle: ['none', 'fireflies', 'leaves'], sceneShuffle: ['auto', 'city', 'cabin'] } }
     for (let i = 0; i < 20; i++) {
       const next = shuffleLooks(s).cosmetics
       expect(next.card).toBe('fireflies')
@@ -303,7 +303,7 @@ describe('card theme and scene shuffle', () => {
     }
   })
   it('does nothing with fewer than two picks', () => {
-    const s: GameState = { ...initialState(), cosmetics: { bg: 'none', card: 'none', title: 'none', scene: 'auto', cardShuffle: ['none'] } }
+    const s: GameState = { ...initialState(), cosmetics: { iconFx: 'none', card: 'none', title: 'none', scene: 'auto', cardShuffle: ['none'] } }
     expect(shuffleLooks(s)).toBe(s)
   })
 })

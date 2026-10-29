@@ -5,29 +5,83 @@ import { useId } from 'react'
 import { AVATAR_BY_ID, DEFAULT_AVATAR, FRAME_BY_ID, isColorFrame, type Frame } from '../data/avatars'
 import { Icon } from './Icon'
 
-/** `bg`: an unlockable background behind the icon ('none' = the icon's own colour). */
-export function ProfilePic({ avatar, photo, frame = 'none', bg = 'none', className = '' }: { avatar: string; photo: string | null; frame?: Frame; bg?: string; className?: string }) {
+/** `fx`: an unlockable effect around the picture, behind and/or in front of it. */
+export function ProfilePic({ avatar, photo, frame = 'none', fx = 'none', className = '' }: { avatar: string; photo: string | null; frame?: Frame; fx?: string; className?: string }) {
   const framed = frame !== 'none' && (isColorFrame(frame) || frame in FRAME_BY_ID)
   const icon = AVATAR_BY_ID[avatar] ?? AVATAR_BY_ID[DEFAULT_AVATAR]
   const positioned = /\b(absolute|fixed)\b/.test(className)
   return (
     <span className={`${positioned ? '' : 'relative'} block shrink-0 select-none ${className}`} aria-hidden="true">
+      <IconFx fx={fx} back />
       {/* the picture sits a little inside when there's a frame around it */}
       <span className={`absolute overflow-hidden rounded-full ${framed ? 'inset-[9%]' : 'inset-0'}`}>
         {photo ? (
           <img src={photo} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
         ) : (
-          <span className={`absolute inset-0 grid place-items-center overflow-hidden ${bg !== 'none' ? `fx-bg-${bg}` : ''}`} style={bg === 'none' ? { background: `linear-gradient(145deg, ${icon.from}, ${icon.to})` } : undefined}>
-            {bg === 'galaxy' && [[22, 30, 0], [70, 22, 0.6], [30, 72, 1.1], [78, 64, 0.3], [52, 48, 1.6]].map(([x, y, d]) => (
-              <span key={`${x}${y}`} className="cq-twinkle absolute size-[5%] rounded-full bg-white" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${d}s` }} />
-            ))}
+          <span className="absolute inset-0 grid place-items-center overflow-hidden" style={{ background: `linear-gradient(145deg, ${icon.from}, ${icon.to})` }}>
             <Icon name={icon.glyph} className="relative h-[54%] w-[54%] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]" strokeWidth={2.2} />
           </span>
         )}
       </span>
       {framed && <FrameRing frame={frame} />}
+      <IconFx fx={fx} />
     </span>
   )
+}
+
+// x%, y%, delay s: spots around the edge of the picture
+const RIM: [number, number, number][] = [[8, 22, 0], [88, 14, 0.7], [96, 62, 1.4], [70, 94, 0.4], [4, 74, 1.1]]
+
+/**
+ * The picture's effect, sized from the picture so it fits a 44px leaderboard row and the big
+ * profile banner alike. `back` draws what glows behind the picture; the rest goes in front.
+ */
+function IconFx({ fx, back = false }: { fx: string; back?: boolean }) {
+  if (fx === 'none') return null
+  if (back) {
+    if (fx === 'glow') return <span className="fx-glow-pulse pointer-events-none absolute -inset-[10%] rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,220,140,.9) 45%, rgba(255,200,110,0) 70%)' }} />
+    if (fx === 'flame') return <span className="fx-flame-aura pointer-events-none absolute -inset-[12%] rounded-full" style={{ background: 'radial-gradient(circle at 50% 60%, rgba(255,150,60,.95) 40%, rgba(232,87,63,.5) 58%, rgba(232,87,63,0) 72%)' }} />
+    if (fx === 'rainbow') return (
+      <span className="pointer-events-none absolute -inset-[8%] rounded-full [mask:radial-gradient(circle,transparent_58%,#000_60%)]">
+        <span className="fx-orbit absolute inset-0 rounded-full" style={{ background: 'conic-gradient(#f08a80, #f5cd6a, #8dcfa1, #9cc8f2, #b9a7f2, #f08a80)', animationDuration: '6s' }} />
+      </span>
+    )
+    return null
+  }
+  const star = 'M0,-6 C1,-1 1,-1 6,0 C1,1 1,1 0,6 C-1,1 -1,1 -6,0 C-1,-1 -1,-1 0,-6Z'
+  if (fx === 'sparkle') return (
+    <span className="pointer-events-none absolute -inset-[8%]">
+      {RIM.map(([x, y, d], i) => (
+        <svg key={i} viewBox="-7 -7 14 14" className="cq-twinkle absolute size-[18%]" style={{ left: `${x}%`, top: `${y}%`, translate: '-50% -50%', animationDelay: `-${d}s` }}>
+          <path d={star} fill="#fff6c9" stroke="#f5b942" strokeWidth=".6" />
+        </svg>
+      ))}
+    </span>
+  )
+  if (fx === 'orbit') return (
+    <span className="fx-orbit pointer-events-none absolute -inset-[10%]" style={{ animationDuration: '4s' }}>
+      <svg viewBox="-7 -7 14 14" className="absolute left-1/2 top-0 size-[20%] -translate-x-1/2"><path d={star} fill="#fff" stroke="#b9a7f2" strokeWidth=".8" /></svg>
+      <span className="absolute bottom-[4%] left-1/2 size-[7%] -translate-x-1/2 rounded-full bg-[#9cc8f2]" />
+    </span>
+  )
+  if (fx === 'bubbles' || fx === 'snow') return (
+    <span className="pointer-events-none absolute -inset-[6%] overflow-hidden rounded-full">
+      {RIM.map(([x, , d], i) => (
+        <span key={i} className={`absolute rounded-full ${fx === 'snow' ? 'fx-icon-fall bg-white' : 'fx-icon-rise border border-white/80 bg-white/25'}`}
+          style={{ left: `${(x * 0.8 + 10) % 92}%`, width: `${fx === 'snow' ? 6 + (i % 2) * 3 : 9 + (i % 3) * 4}%`, aspectRatio: '1', animationDelay: `-${d * 1.6}s`, animationDuration: `${2.6 + (i % 3) * 0.7}s` }} />
+      ))}
+    </span>
+  )
+  if (fx === 'flame') return (
+    <span className="pointer-events-none absolute -inset-[6%]">
+      {[[18, 0], [50, 0.3], [82, 0.15]].map(([x, d]) => (
+        <svg key={x} viewBox="-6 -11 12 16" className="fx-flicker absolute bottom-0 size-[22%]" style={{ left: `${x}%`, translate: '-50% 20%', animationDelay: `${d}s` }}>
+          <path d="M0,-10 C4,-4 5,1 0,5 C-5,1 -4,-4 0,-10Z" fill="#f97316" /><path d="M0,-4 C2,-1 2,2 0,4 C-2,2 -2,-1 0,-4Z" fill="#fde047" />
+        </svg>
+      ))}
+    </span>
+  )
+  return null
 }
 
 /** The frame, drawn in a 100×100 box over the whole picture. */

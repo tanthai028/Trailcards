@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { useAccount, type Member } from '../net/account'
 import { errorText } from '../net/client'
 import { cleanAvatar, cleanFrame } from '../state/sanitize'
-import { PIC_BGS, TITLE_FX, known } from '../data/cosmetics'
+import { ICON_FX, TITLE_FX, known } from '../data/cosmetics'
 import { ProfilePic } from '../components/ProfilePic'
 import { Icon } from '../components/Icon'
 
@@ -70,7 +70,7 @@ export function RanksScreen() {
                   <span className="grid w-7 shrink-0 place-items-center font-display text-lg font-bold tabular-nums" style={{ color: MEDALS[i] }}>
                     {i < 3 && r.xp > 0 ? <Icon name="crown" size={18} /> : i + 1}
                   </span>
-                  <ProfilePic avatar={cleanAvatar(r.avatar?.icon)} frame={cleanFrame(r.avatar?.frame)} bg={known(PIC_BGS, r.avatar?.bg) ? r.avatar!.bg : 'none'} photo={r.photo_url} className="size-11" />
+                  <ProfilePic avatar={cleanAvatar(r.avatar?.icon)} frame={cleanFrame(r.avatar?.frame)} fx={known(ICON_FX, r.avatar?.fx) ? r.avatar!.fx : 'none'} photo={r.photo_url} className="size-11" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-extrabold">{r.name}{mine && <span className="text-cream/50"> (you)</span>}</span>
                     {r.title && <span className={`block truncate text-xs font-bold ${known(TITLE_FX, r.avatar?.titleFx) && r.avatar?.titleFx !== 'none' ? `fx-title-${r.avatar!.titleFx}` : 'text-gold/80'}`}>{r.title}</span>}

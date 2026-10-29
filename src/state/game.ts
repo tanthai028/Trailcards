@@ -73,7 +73,7 @@ export const initialState = (): GameState => ({
   studyPrefs: {},
   avatar: DEFAULT_AVATAR,
   frame: 'none',
-  cosmetics: { bg: 'none', card: 'none', title: 'none', scene: 'auto' },
+  cosmetics: { iconFx: 'none', card: 'none', title: 'none', scene: 'auto' },
   photo: null,
   reduceMotion: false,
   sound: true,
@@ -85,7 +85,8 @@ export const initialState = (): GameState => ({
 })
 
 export interface Cosmetics {
-  bg: string
+  /** An effect around your picture (replaced the old icon backgrounds). */
+  iconFx: string
   card: string
   title: string
   /** The Learn card scene: 'auto' follows each card's topic or deck. */

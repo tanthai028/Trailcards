@@ -6,7 +6,7 @@ import { useGame } from '../state/store'
 import { frameUnlocked, isUnlocked } from '../state/game'
 import { AVATARS, FRAME_COLORS, FRAMES, type Frame, type FrameUnlock } from '../data/avatars'
 import { ACH_BY_ID } from '../data/achievements'
-import { CARD_FX, CARD_SCENES, PIC_BGS, TITLE_FX, type Cosmetic } from '../data/cosmetics'
+import { CARD_FX, CARD_SCENES, ICON_FX, TITLE_FX, type Cosmetic } from '../data/cosmetics'
 import { SceneSvg, type SceneId } from '../art/Landscape'
 import { CardFx } from './CardFx'
 import { ProfilePic } from './ProfilePic'
@@ -56,7 +56,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       header={
         <div className="flex items-center gap-4">
-          <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="size-20" />
+          <ProfilePic avatar={state.avatar} frame={state.frame} fx={state.cosmetics.iconFx} photo={state.photo} className="size-20" />
           <div className="min-w-0 flex-1">
             <h2 className="font-display text-xl font-bold">Customize</h2>
             <p className="text-xs text-cream/55">Your picture, frame, title and card theme. Study to unlock more.</p>
@@ -89,9 +89,9 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
           {iconsMore}
         </Section>
 
-        <Section label={state.photo ? 'Icon background (shows when you use an icon)' : 'Icon background'}>
-          <CosmeticGrid list={PIC_BGS} value={state.cosmetics.bg} onPick={(bg) => setCosmetics({ bg })}
-            preview={(c) => <ProfilePic avatar={state.avatar} photo={null} bg={c.id} className="size-14" />} />
+        <Section label="Picture effect">
+          <CosmeticGrid list={ICON_FX} value={state.cosmetics.iconFx} onPick={(iconFx) => setCosmetics({ iconFx })}
+            preview={(c) => <ProfilePic avatar={state.avatar} photo={state.photo} frame={state.frame} fx={c.id} className="size-14" />} />
         </Section>
 
         <Section label="Frame">
@@ -116,7 +116,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
                 <button key={f.id} onClick={() => pick(f.id)} disabled={!open} aria-pressed={on}
                   className={`flex flex-col items-center gap-1 rounded-2xl p-2 ring-2 ${on ? 'bg-gold/10 ring-gold' : 'bg-white/5 ring-transparent'} disabled:cursor-not-allowed`}>
                   <span className={`relative ${open ? '' : 'opacity-40 grayscale'}`}>
-                    <ProfilePic avatar={state.avatar} frame={f.id} bg={state.cosmetics.bg} photo={state.photo} className="size-14" />
+                    <ProfilePic avatar={state.avatar} frame={f.id} fx={state.cosmetics.iconFx} photo={state.photo} className="size-14" />
                     {!open && <span className="absolute inset-0 grid place-items-center"><span className="grid size-7 place-items-center rounded-full bg-ink/80"><Icon name="lock" size={13} /></span></span>}
                   </span>
                   <span className="text-xs font-extrabold">{f.name}</span>

@@ -62,7 +62,7 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
   const c = 2 * Math.PI * 10
   return (
     <button onClick={onClick} className="relative shrink-0 rounded-full" style={{ width: size + 8, height: size + 8 }} aria-label={`Profile: ${state.name}, level ${lv.level}, ${lv.span - lv.into} XP to level ${lv.level + 1}`}>
-      <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="absolute inset-1" />
+      <ProfilePic avatar={state.avatar} frame={state.frame} fx={state.cosmetics.iconFx} photo={state.photo} className="absolute inset-1" />
       {/* the level badge: its ring fills with XP toward the next level */}
       <span className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full bg-ink">
         <svg viewBox="0 0 24 24" className="absolute inset-0 -rotate-90" aria-hidden="true">

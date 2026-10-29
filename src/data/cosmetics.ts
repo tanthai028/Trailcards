@@ -10,14 +10,16 @@ export interface Cosmetic {
   unlock: Unlock
 }
 
-/** Behind your icon (a photo covers it). */
-export const PIC_BGS: Cosmetic[] = [
-  { id: 'none', name: 'Icon colour', unlock: null },
-  { id: 'aurora', name: 'Aurora', unlock: { level: 4 } },
-  { id: 'galaxy', name: 'Galaxy', unlock: { level: 6 } },
-  { id: 'ember', name: 'Ember', unlock: { trophy: 'streak-7' } },
-  { id: 'ocean', name: 'Ocean', unlock: { trophy: 'mastery-50' } },
-  { id: 'holo', name: 'Holo', unlock: { level: 12 } },
+/** A little life around your picture, icon or photo alike: in front of it, or glowing behind. */
+export const ICON_FX: Cosmetic[] = [
+  { id: 'none', name: 'None', unlock: null },
+  { id: 'sparkle', name: 'Sparkle', unlock: { trophy: 'first-card' } },
+  { id: 'glow', name: 'Glow', unlock: { level: 2 } },
+  { id: 'bubbles', name: 'Bubbles', unlock: { trophy: 'ten-cards' } },
+  { id: 'orbit', name: 'Orbit', unlock: { level: 4 } },
+  { id: 'snow', name: 'Snow', unlock: { trophy: 'mastery-10' } },
+  { id: 'flame', name: 'Flame', unlock: { trophy: 'streak-7' } },
+  { id: 'rainbow', name: 'Rainbow', unlock: { level: 12 } },
 ]
 
 /** The scene at the top of every Learn card: by topic (each deck's own), or one place for all. */

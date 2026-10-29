@@ -236,40 +236,18 @@ body {
    Every .fx-* animation stops with Reduce motion (rules at the end). */
 
 /* picture backgrounds */
-.fx-bg-aurora {
-  background: linear-gradient(125deg, #6ee7b7, #60a5fa, #a78bfa, #f472b6, #6ee7b7);
-  background-size: 300% 300%;
-  animation: fx-pan 7s ease-in-out infinite alternate;
+/* picture effects: snow falling and bubbles rising inside the picture's circle, a flame aura */
+.fx-icon-fall {
+  animation: fx-icon-fall linear infinite;
 }
-.fx-bg-galaxy {
-  background: radial-gradient(circle at 30% 30%, #6d4bd1 0%, #2a1f5c 45%, #0d0a24 100%);
+.fx-icon-rise {
+  animation: fx-icon-rise ease-in infinite;
 }
-.fx-bg-galaxy::before {
-  content: '';
-  position: absolute;
-  inset: -30%;
-  background: conic-gradient(from 0deg, transparent 0 20%, rgba(244, 114, 182, 0.35) 30%, transparent 45%, rgba(96, 165, 250, 0.35) 70%, transparent 85%);
-  animation: fx-spin 14s linear infinite;
+.fx-flame-aura {
+  animation: fx-glow 1.1s ease-in-out infinite;
 }
-.fx-bg-ember {
-  background: radial-gradient(circle at 50% 70%, #ffd27a 0%, #f7934c 35%, #c2342b 75%, #5a1414 100%);
-  animation: fx-ember 2.4s ease-in-out infinite;
-}
-.fx-bg-ocean {
-  background: linear-gradient(180deg, #a5f3fc, #22d3ee 40%, #0e7490 75%, #164e63);
-  background-size: 100% 220%;
-  animation: fx-tide 5s ease-in-out infinite alternate;
-}
-.fx-bg-holo {
-  background: #c4b5fd;
-}
-.fx-bg-holo::before {
-  content: '';
-  position: absolute;
-  inset: -40%;
-  background: conic-gradient(#f9a8d4, #fde68a, #a7f3d0, #93c5fd, #c4b5fd, #f9a8d4);
-  animation: fx-spin 6s linear infinite;
-}
+@keyframes fx-icon-fall { from { top: -10%; opacity: 0; } 15% { opacity: 1; } to { top: 100%; opacity: 0; } }
+@keyframes fx-icon-rise { from { top: 100%; opacity: 0; } 20% { opacity: 1; } to { top: -12%; opacity: 0; } }
 
 /* animated frames (inside the frame's own box) */
 .fx-frame-neon {
