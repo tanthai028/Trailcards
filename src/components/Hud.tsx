@@ -4,39 +4,45 @@ import { useGame } from '../state/store'
 import { levelInfo } from '../state/game'
 import { ProfilePic } from './ProfilePic'
 
-/** Each increase of `value` since mount, kept for a moment so it can float up next to the counter. */
-function useGains(value: number) {
+/**
+ * The latest increase of `value`, shown for a moment so it can float under the counter. Only one
+ * at a time: a new gain replaces the chip, and a drop (Undo) clears it. Its timer lives outside
+ * the effect, since a cleanup on the next change used to cancel it and leave a chip behind.
+ */
+function useGain(value: number) {
   const prev = useRef(value)
-  const [gains, setGains] = useState<{ id: number; amount: number }[]>([])
+  const [gain, setGain] = useState<{ id: number; amount: number } | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     const amount = value - prev.current
     prev.current = value
-    if (amount <= 0) return
-    const id = performance.now()
-    setGains((g) => [...g, { id, amount }])
-    const t = setTimeout(() => setGains((g) => g.filter((x) => x.id !== id)), 1100)
-    return () => clearTimeout(t)
+    if (amount === 0) return
+    clearTimeout(timer.current)
+    if (amount < 0) { setGain(null); return }
+    setGain({ id: performance.now(), amount })
+    timer.current = setTimeout(() => setGain(null), 1400)
   }, [value])
-  return gains
+  useEffect(() => () => clearTimeout(timer.current), [])
+  return gain
 }
 
-/** "+10" chips that pop in under a counter and drift down as they fade. */
-function GainFloats({ gains, className, children }: { gains: { id: number; amount: number }[]; className: string; children: (amount: number) => React.ReactNode }) {
+/** A "+10" chip that pops in under a counter, just after the answer lands, and drifts down as it fades. */
+function GainFloat({ gain, className, children }: { gain: { id: number; amount: number } | null; className: string; children: (amount: number) => React.ReactNode }) {
   return (
     <AnimatePresence>
-      {gains.map((g) => (
+      {gain && (
         <motion.span
-          key={g.id}
+          key={gain.id}
           initial={{ opacity: 0, y: -6, scale: 0.7 }}
           animate={{ opacity: 1, y: 4, scale: 1 }}
-          exit={{ opacity: 0, y: 12, transition: { duration: 0.3 } }}
-          transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+          exit={{ opacity: 0, y: 12, transition: { duration: 0.25 } }}
+          transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.25 }}
           className={`pointer-events-none absolute left-1/2 top-full z-30 -ml-6 flex w-12 justify-center ${className}`}
           aria-hidden="true"
         >
-          <span className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-extrabold shadow-md">{children(g.amount)}</span>
+          <span className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-extrabold shadow-md">{children(gain.amount)}</span>
         </motion.span>
-      ))}
+      )}
     </AnimatePresence>
   )
 }
@@ -45,7 +51,7 @@ function GainFloats({ gains, className, children }: { gains: { id: number; amoun
 export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?: number }) {
   const { state } = useGame()
   const lv = levelInfo(state.xp)
-  const gains = useGains(state.xp)
+  const gain = useGain(state.xp)
   // remember the level we last showed, so only a real level-up pulses (not the first render)
   const shown = useRef(lv.level)
   const [pulse, setPulse] = useState(0)
@@ -66,7 +72,7 @@ export function AvatarLevel({ onClick, size = 40 }: { onClick: () => void; size?
         </svg>
         <span className="relative text-[10px] font-extrabold tabular-nums text-gold">{lv.level}</span>
       </span>
-      <GainFloats gains={gains} className="[&>span]:bg-lav [&>span]:text-[#22183a]">{(n) => `+${n} XP`}</GainFloats>
+      <GainFloat gain={gain} className="[&>span]:bg-lav [&>span]:text-[#22183a]">{(n) => `+${n} XP`}</GainFloat>
       <AnimatePresence>
         {pulse > 0 && (
           <motion.span

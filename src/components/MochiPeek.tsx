@@ -75,9 +75,10 @@ export function MochiPeek({ cheer, off, scroller }: { cheer: number; off: boolea
 
   if (off) return null
 
+  // warm like the "in a row" badge, so it doesn't read as the dark Undo button beside it
   const bubble = (text: string) => (
     <motion.span initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-      className="absolute bottom-full left-1/2 mb-1 w-max max-w-[11rem] -translate-x-1/2 rounded-2xl bg-ink px-2.5 py-1.5 text-center text-[11px] font-bold leading-snug text-cream shadow-lg">
+      className="absolute bottom-full left-1/2 mb-1 w-max max-w-[11rem] -translate-x-1/2 rounded-2xl bg-gradient-to-r from-peach to-gold px-2.5 py-1.5 text-center text-[11px] font-extrabold leading-snug text-[#5a3208] shadow-lg">
       {text}
     </motion.span>
   )

@@ -111,13 +111,16 @@ function Feed({ mode, setMode, go }: FeedProps) {
     if (result.correct && (run === 3 || run === 5 || run % 10 === 0)) setCheer(Date.now())
     setStreak(run)
     setAnswers((a) => ({ ...a, [i]: { choice, result, streak: run } }))
-    // celebrate from the button that was picked (tap or keyboard)
-    const btn = scroller.current?.querySelector(`[data-index="${i}"] [data-choice="${choice}"]`)
     haptic(result.correct ? 'success' : result.partial ? 'light' : 'error')
     if (result.correct) {
       playCorrect(run)
-      const r = btn?.getBoundingClientRect()
-      if (r) burst(r.left + r.width / 2, r.top + r.height / 2)
+      // A beat later, from where the picked answer has landed: the list swaps on answering, so
+      // the tapped button's old spot (low down for choice 4) is no longer where the green row is.
+      setTimeout(() => {
+        const btn = scroller.current?.querySelector(`[data-index="${i}"] [data-choice="${choice}"]:disabled`)
+        const r = btn?.getBoundingClientRect()
+        if (r) burst(r.left + r.width / 2, r.top + r.height / 2)
+      }, 280)
     } else if (result.partial) playChime(0)
     else playWrong()
   }
@@ -298,7 +301,7 @@ function Feed({ mode, setMode, go }: FeedProps) {
         active={active}
         reviewDue={counts.review}
         mode={mode}
-        lift={!!undo && undo.i === active}
+        undoUp={!!undo && undo.i === active}
         answeredHere={!!answers[active]}
         dismiss={dismissTip}
         onReview={() => setMode('review')}
@@ -441,8 +444,9 @@ function FeedCard({
         </div>
         <h2 className="mt-0.5 font-display text-[1.55em] font-bold leading-[1.1] text-ink">{card.title}</h2>
 
-        {/* Reading text before answering; the explanation takes its place after. */}
-        <AnimatePresence mode="wait" initial={false}>
+        {/* Reading text before answering; the explanation fades in over it as it fades out (popLayout
+            lifts the old text out of the flow), so there's no empty gap between the two. */}
+        <AnimatePresence mode="popLayout" initial={false}>
           {!result ? (
             <motion.p key="body" exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="mt-[0.5em] text-[0.92em] leading-[1.5] text-ink/75">
               {card.body}
@@ -801,8 +805,8 @@ function LearnTour({ active, onDone }: { active: number; onDone: () => void }) {
  * Review the first time something is due. Each is shown once. Anyone who has been through the
  * Learn tour already knows the basics, so they only get the Review one.
  */
-function Coach({ tips, answered, active, reviewDue, mode, lift, answeredHere, dismiss, onReview }: {
-  tips: string[]; answered: number; active: number; reviewDue: number; mode: FeedMode; lift: boolean; answeredHere: boolean
+function Coach({ tips, answered, active, reviewDue, mode, undoUp, answeredHere, dismiss, onReview }: {
+  tips: string[]; answered: number; active: number; reviewDue: number; mode: FeedMode; undoUp: boolean; answeredHere: boolean
   dismiss: (id: string) => void; onReview: () => void
 }) {
   const seen = (id: string) => tips.includes(id)
@@ -821,7 +825,8 @@ function Coach({ tips, answered, active, reviewDue, mode, lift, answeredHere, di
 
   // A beat after it's earned, so the answer's own feedback lands first. Plain notes go by themselves
   // after a while; the swipe one waits for a swipe and the Review one for a choice.
-  const id = tip?.id ?? null
+  // nothing while the Undo pill is up: one thing at a time along the bottom of the card
+  const id = undoUp ? null : tip?.id ?? null
   const plain = !!tip && !tip.swipe && !tip.action
   const [shown, setShown] = useState<string | null>(null)
   useEffect(() => {
@@ -835,12 +840,11 @@ function Coach({ tips, answered, active, reviewDue, mode, lift, answeredHere, di
 
   return (
     <AnimatePresence>
-      {tip && shown === tip.id && (
+      {tip && shown === tip.id && !undoUp && (
         <motion.div
           key={tip.id}
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.15 } }}
-          // sits above the Undo pill while that's showing
-          className={`pointer-events-auto absolute inset-x-6 z-30 flex items-center gap-3 rounded-3xl bg-ink-2 p-3 pl-4 text-cream shadow-[0_12px_30px_-8px_rgba(0,0,0,.6)] ring-1 ring-white/10 transition-[bottom] duration-200 ${lift ? 'bottom-[4.25rem]' : 'bottom-5'}`}
+          className="pointer-events-auto absolute inset-x-6 bottom-5 z-30 flex items-center gap-3 rounded-3xl bg-ink-2 p-3 pl-4 text-cream shadow-[0_12px_30px_-8px_rgba(0,0,0,.6)] ring-1 ring-white/10"
           role="status"
         >
           {tip.swipe && (
