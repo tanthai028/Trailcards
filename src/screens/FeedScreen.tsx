@@ -624,7 +624,7 @@ function SubLine({ mode, counts, setMode }: { mode: FeedMode; counts: Record<Fee
   const streak = currentStreak(state)
   const progress = mode === 'review'
     ? (counts.review ? `${counts.review} due` : 'All caught up')
-    : [`${Math.min(todayCount(state), DAILY_GOAL)}/${DAILY_GOAL}`, `${fresh} new`, counts.review ? `${counts.review} due` : ''].filter(Boolean).join(' · ')
+    : [`Today ${Math.min(todayCount(state), DAILY_GOAL)}/${DAILY_GOAL}`, `${fresh} new`, counts.review ? `${counts.review} due` : ''].filter(Boolean).join(' · ')
   const set = (patch: Partial<StudyPrefs>) => { setStudyPrefs(patch); setOpen(false) }
   const option = (on: boolean, label: string, onClick: () => void) => (
     <button role="menuitemradio" aria-checked={on} onClick={onClick}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame, type GameEvent } from '../state/store'
 import { ACH_BY_ID } from '../data/achievements'
@@ -65,17 +65,26 @@ export function EventLayer() {
 }
 
 function Toast({ e, onDone }: { e: GameEvent; onDone: () => void }) {
+  // Achievements and streaks wait a beat, so the answer's own XP and feedback land first
+  // instead of being covered by the toast over the Learn header.
+  const wait = e.kind === 'toast' ? 0 : 1100
+  const [shown, setShown] = useState(wait === 0)
   useEffect(() => {
-    if (e.kind === 'achievement' || e.kind === 'streak') playAchievement()
+    const t = setTimeout(() => {
+      setShown(true)
+      if (e.kind === 'achievement' || e.kind === 'streak') playAchievement()
+    }, wait)
+    return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => {
     // short confirmations vanish fast; longer hints stay long enough to read
-    const t = setTimeout(onDone, e.kind === 'toast' ? (e.text.length > 40 ? 4200 : 1600) : 3600)
+    const t = setTimeout(onDone, wait + (e.kind === 'toast' ? (e.text.length > 40 ? 4200 : 1600) : 3600))
     return () => clearTimeout(t)
     // onDone only removes this event by id, so the first closure is fine
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [e.id])
+  if (!shown) return null
 
   let body
   if (e.kind === 'achievement') {
