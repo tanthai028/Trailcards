@@ -49,7 +49,7 @@ function useEscape(onClose: () => void) {
 }
 
 /** Long deck names get smaller type, so the whole name fits in the header (deck names are at most 40 characters). */
-const titleSize = (name: string) => (name.length > 32 ? 'text-[16px]' : name.length > 20 ? 'text-[18px]' : 'text-[21px]')
+const titleSize = (name: string) => (name.length > 32 ? 'text-[17px]' : name.length > 20 ? 'text-[19px]' : 'text-[23px]')
 
 /** The deck name at the top of Learn (in full, over up to two lines) and the sheet it opens. */
 export function DeckPicker({ onSourceChange }: { onSourceChange: () => void }) {

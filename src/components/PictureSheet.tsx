@@ -59,7 +59,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
           <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="size-20" />
           <div className="min-w-0 flex-1">
             <h2 className="font-display text-xl font-bold">Customize</h2>
-            <p className="text-xs text-cream/55">Your picture, frame, title and Learn cards. Study to unlock more.</p>
+            <p className="text-xs text-cream/55">Your picture, frame, title and card theme. Study to unlock more.</p>
           </div>
         </div>
       }
@@ -133,7 +133,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
             preview={(c) => <span className="grid h-14 w-full place-items-center rounded-xl bg-ink/70 px-1"><span className={`truncate text-sm font-extrabold ${c.id === 'none' ? 'text-gold' : `fx-title-${c.id}`}`}>{state.title ?? 'Wanderer'}</span></span>} />
         </Section>
 
-        <Section label="Learn card scene">
+        <Section label="Theme">
           <ShuffleSwitch picks={sceneShuffle} onToggle={() => setCosmetics({ sceneShuffle: sceneShuffle.length ? [] : [state.cosmetics.scene] })} />
           <CosmeticGrid list={CARD_SCENES} value={state.cosmetics.scene} picked={sceneShuffle.length ? sceneShuffle : undefined}
             onPick={(scene) => {
@@ -150,7 +150,7 @@ export function PictureSheet({ onClose }: { onClose: () => void }) {
             )} />
         </Section>
 
-        <Section label="Learn card theme">
+        <Section label="Effects">
           <ShuffleSwitch picks={cardShuffle} onToggle={() => setCosmetics({ cardShuffle: cardShuffle.length ? [] : [state.cosmetics.card] })} />
           <CosmeticGrid list={CARD_FX} value={state.cosmetics.card} picked={cardShuffle.length ? cardShuffle : undefined}
             onPick={(card) => {
@@ -241,9 +241,12 @@ function CosmeticGrid({ list, value, picked, onPick, preview }: { list: Cosmetic
   )
 }
 
-/** The first `n` items, and a Show all / Show less toggle when there are more. Starts open if the chosen one is hidden. */
+/**
+ * The first `n` items, and a Show all / Show less toggle when there are more. Always starts
+ * collapsed; a chosen item past the first row is pulled into it so you still see your pick.
+ */
 function useMore<T>(items: T[], n: number, isOn: (t: T) => boolean) {
-  const [open, setOpen] = useState(() => items.findIndex(isOn) >= n)
+  const [open, setOpen] = useState(false)
   if (items.length <= n) return [items, null] as const
   const toggle = (
     <button onClick={() => setOpen(!open)} className="mt-2 flex min-h-9 w-full items-center justify-center gap-1 rounded-xl text-xs font-extrabold text-cream/60 hover:text-cream">
@@ -251,7 +254,9 @@ function useMore<T>(items: T[], n: number, isOn: (t: T) => boolean) {
       <Icon name="chevron" size={12} strokeWidth={3} className={open ? 'rotate-180' : ''} />
     </button>
   )
-  return [open ? items : items.slice(0, n), toggle] as const
+  const first = items.slice(0, n)
+  const hidden = items.slice(n).filter(isOn)
+  return [open ? items : hidden.length ? [...hidden, ...first].slice(0, n) : first, toggle] as const
 }
 
 function Section({ label, children }: { label: string; children: ReactNode }) {

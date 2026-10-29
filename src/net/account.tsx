@@ -8,7 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { EmailOtpType, SupabaseClient } from '@supabase/supabase-js'
 import { useGame } from '../state/store'
 import { parseStoredSave } from '../state/storage'
-import { initialState, type GameState } from '../state/game'
+import { initialState, shuffleLooks, type GameState } from '../state/game'
 import { errorText, getClient, online } from './client'
 
 export type AccountStatus = 'offline' | 'loading' | 'signedOut' | 'needsInvite' | 'member'
@@ -145,7 +145,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       const remote = row ? parseStoredSave(JSON.stringify(row.state)) : null
       const firstTimeHere = memo.get(id, 'xp') == null
       if (remote && remote.xp >= local.xp) {
-        restore({ ...remote, photo: local.photo })
+        // the server copy has last visit's looks; shuffle again so this visit gets a new pick
+        restore(shuffleLooks({ ...remote, photo: local.photo }))
         memo.set(id, 'xp', String(remote.xp))
       } else if (!remote) {
         // a brand-new account: XP earned before signing up goes on the all-time board once

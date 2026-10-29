@@ -38,7 +38,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
       <div className="grain relative rounded-[30px] [clip-path:inset(0_round_30px)]">
         <SceneSvg scene="meadow" className="absolute inset-0 h-full w-full" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
-        <div className="relative flex items-end gap-4 px-4 pb-4 pt-20">
+        <div className="relative flex items-end gap-4 px-4 pb-4 pt-14">
           <button onClick={() => setPicture(true)} aria-label="Customize your picture" className="relative shrink-0">
             <ProfilePic avatar={state.avatar} frame={state.frame} bg={state.cosmetics.bg} photo={state.photo} className="size-28 drop-shadow-xl" />
           </button>
@@ -83,7 +83,7 @@ export function ProfileScreen({ go }: { go: (t: Tab, m?: FeedMode) => void }) {
         <Icon name="spark" size={16} className="text-gold" />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-extrabold">Customize</span>
-          <span className="block truncate text-xs text-cream/55">Picture, frame, title glow and Learn card theme</span>
+          <span className="block truncate text-xs text-cream/55">Picture, frame, title, card theme and effects</span>
         </span>
         <Icon name="chevron" size={14} className="-rotate-90 text-cream/40" />
       </button>

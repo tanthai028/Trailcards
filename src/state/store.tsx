@@ -69,6 +69,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => localSave.save(state), [state])
 
+  // A home-screen app is mostly resumed, not reopened: coming back after a while counts as a
+  // new visit, so shuffled looks get a new pick then too.
+  useEffect(() => {
+    let hiddenAt = 0
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') hiddenAt = Date.now()
+      else if (hiddenAt && Date.now() - hiddenAt > 30 * 60_000) {
+        const next = G.shuffleLooks(stateRef.current)
+        if (next !== stateRef.current) { stateRef.current = next; setState(next) }
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
+
   const commit = useCallback((s: G.GameState) => {
     stateRef.current = s
     setState(s)

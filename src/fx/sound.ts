@@ -33,17 +33,18 @@ function audio() {
     master.connect(echo).connect(tone).connect(feedback).connect(echo)
     tone.connect(wet).connect(ctx.destination)
   }
-  if (ctx.state === 'suspended') void ctx.resume()
+  // 'suspended', or iOS's 'interrupted' after the app was in the background
+  if (ctx.state !== 'running') void ctx.resume()
   return ctx
 }
 
-// Wake audio on taps until it's actually running (iOS ignores the first touch-down).
+// Wake audio on any gesture, every time it isn't running: iOS suspends it again whenever the app
+// goes to the background, so waking only once left the first swipe after a return silent. Capture
+// phase, so it runs before the swipe handler that plays the swish. A swipe on iOS may still not
+// count as a gesture that can start audio; a tap always does.
 if (typeof window !== 'undefined') {
-  const wake = () => {
-    const c = audio()
-    if (c?.state === 'running') for (const e of ['pointerup', 'touchend', 'keydown'] as const) window.removeEventListener(e, wake)
-  }
-  for (const e of ['pointerup', 'touchend', 'keydown'] as const) window.addEventListener(e, wake, { passive: true })
+  const wake = () => { if (!ctx || ctx.state !== 'running') audio() }
+  for (const e of ['touchstart', 'touchend', 'pointerdown', 'pointerup', 'keydown'] as const) window.addEventListener(e, wake, { passive: true, capture: true })
 }
 
 /** One enveloped oscillator note. */
