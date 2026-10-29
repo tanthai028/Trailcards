@@ -93,29 +93,34 @@ export function playChime(i = 0) {
   mallet(880 + i * 60, 0, 0.09)
 }
 
-/** Moving to another card: a very quiet airy swish. */
+/**
+ * Moving to another card: a soft card flick. A short, low wooden thock for the card landing and
+ * a faint papery tick on top, nudged a little in pitch each time so a run of swipes doesn't
+ * sound like the same sample on repeat. (A filtered-noise whoosh sounded cheap.)
+ */
 export function playSwipe() {
   const c = audio()
   if (!c || !master) return
   const t = c.currentTime
-  const len = Math.floor(c.sampleRate * 0.2)
+  const vary = 2 ** ((Math.random() - 0.5) / 12)
+  tone(210 * vary, { dur: 0.11, gain: 0.08, slideTo: 150 * vary, attack: 0.004 })
+  tone(630 * vary, { dur: 0.045, type: 'triangle', gain: 0.018, attack: 0.002 })
+  // the tick: 20ms of noise, kept to the papery middle-high band
+  const len = Math.floor(c.sampleRate * 0.02)
   const buf = c.createBuffer(1, len, c.sampleRate)
   const data = buf.getChannelData(0)
-  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len)
   const src = c.createBufferSource()
   src.buffer = buf
   const band = c.createBiquadFilter()
   band.type = 'bandpass'
-  band.Q.value = 0.8
-  band.frequency.setValueAtTime(500, t)
-  band.frequency.exponentialRampToValueAtTime(1800, t + 0.18)
+  band.frequency.value = 3200
+  band.Q.value = 1.2
   const env = c.createGain()
-  env.gain.setValueAtTime(0.0001, t)
-  env.gain.exponentialRampToValueAtTime(0.045, t + 0.04)
-  env.gain.exponentialRampToValueAtTime(0.0001, t + 0.2)
+  env.gain.value = 0.035
   src.connect(band).connect(env).connect(master)
   src.start(t)
-  src.stop(t + 0.22)
+  src.stop(t + 0.03)
 }
 
 /** Level up: a rising fanfare that lands on a ringing chord. */
