@@ -35,7 +35,7 @@ export function Onboarding({ onSignIn }: { onSignIn: () => void }) {
         onSubmit={(e) => { e.preventDefault(); finishOnboarding(name, avatar) }}
       >
         <p className="text-xs font-black text-peach">Study anything, one card at a time</p>
-        <h1 id="welcome-title" className="mt-1 font-display text-5xl font-bold leading-none">Wayfarer</h1>
+        <h1 id="welcome-title" className="mt-1 font-display text-5xl font-bold leading-none">Trailcards</h1>
         <p className="mt-2 text-[15px] leading-snug text-cream/80 [@media(max-height:600px)]:hidden">
           Bite-sized cards on whatever you're learning, with a daily streak and Mochi for company.
         </p>

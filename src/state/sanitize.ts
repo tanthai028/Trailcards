@@ -19,7 +19,7 @@ const strArr = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter((x): x i
 
 const MASTERY: Mastery[] = ['new', 'learning', 'familiar', 'mastered']
 
-/** Does this look like a Wayfarer save at all? (Backup restore rejects unrelated JSON files.) */
+/** Does this look like a Trailcards save at all? (Backup restore rejects unrelated JSON files.) */
 export function looksLikeSave(v: unknown): v is Raw {
   return isObj(v) && (typeof v.xp === 'number' || isObj(v.cards) || isObj(v.look) || Array.isArray(v.owned))
 }

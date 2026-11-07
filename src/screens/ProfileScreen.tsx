@@ -240,12 +240,12 @@ function Backup({ state, onRestore }: { state: GameState; onRestore: (s: GameSta
   const file = useRef<HTMLInputElement>(null)
 
   const save = async () => {
-    const name = `wayfarer-backup-${new Date().toISOString().slice(0, 10)}.json`
+    const name = `trailcards-backup-${new Date().toISOString().slice(0, 10)}.json`
     const blob = new Blob([backupText(state)], { type: 'application/json' })
     const f = new File([blob], name, { type: 'application/json' })
     try {
       // iPhone: the share sheet offers "Save to Files"; elsewhere fall back to a download
-      if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: 'Wayfarer backup' })
+      if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: 'Trailcards backup' })
       else {
         const a = document.createElement('a')
         a.href = URL.createObjectURL(blob)
@@ -264,7 +264,7 @@ function Backup({ state, onRestore }: { state: GameState; onRestore: (s: GameSta
   const pick = async (f: File | undefined) => {
     if (!f) return
     const s = parseSave(await f.text())
-    if (s) { setPending(s); setMsg(null) } else setMsg('That file isn’t a Wayfarer backup.')
+    if (s) { setPending(s); setMsg(null) } else setMsg('That file isn’t a Trailcards backup.')
     if (file.current) file.current.value = ''
   }
 

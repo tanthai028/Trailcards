@@ -8,12 +8,13 @@ export interface SaveAdapter {
   clear(): void
 }
 
+// Keys and the backup `app` tag keep the app's original name (Wayfarer) so existing saves and backups still load.
 const KEY = 'wayfarer.save.v1'
 
 /**
  * Read a saved game (from storage or a backup file). Every field is checked and anything
  * missing or malformed falls back to its default (see sanitize.ts), so older or damaged saves
- * load instead of crashing. Returns null only for text that isn't a Wayfarer save at all.
+ * load instead of crashing. Returns null only for text that isn't a Trailcards save at all.
  */
 export function parseSave(raw: string): GameState | null {
   try {

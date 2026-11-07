@@ -1,6 +1,6 @@
-<img src="public/icon-192.png" alt="Wayfarer icon" width="64" align="left" style="margin-right:12px">
+<img src="public/icon-192.png" alt="Trailcards icon" width="64" align="left" style="margin-right:12px">
 
-# Wayfarer
+# Trailcards
 
 **Study anything by scrolling: one card, one idea, one swipe at a time.**
 
@@ -18,7 +18,7 @@ React · TypeScript · Vite · Tailwind · Framer Motion · Supabase · PWA
 
 Flashcard apps work, but opening one feels like homework. Scrolling a feed doesn't. I wanted studying to take the same zero effort to start: open the app, read one short card, answer it, swipe, and before you notice you've done ten.
 
-So Wayfarer is a feed, not a deck list. Every card teaches one idea in a few sentences, asks one question, and explains the answer right there. Cards you learn come back on a spaced schedule, and a small cast of things (a streak, levels, unlockable scenes, a cat named Mochi) gives you a reason to come back tomorrow.
+So Trailcards is a feed, not a deck list. Every card teaches one idea in a few sentences, asks one question, and explains the answer right there. Cards you learn come back on a spaced schedule, and a small cast of things (a streak, levels, unlockable scenes, a cat named Mochi) gives you a reason to come back tomorrow.
 
 ## In 30 seconds
 

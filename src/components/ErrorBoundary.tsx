@@ -3,6 +3,7 @@
 // when loading the save is what failed.
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
+// Storage keys keep the app's original name (Wayfarer) so existing saves still load.
 const KEY = 'wayfarer.save.v1'
 /** Where a reset keeps the save it replaced, so nothing is lost for good. */
 const BROKEN_KEY = 'wayfarer.save.broken'
@@ -17,7 +18,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Wayfarer crashed:', error, info.componentStack)
+    console.error('Trailcards crashed:', error, info.componentStack)
   }
 
   /** Save the stored data exactly as it is, without trying to read it. */
@@ -31,7 +32,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     const blob = new Blob([raw || '{}'], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `wayfarer-save-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `trailcards-save-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     setTimeout(() => URL.revokeObjectURL(a.href), 1000)
   }
@@ -55,7 +56,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
         <div className="w-full max-w-sm text-center">
           <h1 className="font-display text-3xl font-bold">Something went wrong</h1>
           <p className="mt-3 text-[15px] leading-relaxed text-[#fbf3e6]/70">
-            Wayfarer hit an error and couldn’t open. Your progress is still saved on this device. Try again, or download a copy of your save before resetting.
+            Trailcards hit an error and couldn’t open. Your progress is still saved on this device. Try again, or download a copy of your save before resetting.
           </p>
           <div className="mt-6 space-y-2">
             <button onClick={() => location.reload()} className={`${btn} bg-[#f5cd6a] text-[#3a2a12]`}>Try again</button>

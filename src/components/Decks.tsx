@@ -14,10 +14,11 @@ import { errorText } from '../net/client'
 import { JoinSheet } from './JoinSheet'
 
 /** A deck file: what Export writes and Import reads back (on any device, signed in or not). */
+// File format ID. It keeps the app's original name so deck files made before the rename still import.
 const DECK_FILE = 'wayfarer-deck'
 function deckFile(d: UserDeck) {
   const body = JSON.stringify({ app: DECK_FILE, version: 1, deck: { name: d.name, topic: d.topic, scene: d.scene, reverse: d.reverse, cards: d.cards } }, null, 1)
-  return new File([body], `${d.name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'deck'}.wayfarer.json`, { type: 'application/json' })
+  return new File([body], `${d.name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'deck'}.trailcards.json`, { type: 'application/json' })
 }
 /** Read a deck file; null when the text is something else (cards to paste, say). */
 function readDeckFile(text: string): UserDeck | null {
@@ -617,7 +618,7 @@ export function DeckImport({ onClose, onImported, initialMode = 'ai' }: { onClos
 
   const fileInput = useRef<HTMLInputElement>(null)
   const [fileNote, setFileNote] = useState<string | null>(null)
-  // A Wayfarer deck file imports straight away; any other text file goes in the box to check first.
+  // A Trailcards deck file imports straight away; any other text file goes in the box to check first.
   const openFile = async (f: File | undefined) => {
     if (!f) return
     setFileNote(null)

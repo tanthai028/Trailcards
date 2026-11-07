@@ -26,7 +26,7 @@ describe('parseSave', () => {
     }
   })
 
-  it('rejects text that is not a Wayfarer save', () => {
+  it('rejects text that is not a Trailcards save', () => {
     for (const text of ['', 'nope', '42', 'null', '[]', '{"hello":1}', '{"app":"wayfarer","state":"x"}']) expect(parseSave(text)).toBeNull()
   })
 
