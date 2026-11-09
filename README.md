@@ -7,7 +7,7 @@
 React · TypeScript · Vite · Tailwind · Framer Motion · Supabase · PWA
 
 <p>
-  <img src="docs/learn.jpg" alt="A Learn card with a campground scene at the top, a short reading about three kinds of rock, and four answer choices" width="240">
+  <img src="docs/feed.webp" alt="A Trailcards study card on a phone: a short note on why the sky is blue, then a four-choice question" width="240">
   &nbsp;
   <img src="docs/answer.jpg" alt="The same card after a right answer: confetti, Mochi the cat with the explanation, and the chosen answer marked green" width="240">
   &nbsp;
